@@ -9,6 +9,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from lingualoop.core.domain import MaterialSourceType, SubtitleCue
+from lingualoop.core.knowledge import SourceSection
+from lingualoop.core.source_reference import sections_from_titles
 
 
 @dataclass(frozen=True)
@@ -20,6 +22,7 @@ class ImportedMaterial:
     source_path: str
     diagnostics: list[str]
     subtitle_cues: list[SubtitleCue] = field(default_factory=list)
+    source_sections: list[SourceSection] = field(default_factory=list)
 
 
 def import_material_file(path: Path | str) -> ImportedMaterial:
@@ -42,6 +45,7 @@ def import_material_file(path: Path | str) -> ImportedMaterial:
         raise ValueError("导入文件超过 60 MiB，请按卷拆分后导入。")
     cues: list[SubtitleCue] = []
     metadata_title = None
+    headings: list[tuple[str, int]] = []
     if suffix in {".md", ".markdown", ".txt", ".srt", ".vtt"}:
         data = file_path.read_bytes()
         raw = data.decode("utf-16" if data.startswith((b"\xff\xfe", b"\xfe\xff")) else "utf-8-sig")
@@ -54,10 +58,10 @@ def import_material_file(path: Path | str) -> ImportedMaterial:
                     for event in subtitles if event.plaintext.strip() and not event.is_comment]
             source_type = MaterialSourceType.SUBTITLE
     elif suffix == ".docx":
-        raw = _read_docx(file_path)
+        raw = _read_docx(file_path, headings)
         source_type = MaterialSourceType.NOTE
     elif suffix == ".epub":
-        raw, metadata_title = _read_epub(file_path)
+        raw, metadata_title = _read_epub(file_path, headings)
         source_type = MaterialSourceType.ARTICLE
     elif suffix == ".xlsx":
         raw = _read_xlsx(file_path)
@@ -73,6 +77,12 @@ def import_material_file(path: Path | str) -> ImportedMaterial:
         normalized, diagnostics = normalize_material(raw, suffix)
     if not normalized:
         raise ValueError("The selected material does not contain readable text.")
+    if suffix in {".md", ".markdown"}:
+        for line in raw.splitlines():
+            match = re.match(r"^\s{0,3}(#{1,6})\s+(.+)$", line)
+            if match:
+                label, _ = normalize_material(match.group(2), suffix)
+                headings.append((label, len(match.group(1))))
     return ImportedMaterial(
         title=metadata_title or file_path.stem.replace("_", " ").replace("-", " ").strip() or "Imported material",
         raw_content=raw,
@@ -81,6 +91,7 @@ def import_material_file(path: Path | str) -> ImportedMaterial:
         source_path=str(file_path.resolve()),
         diagnostics=diagnostics,
         subtitle_cues=cues,
+        source_sections=sections_from_titles(normalized, headings),
     )
 
 
@@ -102,13 +113,19 @@ def normalize_material(raw: str, suffix: str = ".md") -> tuple[str, list[str]]:
     return normalized, diagnostics
 
 
-def _read_docx(path: Path) -> str:
+def _read_docx(path: Path, headings: list[tuple[str, int]] | None = None) -> str:
     try:
         from docx import Document
     except ImportError as exc:
         raise RuntimeError("DOCX import requires the python-docx dependency.") from exc
 
     document = Document(path)
+    if headings is not None:
+        for paragraph in document.paragraphs:
+            name = paragraph.style.name if paragraph.style else ""
+            match = re.match(r"Heading ([1-6])", name)
+            if match and paragraph.text.strip():
+                headings.append((paragraph.text.strip(), int(match.group(1))))
     blocks = [paragraph.text.strip() for paragraph in document.paragraphs if paragraph.text.strip()]
     for table in document.tables:
         for row in table.rows:
@@ -152,14 +169,22 @@ class _ReadableHTML(HTMLParser):
         super().__init__()
         self.parts = []
         self.hidden = 0
+        self.headings = []
+        self.heading = None
 
     def handle_starttag(self, tag, attrs):
+        if tag in {"h1", "h2", "h3"} and not self.hidden:
+            self.heading = (len(self.parts) + 1, int(tag[1]))
         if tag in {"script", "style", "rt", "rp"}:
             self.hidden += 1
         elif tag in {"p", "div", "br", "h1", "h2", "h3", "li"} and not self.hidden:
             self.parts.append("\n")
 
     def handle_endtag(self, tag):
+        if tag in {"h1", "h2", "h3"} and self.heading:
+            offset, level = self.heading
+            self.headings.append(("".join(self.parts[offset:]).strip(), level))
+            self.heading = None
         if tag in {"script", "style", "rt", "rp"}:
             self.hidden = max(0, self.hidden - 1)
         elif tag in {"p", "div", "h1", "h2", "h3", "li"} and not self.hidden:
@@ -170,7 +195,7 @@ class _ReadableHTML(HTMLParser):
             self.parts.append(data)
 
 
-def _read_epub(path: Path) -> tuple[str, str | None]:
+def _read_epub(path: Path, headings: list[tuple[str, int]] | None = None) -> tuple[str, str | None]:
     _check_archive(path)
     with zipfile.ZipFile(path) as archive:
         root = ElementTree.fromstring(archive.read("META-INF/container.xml"))
@@ -192,6 +217,8 @@ def _read_epub(path: Path) -> tuple[str, str | None]:
             member = normpath(join(dirname(rootfile), href.split("#")[0]))
             parser = _ReadableHTML()
             parser.feed(archive.read(member).decode("utf-8-sig"))
+            if headings is not None:
+                headings.extend(parser.headings)
             text = "".join(parser.parts).strip()
             if text:
                 blocks.append(text)

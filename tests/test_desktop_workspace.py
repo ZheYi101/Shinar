@@ -1,0 +1,174 @@
+"""Real QML source and workspace interaction, with independent local stores."""
+from PySide6.QtCore import QPointF, Qt, QMetaObject, Q_ARG, Q_RETURN_ARG, QRectF
+from PySide6.QtTest import QTest
+
+from test_desktop_workflow import (  # noqa: F401
+    desktop, qt_app, item, until, load_and_start, workspace_of,
+)
+from lingualoop.application.source_document import python_to_utf16
+
+
+def visible_item(window, name):
+    pending = [window.contentItem()]
+    while pending:
+        obj = pending.pop()
+        if obj.objectName() == name and obj.isVisible():
+            return obj
+        pending.extend(obj.childItems())
+    raise AssertionError(name)
+
+
+def source_ready(ws):
+    until(lambda: ws._document_ready and bool(ws.sourceText))
+    QTest.qWait(60)
+
+
+def test_native_source_selection_copy_and_history_are_separate(desktop):
+    vm, window, *_ = desktop
+    vm._stt = vm._tts = None
+    load_and_start(vm, window)
+    ws = workspace_of(window)
+    window.setWidth(1440)
+    ws.toggleSource()
+    source_ready(ws)
+    editor = visible_item(window, "sourceDocument")
+    def position(offset):
+        rect = QMetaObject.invokeMethod(editor, "positionToRectangle", Q_RETURN_ARG(QRectF), Q_ARG(int, offset))
+        return editor.mapToScene(QPointF(rect.x(), rect.y()+rect.height()/2)).toPoint()
+    for start, stop in ((1, 8), (8, 1)):
+        QTest.mousePress(window, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, position(start))
+        QTest.mouseMove(window, position(stop), 80)
+        QTest.mouseRelease(window, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, position(stop))
+        QTest.qWait(30)
+        assert ws.snapshot().focus_kind == "text"
+        assert ws.snapshot().quote == ws.sourceText[1:8]
+    QTest.mouseClick(window, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, position(12))
+    assert ws.snapshot().focus_kind == "paragraph"
+    editor.forceActiveFocus()
+    editor.setProperty("cursorPosition", 0)
+    for _ in range(5):
+        QTest.keyClick(window, Qt.Key.Key_Right, Qt.KeyboardModifier.ShiftModifier)
+    assert ws.snapshot().quote == ws.sourceText[:5]
+    QTest.keyClick(window, Qt.Key.Key_C, Qt.KeyboardModifier.ControlModifier)
+    # Verify native clipboard through the existing QApplication instance.
+    from PySide6.QtGui import QGuiApplication
+    assert QGuiApplication.clipboard().text() == ws.sourceText[:5]
+    first = ws.snapshot()
+    vm.draft = "I want to discuss this passage."
+    vm.sendMessage(vm.draft)
+    until(lambda: not vm.busy)
+    assert vm.messages[1]["source"]["quote"] == first.quote
+    ws.selectSource(5, 10)
+    current = ws.snapshot()
+    ws.previewMessage(vm.messages[1]["id"])
+    source_ready(ws)
+    assert ws.historicalSource and ws.snapshot() == current
+    ws.closePreview()
+    source_ready(ws)
+    assert not ws.historicalSource and ws.snapshot() == current
+    ws.toggleSource()
+    assert vm.sessionActive and vm.draft == ""
+
+
+def test_failed_turn_keeps_original_source_and_newer_draft(desktop):
+    vm, window, scaffold, provider, *_ = desktop
+    vm._stt = vm._tts = None
+    load_and_start(vm, window)
+    ws = workspace_of(window)
+    ws.toggleSource()
+    source_ready(ws)
+    ws.selectSource(0, 8)
+    original = ws.snapshot()
+    provider.fail_reply = True
+    vm.draft = "Please discuss the first passage."
+    vm.sendMessage(vm.draft)
+    ws.selectSource(8, 16)
+    newer = ws.snapshot()
+    vm.draft = "A second, unsent thought."
+    until(lambda: not vm.busy)
+    assert vm.errorMessage and len(vm.messages) == 2
+    vm.retryOperation()
+    until(lambda: not vm.busy)
+    assert vm.draft == "A second, unsent thought."
+    assert ws.snapshot() == newer
+    assert vm.messages[1]["source"]["quote"] == original.quote
+    assert len(vm.messages) == 3
+
+
+def test_import_and_scope_do_not_replace_foreground_thread(desktop, tmp_path):
+    vm, window, *_ = desktop
+    vm._stt = vm._tts = None
+    load_and_start(vm, window)
+    ws = workspace_of(window)
+    thread_id = vm._workbench.session.id
+    vm.draft = "An unfinished draft."
+    ws.navigate("import")
+    ws.setImportMode("paste")
+    ws.importText = "Chapter One\n\n日本語😀と中文。\n\nRepeated.\n\nRepeated."
+    ws.importTitle = "Another material"
+    ws.navigate("library")
+    ws.navigate("import")
+    assert "Repeated." in ws.importText
+    ws.commitImport()
+    until(lambda: not vm.busy)
+    source_ready(ws)
+    imported_id = ws.browsingMaterialId
+    assert ws.route == "scope" and imported_id != vm.selectedMaterialId
+    assert vm._workbench.session.id == thread_id and vm.draft == "An unfinished draft."
+    ws.locateSentence("Repeated.")
+    assert ws.error and ws.pendingEnd == 0
+    ws.selectSource(0, python_to_utf16(ws.sourceText, ws.sourceText.index("Repeated.")))
+    assert ws.pendingEnd > 0
+    assert not ws.material["confirmed"]
+    ws.navigate("material")
+    assert not ws.material["confirmed"]
+    ws.openScope()
+    ws.saveScope()
+    until(lambda: not vm.busy)
+    assert ws.material["confirmed"]
+    assert vm._workbench.session.id == thread_id
+    ws.newThreadPage()
+    ws.startThread()
+    until(lambda: not vm.busy)
+    assert vm._workbench.session.material_id == imported_id
+    ws.openThread(thread_id)
+    assert vm.draft == "An unfinished draft."
+
+
+def test_chapter_selection_search_clear_and_large_document(desktop):
+    vm, window, *_ = desktop
+    vm._stt = vm._tts = None
+    text = "Chapter One\n\n" + ("A readable sentence 😀.\n\n" * 3000) + "Chapter Two\n\n終わり。"
+    vm.loadMaterial("Long", text, "english", "english", "chinese", "B1")
+    until(lambda: not vm.busy, timeout=30000)
+    ws = workspace_of(window)
+    ws.browseMaterial(vm.selectedMaterialId)
+    ws.openScope()
+    source_ready(ws)
+    ws.markAllRead()
+    ws.saveScope()
+    until(lambda: not vm.busy, timeout=30000)
+    ws.newThreadPage()
+    ws.startThread()
+    until(lambda: not vm.busy, timeout=30000)
+    ws.toggleSource()
+    source_ready(ws)
+    assert len(ws.sourceText) == 40000 and ws.sourceHasMore
+    original = ws.sourceText
+    ws.loadMoreSource()
+    assert ws.sourceText.startswith(original) and len(ws.sourceText) > 40000
+    chapter = ws.sections[1]
+    calls = vm._workbench._provider
+    ws.selectSection(chapter["id"])
+    source_ready(ws)
+    assert ws.snapshot().base.start_char == chapter["start_char"]
+    ws.selectSource(0, 0)
+    assert ws.snapshot().focus is not None
+    ws.clearSource()
+    assert ws.snapshot().base is not None and ws.snapshot().focus is None
+    ws.clearSource()
+    assert ws.snapshot() is None
+    ws.searchSource("終わり")
+    until(lambda: len(ws.searchResults) == 1)
+    assert ws.searchResults[0]["start"] == text.index("終わり")
+    assert calls is vm._workbench._provider

@@ -9,27 +9,32 @@ ScrollView {
     id: page
     objectName: "reviewScroll"
     property bool expanded: false
+    property bool queueOnly: false
     clip: true
     contentWidth: availableWidth
     ColumnLayout {
         width: page.availableWidth
         spacing: AppTheme.sectionGap
-        MLabel { text: "把想说的话，留到下次更自然地说出来"; role: "headline" }
+        RowLayout { visible: !page.queueOnly
+            MButton { text: "‹ 对话"; variant: "text"; onClicked: workspace.navigate("chat") }
+        }
         MCard {
+            visible: !page.queueOnly
+            color: "transparent"; padding: 0
             MLabel { text: "本轮小结"; role: "title" }
             MLabel { text: learningViewModel.reviewSummary }
             MButton { text: "导出会话"; variant: "text"; enabled: learningViewModel.hasSession && !learningViewModel.busy; onClicked: exportDialog.open() }
         }
         Repeater {
-            model: learningViewModel.feedbackItems
+            model: page.queueOnly ? [] : learningViewModel.feedbackItems
             MCard {
                 required property var modelData
                 MLabel { text: modelData.original + " → " + modelData.corrected; role: "title" }
                 MLabel { text: modelData.explanation; role: "supporting" }
             }
         }
-        MLabel { text: "表达复习 · 今日到期 " + learningViewModel.dueReviewCount + " 项"; role: "title" }
-        MLabel { visible: learningViewModel.reviewItems.length === 0; text: "暂时没有待复习项。继续按自己的节奏沉浸，想聊时再回来。"; role: "supporting" }
+        MLabel { text: "今日到期 " + learningViewModel.dueReviewCount + " 项"; role: "title" }
+        MLabel { visible: learningViewModel.reviewItems.length === 0; text: "暂无待复习项"; role: "supporting" }
         Repeater {
             model: page.expanded ? learningViewModel.reviewItems : learningViewModel.reviewItems.slice(0, 3)
             ReviewCard { required property var modelData; review: modelData }

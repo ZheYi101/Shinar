@@ -1,5 +1,18 @@
 # Technical Decisions
 
+<a id="decision-0026"></a>
+
+## Decision 0026: 暖纸 QML 工作区与独立桌面状态
+
+- Status: Accepted（首批实现；最终视觉与真人连续语音未验收）
+- Date: 2026-10-29
+
+在 Decision 0020–0022 的交互与暂定视觉方向上，保留 PySide6/QML/Material 技术栈，引入 `DesktopWorkspaceController` 管理页面、浏览材料、每线程草稿和原文视图；业务记录继续通过 Workbench 和 SQLite。按材料组织多段对话，导入与范围核对在主区完成，设置按类别排列。
+
+来源定位使用稳定字符范围及 Qt UTF-16 映射；发送时冻结快照，历史回看不覆盖当前选区。已有 Qt 分轮语音和模型/计算设置保留，不因重构就宣称已接入基础语音协调器或连续麦克风。
+
+内置中日文字体、OFL 许可、原创图标及来源记录随 wheel 分发。完整离线回归与隔离安装资源检查通过，说明见[工作区指南](../desktop/WORKSPACE.md)及[合并检查](../validation/engineering/WORKSPACE_INTEGRATION_2026-10-29.md)。设计稿中未覆盖细节、真人连续语音和最终视觉确认仍单独验收。
+
 ## Decision 0024: 基础 Python 语音、确认事务与可验证本机 RTC
 
 - Status: Accepted（Python 基础实现；未接 QML/持续设备音频）

@@ -19,6 +19,7 @@ from lingualoop.cli import build_provider
 # Keep DLL directory handles alive for the lifetime of the process. Windows
 # otherwise removes an added DLL directory as soon as its handle is released.
 _dll_directory_handles: list[Any] = []
+_font_ids: dict[str, int] = {}
 
 
 @dataclass(frozen=True)
@@ -148,13 +149,27 @@ def create_engine(viewmodel: Any, *, window_settings=None, initial_visible: bool
     from PySide6.QtQuickControls2 import QQuickStyle
     if QQuickStyle.name() != "Material":
         QQuickStyle.setStyle("Material")
+    from PySide6.QtGui import QFontDatabase
+    font_root = files("lingualoop.desktop").joinpath("qml/assets/fonts")
+    for name in ("NotoSerifSC-Regular.otf", "NotoSerifJP-Regular.otf"):
+        path = str(font_root.joinpath(name))
+        if path not in _font_ids:
+            font_id = QFontDatabase.addApplicationFont(path)
+            if font_id < 0:
+                raise RuntimeError(f"内置字体加载失败：{name}")
+            _font_ids[path] = font_id
     _apply_default_font(qt["QGuiApplication"], qt["QFont"])
     use_kirigami = kirigami_runtime_usable() and os.getenv("LINGUALOOP_KIRIGAMI_MODE", "auto") == "on"
     if use_kirigami:
         _configure_kirigami_dll_path()
     engine = qt["QQmlApplicationEngine"]()
     from lingualoop.desktop.speech_library import SpeechLibraryViewModel
-    library = speech_library if speech_library is not None else SpeechLibraryViewModel(parent=engine)
+    if speech_library is None and "Mock" in viewmodel.providerLabel:
+        from tempfile import TemporaryDirectory
+        engine.mock_resources = TemporaryDirectory(prefix="lingualoop-ui-mock-")
+        library = SpeechLibraryViewModel(Path(engine.mock_resources.name) / "speech", parent=engine)
+    else:
+        library = speech_library if speech_library is not None else SpeechLibraryViewModel(parent=engine)
     engine.rootContext().setContextProperty("speechLibrary", library)
     engine.speech_library = library
     if hasattr(viewmodel, "configure_local_speech"):
@@ -162,6 +177,11 @@ def create_engine(viewmodel: Any, *, window_settings=None, initial_visible: bool
     qt["QGuiApplication"].instance().aboutToQuit.connect(library.close)
     from lingualoop.desktop.window import DesktopWindowController
     controller = DesktopWindowController(window_settings, engine)
+    from lingualoop.desktop.workspace import DesktopWorkspaceController
+    workspace = DesktopWorkspaceController(viewmodel, window_settings, engine)
+    engine.workspace = workspace
+    engine.rootContext().setContextProperty("workspace", workspace)
+    qt["QGuiApplication"].instance().aboutToQuit.connect(workspace.close)
     engine.rootContext().setContextProperty("learningViewModel", viewmodel)
     engine.rootContext().setContextProperty("desktopWindow", controller)
     engine.rootContext().setContextProperty("initialWindowVisible", initial_visible)

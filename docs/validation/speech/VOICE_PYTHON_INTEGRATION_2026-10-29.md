@@ -15,6 +15,10 @@
 
 全库失败/错误集中于当前工作区另有改动的 QML 界面和旧 UI 测试契约，例如缺少 `startDiscussionButton`、旧滚动和主题对象。此任务未改 QML、未放宽 UI 断言，不能宣称全库通过；该快照也不证明每项失败的引入来源。日志分别位于 ignored `build/voice-python-integration/{python-regression,final-real-integration,full-regression}.txt`。共享工作区同期存在其他修改，数量是当次运行快照。
 
+## 后续合并校验
+
+UI 任务完成测试迁移后，2026-10-29 合并工作区普通回归为 **353 passed, 10 skipped**，此前表中的 UI 失败保留为早期快照。完整范围和 wheel 检查见[合并检查](../engineering/WORKSPACE_INTEGRATION_2026-10-29.md)。这不改变语音冷启动或真人设备的未验收状态。
+
 ## 实现与测试约束
 
 `VoiceSessionCoordinator` 只注入 Workbench、STT/TTS 端口和消费者，不依赖 Qt、RTC 或特定模型 SDK。识别不发模型对话、不写用户历史；文字和确认转写共用入口。同一 Workbench 的识别、回复和语音输出串行，忙时拒绝。关闭取消自有任务，backend 所有权显式指定。

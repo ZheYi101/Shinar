@@ -6,7 +6,8 @@ import "../design"
 Rectangle {
     id: bar
     signal navigate(int page)
-    implicitHeight: 56
+    signal toggleSidebar()
+    implicitHeight: 30
     color: AppTheme.surface
     MouseArea {
         anchors.fill: parent
@@ -16,10 +17,9 @@ Rectangle {
         onDoubleClicked: desktopWindow.toggleMaximized()
     }
     RowLayout {
-        anchors.fill: parent; anchors.leftMargin: 20; anchors.rightMargin: 4
+        anchors.fill: parent; anchors.leftMargin: 0; anchors.rightMargin: 4
         spacing: 0
-        MLabel { text: "LinguaLoop"; font.pixelSize: 18; font.weight: Font.DemiBold; Layout.fillWidth: false }
-        MLabel { visible: bar.width > 650; text: "从熟悉的内容聊起"; role: "supporting"; Layout.leftMargin: 16; Layout.fillWidth: false }
+        MIconButton { objectName: "sidebarToggle"; symbol: "menu"; label: "侧栏"; implicitHeight: 30; onClicked: bar.toggleSidebar() }
         Item { Layout.fillWidth: true }
         MLabel { visible: bar.width > 850 && learningViewModel.providerLabel.indexOf("Mock") >= 0; text: "离线预览"; role: "supporting"; Layout.fillWidth: false; Layout.rightMargin: 12 }
         WindowAction { glyph: "more"; label: "更多：复盘和设置"; objectName: "secondaryMenuButton"; onClicked: secondaryMenu.open() }

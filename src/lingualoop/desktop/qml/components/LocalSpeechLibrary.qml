@@ -32,6 +32,7 @@ ScrollView {
         parent: Overlay.overlay
         anchors.centerIn: parent
         title: "卸载所选语音模型？"
+        width: Math.min(440, Overlay.overlay ? Overlay.overlay.width - 32 : 360)
         standardButtons: Dialog.Ok | Dialog.Cancel
         contentItem: MLabel { text: "会删除这个模型包、下载缓存及候选选择。学习材料和对话历史保留。"; width: 240 }
         onAccepted: speechLibrary.uninstall(dialog.uninstallModel)
@@ -39,8 +40,6 @@ ScrollView {
     ColumnLayout {
         width: dialog.availableWidth
         spacing: AppTheme.gapLarge
-        MButton { text: "计算设备与资源占用"; variant: "outlined"; onClicked: dialog.openCompute() }
-        MLabel { text: "可为不同语言分别选择识别与合成模型。对提速明显的模型优先推荐 GPU；识别平均超过 500 ms 不推荐用于对话。"; role: "supporting" }
         Flow {
             Layout.fillWidth: true
             spacing: 8

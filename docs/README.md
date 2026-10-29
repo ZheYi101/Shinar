@@ -30,17 +30,17 @@
 - [项目主旨](./product/PROJECT_BRIEF.md)
 - [MVP 规格](./product/MVP_SPEC.md)
 - [项目命名探索备忘](./product/NAMING_EXPLORATION_2026-10-28.md)：独立探索暂存，未决定更名，不影响当前实现与配置。
-- [视觉风格设计：暖纸与墨迹（暂定）](./product/VISUAL_STYLE_GUIDE.md)：最新融合参考图、配色、字体分工和可复用图标生成提示词；只确定视觉方向，具体 UI 待讨论，尚未实现。
-- [总体布局与逐页 UI 稿](./product/UI_LAYOUT_DESIGN.md)：材料下组织多段对话、页面内导入／范围核对、六组设置与原文对照；含 30 个视图、逐页 PNG 和可点击稿，待评审，未改 QML。
+- [视觉风格设计：暖纸与墨迹（暂定）](./product/VISUAL_STYLE_GUIDE.md)：最新融合参考图、配色、字体分工和可复用图标生成提示词；首批 QML 已按暂定方向实现，最终视觉验收仍待完成，见[工作区指南](./desktop/WORKSPACE.md)。
+- [总体布局与逐页 UI 稿](./product/UI_LAYOUT_DESIGN.md)：材料下组织多段对话、页面内导入／范围核对、六组设置与原文对照；含 30 个视图、逐页 PNG 和可点击稿；首批 QML 已实现，其余设计细节仍按稿件状态评审。
 - [输入与流程的外部设计参考](./product/UI_DESIGN_REFERENCES.md)：Carbon、GOV.UK、Readwise 官方资料与公开示例，记录页面内操作的依据、取舍和核验范围。
 - [MD3 界面方案与历史实现](./product/UI_SURFACE_PLAN.md)
-- [读后对照聊天功能设计](./product/CONVERSATION_WORKSPACE_DESIGN.md)：核心交互已认可、待实现；含组件契约、状态转移、输入细节、语音/失败时序、参考图与验收编号，是总 UI 设计的本功能输入，不改变本轮 AI 机制任务范围。
+- [读后对照聊天功能设计](./product/CONVERSATION_WORKSPACE_DESIGN.md)：核心交互已认可、首批原文选择已实现；含组件契约、状态转移、输入细节、语音/失败时序、参考图与验收编号，是总 UI 设计的本功能输入，不改变本轮 AI 机制任务范围。
 
 ## 架构与专项设计
 
 - [系统架构](./architecture/ARCHITECTURE.md)：当前实现、兼容路径与目标架构的边界。
 - [AI：适量材料预处理与模型协作](./architecture/ai/PREPARATION_AND_DIALOGUE.md)：资料契约、流程、预算、有效期、阅读边界和验收。
-- [TTS / STT 实际接入方案](./architecture/voice/SPEECH_INTEGRATION.md)：待实现提案；按语言路由、连续音频、分轮/分句、打断、确认事务、CPU/GPU 资源、故障恢复、代码落点和验收顺序。
+- [TTS / STT 实际接入方案](./architecture/voice/SPEECH_INTEGRATION.md)：基础 Python 已实现、连续交互仍为提案；按语言路由、连续音频、分轮/分句、打断、确认事务、CPU/GPU 资源、故障恢复、代码落点和验收顺序。
 - [Agent Kernel 设计](./architecture/AGENT_CORE_ARCHITECTURE.md)：含规划中的 adapter，不代表当前桌面已经采用。
 - [扩展架构](./architecture/PLUGIN_ARCHITECTURE.md)
 - [学习 Pattern](./architecture/LEARNING_PATTERNS.md)
@@ -56,6 +56,7 @@
 
 ## 运行与开发指南
 
+- [桌面工作区与原文对照](./desktop/WORKSPACE.md)
 - [QML 运行环境](./desktop/QML_RUNTIME.md)
 - [分轮语音配置](./desktop/VOICE.md)
 - [Python 基础语音服务](./desktop/VOICE_PYTHON.md)：确认事务、双角色复用、分句合成、冻结本地后端、WAV/RTC 输入输出和显式集成测试；未接 QML。

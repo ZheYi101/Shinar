@@ -215,9 +215,7 @@ class SpeechLibraryViewModel(QObject):
             return "尚未检测硬件"
         free = h.get("available_ram_bytes")
         ram = f"{free / 1024**3:.1f} GiB 可用内存" if free else "可用内存未知"
-        gpu = "；".join(
-            g["name"] + f"（可用 {g['available_mb']} MiB）" for g in h["gpus"]
-        )
+        gpu = "；".join(g["name"] + f"（可用 {g['available_mb']} MiB）" for g in h["gpus"])
         return (
             f"{h.get('cpu_name', h['cpu'])} · {h['logical_cpus']} 逻辑核心 · {ram} · 磁盘剩余 {h['disk_free_bytes'] / 1024**3:.1f} GiB"
             + ("\n" + gpu if gpu else "")
@@ -280,7 +278,13 @@ class SpeechLibraryViewModel(QObject):
         return {
             "hardware": hardware,
             "rows": model_rows(
-                self.store, self.catalog, self._language, self._scenario, hardware, devices, settings.gpu_index
+                self.store,
+                self.catalog,
+                self._language,
+                self._scenario,
+                hardware,
+                devices,
+                settings.gpu_index,
             ),
         }
 

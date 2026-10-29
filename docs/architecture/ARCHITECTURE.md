@@ -1,5 +1,11 @@
 # Architecture
 
+## 桌面工作区与基础语音增量（2026-10-29）
+
+`DesktopWorkspaceController` 负责路由、浏览状态、线程草稿与原文视图，`LearningWorkbench` 保持唯一对话业务入口。原文结构由无 Qt 的 `application/source_document.py` 处理，范围验证与来源快照位于 core；Qt 的 UTF-16 偏移在边界转换。QML 继续使用原技术栈，暖纸主题、字体与图标随 wheel 分发，详见[桌面工作区](../desktop/WORKSPACE.md)。
+
+`VoiceSessionCoordinator` 提供无 UI 的转写、确认和分句合成，LLM 与 TTS 分开执行；SQLite schema 2 先事务保存确认用户，再提交完整助手，失败不保存助手半流。真实 RTC 已独立贯通，本次桌面重构仍保留旧 Qt 分轮入口，持续麦克风及高级交互未接入。接口与所有权见[Python 语音指南](../desktop/VOICE_PYTHON.md)。后文较早的成对保存和旧页面状态说明保留历史，以本节及专项指南为当前增量。
+
 ## 当前默认：适量基础理解与模型协作（2026-10-28）
 
 [AI 专项方案](./ai/PREPARATION_AND_DIALOGUE.md)的资料、缓存、预算和协作机制已落地，见 [Decision 0019](../decisions/TECH_DECISIONS.md#decision-0019)。真实全书／部分阅读、三条件回放和恢复已形成[阶段报告](../validation/text/SEMANTIC_PREPARATION_2026-10-28.md)，**事实质量与完整回复一秒门禁未过**。旧题库、零模型索引和固定后台次数路径保留兼容，不再代表支持新接口的真实 provider 默认行为。

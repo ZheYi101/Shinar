@@ -96,6 +96,8 @@ class LearningViewModel(QObject):
         self._error = ""
         self._draft = ""
         self._session_drafts = {}
+        self.source_context_provider = lambda: None
+        self._sent_draft = ""
         self._selected_topic = ""
         self._custom_topic = ""
         self._practice_mode = "discussion"
@@ -137,6 +139,13 @@ class LearningViewModel(QObject):
     def providerLabel(self) -> str:
         return self._provider_label
 
+    @Property(dict, constant=True)
+    def modelServices(self) -> dict[str, str]:
+        settings = getattr(self._workbench._provider, "_settings", None)
+        reasoning = getattr(settings, "reasoning_model", None)
+        return {"reasoning": reasoning or self._provider_label,
+                "dialogue": getattr(settings, "dialogue_model", None) or reasoning or self._provider_label}
+
     @Property(list, notify=historyChanged)
     def sessionHistory(self):
         return [{'id': session.id, 'title': session.topic.title if session.topic else '历史讨论',
@@ -150,7 +159,7 @@ class LearningViewModel(QObject):
 
     @Slot(str)
     def selectSession(self, session_id):
-        if self._busy:
+        if self._busy or self._voice_state in {"recording", "playing", "synthesizing"}:
             return
         if self._workbench.session:
             self._session_drafts[self._workbench.session.id] = self._draft
@@ -432,13 +441,15 @@ class LearningViewModel(QObject):
         self.stopPlayback()
         self._voice_state = "generating"
         self._streaming_text = ""
+        self._sent_draft = self._draft
+        source_context = self.source_context_provider()
         self._pending_user_text = content.strip()
         self._retry_user_text = content.strip()
         self._response_timing = ""
         self.uiChanged.emit()
         self._run_operation(
             "正在获取 AI 回复...",
-            lambda: self._workbench.send_message(content, on_delta=self._replyDelta.emit),
+            lambda: self._workbench.send_message(content, on_delta=self._replyDelta.emit, source_context=source_context),
             self._after_message_sent,
         )
 
@@ -656,7 +667,8 @@ class LearningViewModel(QObject):
                 parts.append(f"完整回复 {total / 1000:.2f} 秒")
             self._response_timing = " · ".join(parts)
         self._after_session_changed(result)
-        self._draft = ""
+        if self._draft == self._sent_draft:
+            self._draft = ""
         self._recording = b""
         self._voice_state = "idle"
         self.messageSent.emit()
@@ -683,7 +695,8 @@ class LearningViewModel(QObject):
             self._feedback_items = []
             return
         self._messages = [
-            {"role": message.role.value, "content": message.content}
+            {"id": message.id, "role": message.role.value, "content": message.content,
+             "source": message.source_context.model_dump(mode="json") if message.source_context else None}
             for message in session.messages
         ]
         self._feedback_items = [

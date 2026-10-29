@@ -111,15 +111,7 @@ def library_desktop(tmp_path, monkeypatch):
     )
     scaffold.setProperty("currentPage", 3)
     QTest.qWait(100)
-    # Opening uses the actual button; bring its enclosing ScrollView into view.
-    target = item(window, "openLocalSpeechLibrary")
-    parent = target.parentItem()
-    while parent and parent.metaObject().indexOfProperty("contentY") < 0:
-        parent = parent.parentItem()
-    assert parent is not None
-    parent.setProperty("contentY", parent.property("contentHeight") - parent.height())
-    QTest.qWait(100)
-    click(window, "openLocalSpeechLibrary")
+    click(window, "settings-local")
     until(
         lambda: any(
             obj.property("visible")
@@ -188,8 +180,7 @@ def test_compute_subpage_device_budget_and_idle_settings(library_desktop, monkey
     })
     vm.preferences.setValue("themeMode", theme)
     window.setWidth(width)
-    click(window, "speechSettingsBack")
-    click(window, "openSpeechCompute", scroll="settingsOverview")
+    click(window, "openSpeechCompute")
     until(lambda: not library.busy)
     until(lambda: "2345" in library.resourceSummary)
     page = item(window, "speechComputePage")
@@ -208,6 +199,7 @@ def test_compute_subpage_device_budget_and_idle_settings(library_desktop, monkey
 
 def test_local_route_uses_conversation_language_and_does_not_call_remote(library_desktop):
     import asyncio
+    from types import SimpleNamespace
     app, library, vm, window, engine, root = library_desktop
     from lingualoop.local_speech.compute import ComputeSettings, save_compute
     save_compute(library.store.root, ComputeSettings(local_stt=True))
@@ -220,6 +212,13 @@ def test_local_route_uses_conversation_language_and_does_not_call_remote(library
     library.local_service.transcribe = transcribe
     assert asyncio.run(vm._speech_operation("stt", b"audio")()) == "テスト"
     assert calls == [(b"audio", "ja")]
+    workbench = vm._workbench
+    vm._workbench = SimpleNamespace(session=SimpleNamespace(profile=SimpleNamespace(target_language=SimpleNamespace(value="english"))))
+    try:
+        assert asyncio.run(vm._speech_operation("stt", b"session audio")()) == "テスト"
+        assert calls[-1] == (b"session audio", "en")
+    finally:
+        vm._workbench = workbench
 
 
 @pytest.mark.parametrize("width", [360, 600, 800, 1180, 1440])

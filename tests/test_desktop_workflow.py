@@ -236,19 +236,30 @@ def desktop(qt_app, tmp_path, monkeypatch):
         assert not vm._worker._thread or not vm._worker._thread.is_alive()
         assert audio.cleared
         window.close()
+        window.property("workspaceController").close()
         engine.deleteLater()
         qt_app.processEvents()
+
+
+def workspace_of(window):
+    return window.property("workspaceController")
 
 
 def load_and_start(vm, window):
     vm.loadMaterial("放課後の約束", "放課後、二人は喫茶店で話した。離れても友達でいようと約束した。",
                     "japanese", "japanese", "chinese", "B1")
     until(lambda: not vm.busy)
-    assert not vm.topics and not vm.readingScopeConfirmed
-    click(window, "readWholeMaterialButton", scroll="materialScroll")
-    until(lambda: vm.readingScopeConfirmed and not vm.busy)
-    until(lambda: vm.materialPrepared)
-    click(window, "startDiscussionButton", scroll="materialScroll")
+    ws = workspace_of(window)
+    ws.browseMaterial(vm.selectedMaterialId)
+    ws.openScope()
+    QTest.qWait(100)
+    click(window, "readWholeMaterialButton")
+    click(window, "saveScopeButton")
+    until(lambda: not vm.busy)
+    assert ws.material["confirmed"]
+    ws.newThreadPage()
+    QTest.qWait(60)
+    click(window, "startDiscussionButton")
     until(lambda: vm.sessionActive and not vm.busy)
 
 
@@ -277,43 +288,26 @@ def test_service_balance_error_is_actionable_and_saved_material_survives(desktop
     assert SQLiteStore(database).list_materials()[0].content == 'Two friends met at the station.'
 
 
-def test_long_novel_summary_can_expand_without_hiding_status_by_default(desktop):
+def test_long_novel_summary_does_not_take_over_material_space(desktop):
     vm, window, scaffold, provider, speech, audio, database = desktop
-    analyze = provider.analyze_material
-    async def long_summary(**kwargs):
-        result = await analyze(**kwargs)
-        return result.model_copy(update={'summary': '段落摘要，包含已经读过的故事和人物。' * 200})
-    provider.analyze_material = long_summary
-    vm.loadMaterial('Novel', 'Two friends met at the station.', 'english', 'english', 'chinese', 'B1')
-    until(lambda: not vm.busy)
-    vm.confirmReadingPercent(100)
-    until(lambda: not vm.busy)
-    vm.reanalyze()  # A legacy prepared library still has expandable summaries.
-    until(lambda: not vm.busy)
-    QTest.qWait(300)
-    summary = item(window, 'materialSummaryText')
-    height = summary.height()
-    assert summary.property('maximumLineCount') == 7 and height < 230
-    click(window, 'expandMaterialSummaryButton', scroll='materialScroll')
-    QTest.qWait(150)
-    assert summary.height() > height
-    click(window, 'expandMaterialSummaryButton', scroll='materialScroll')
-    QTest.qWait(150)
-    assert summary.property('maximumLineCount') == 7
+    vm._stt = vm._tts = None
+    load_and_start(vm, window)
+    ws = workspace_of(window)
+    vm.draft = 'Unsent thought.'
+    ws.browseMaterial(vm.selectedMaterialId)
+    assert ws.route == 'material' and len(ws.threads) == 1
+    assert vm.draft == 'Unsent thought.' and vm.sessionActive
+    assert window.findChild(QObject, 'materialSummaryText') is None
 
 
-def test_empty_history_dialog_has_an_opaque_readable_surface(desktop):
+def test_empty_library_has_no_form_modal(desktop):
     vm, window, scaffold, *_ = desktop
-    click(window, 'nav1')
-    click(window, 'openHistoryButton')
-    QTest.qWait(250)
-    dialog = window.findChild(QObject, 'sessionHistoryDialog')
-    background = dialog.property('background')
-    point = background.mapToScene(QPointF(background.width()/2, background.height()/2))
-    snapshot = window.grabWindow()
-    scale = snapshot.width()/window.width()
-    # Empty central area must show the dialog surface, never the dimmed page beneath.
-    assert snapshot.pixelColor(round(point.x()*scale), round(point.y()*scale)) == background.property('color')
+    ws = workspace_of(window)
+    ws.navigate('import')
+    QTest.qWait(100)
+    assert ws.route == 'import' and not vm.hasSession
+    assert window.findChild(QObject, 'sessionHistoryDialog') is None
+    assert not window.grabWindow().isNull()
 
 
 def test_topic_browsing_groups_provider_synonyms_into_a_small_vocabulary():
@@ -326,47 +320,24 @@ def test_topic_browsing_groups_provider_synonyms_into_a_small_vocabulary():
     assert _topic_category_label('a previously unseen category') == '综合讨论'
 
 
-def test_history_dialog_switches_actual_threads_and_preserves_drafts(desktop):
+def test_material_threads_preserve_unfinished_threads_and_drafts(desktop):
     vm, window, scaffold, provider, speech, audio, database = desktop
     vm._stt = vm._tts = None
     load_and_start(vm, window)
-    item(window, 'messageInput').setProperty('text', 'First reader view.')
-    click(window, 'sendMessageButton')
-    until(lambda: not vm.busy)
+    ws = workspace_of(window)
+    vm.draft = 'First draft.'
     first_id = vm._workbench.session.id
-    click(window, 'finishDiscussionButton')
-    until(lambda: not vm.busy)
-    click(window, 'nav0')
-    click(window, 'startDiscussionButton', scroll='materialScroll')
-    until(lambda: not vm.busy and vm.sessionActive)
-    item(window, 'messageInput').setProperty('text', 'Second reader view.')
-    click(window, 'sendMessageButton')
+    ws.browseMaterial(vm.selectedMaterialId)
+    ws.newThreadPage()
+    ws.startThread()
     until(lambda: not vm.busy)
     second_id = vm._workbench.session.id
-    vm.draft = 'Unsent second thought.'
-    click(window, 'openHistoryButton')
-    QTest.qWait(200)
-    click(window, 'openSession1', scroll='historyScroll')
-    until(lambda: not window.findChild(QObject, 'sessionHistoryDialog').property('visible'))
-    assert vm._workbench.session.id == first_id and not vm.sessionActive
-    assert any(message['content'] == 'First reader view.' for message in vm.messages)
-    assert not item(window, 'sendMessageButton').isEnabled()
-    assert not item(window, 'conversationComposer').isVisible()
-    window.setWidth(360)
-    window.setHeight(780)
-    until(lambda: scaffold.width() == 360)
-    assert item(window, 'practiceScroll').height() > 350
-    window.setWidth(1180)
-    window.setHeight(900)
-    until(lambda: scaffold.width() == 1180)
-    vm.draft = 'Unsent first thought.'
-    click(window, 'openHistoryButton')
-    QTest.qWait(200)
-    click(window, 'openSession0', scroll='historyScroll')
-    until(lambda: not window.findChild(QObject, 'sessionHistoryDialog').property('visible'))
-    assert vm._workbench.session.id == second_id and vm.sessionActive
-    assert item(window, 'conversationComposer').isVisible()
-    assert vm.draft == 'Unsent second thought.' and len(vm.sessionHistory) == 2
+    assert second_id != first_id and SQLiteStore(database).get_session(first_id).status.value == 'active'
+    vm.draft = 'Second draft.'
+    ws.openThread(first_id)
+    assert vm.draft == 'First draft.' and vm.sessionActive
+    ws.openThread(second_id)
+    assert vm.draft == 'Second draft.' and len(ws.threads) == 2
 
 
 def test_qml_three_voice_turns_retries_and_restart(desktop):
@@ -409,6 +380,8 @@ def test_qml_three_voice_turns_retries_and_restart(desktop):
     assert speech.syntheses == 5  # Opening + 3 turns + the failed synthesis.
     assert len({id(loop) for loop in provider.loops + speech.loops}) == 1
     assert len(callbacks) == 3 and all(thread == QGuiApplication.instance().thread() for thread in callbacks)
+    vm.stopPlayback()
+    click(window, "conversationMenuButton")
     click(window, "finishDiscussionButton")
     until(lambda: not vm.busy)
     assert not vm.sessionActive and scaffold.property("currentPage") == 2
@@ -434,11 +407,11 @@ def test_resizing_theme_keyboard_and_draft_survive(desktop):
             window.setProperty("height", 800)
             QTest.qWait(30)
             assert scaffold.property("compact") == (width < 600)
-            assert scaffold.property("showContext") == (width >= 1200)
+            assert workspace_of(window).sourceOpen is False
             assert vm.draft == draft and vm.topicTitle == topic
-            for name in ("recordButton", "sendMessageButton", "finishDiscussionButton"):
+            for name in ("recordButton", "sendMessageButton"):
                 button = item(window, name)
-                assert button.height() >= 48 and button.width() >= 48
+                assert button.height() >= 36 and button.width() >= 36
                 point = button.mapToScene(QPointF(button.width(), button.height()))
                 assert point.x() <= width and point.y() <= 800
             # The filled send action must use its paired contrast color.
@@ -454,7 +427,8 @@ def test_resizing_theme_keyboard_and_draft_survive(desktop):
             assert not window.grabWindow().isNull()
     # A navigation round trip keeps the same editor; keyboard focus remains usable.
     click(window, "nav0")
-    click(window, "nav1")
+    workspace_of(window).navigate("chat")
+    QTest.qWait(50)
     editor = item(window, "messageInput")
     editor.forceActiveFocus()
     QTest.keyClick(window, Qt.Key.Key_End)
@@ -471,7 +445,8 @@ def test_reply_retry_preserves_confirmed_messages_and_playback_retry(desktop):
     vm.draft = "昨日、友達に会いました。"
     click(window, "sendMessageButton")
     until(lambda: not vm.busy)
-    assert vm.errorMessage and vm.draft and len(vm.messages) == 1
+    assert vm.errorMessage and vm.draft and len(vm.messages) == 2
+    assert vm.messages[-1]["role"] == "user"
     audio.fail_play = True
     vm.retryOperation()
     until(lambda: not vm.busy)
@@ -515,16 +490,22 @@ def test_free_text_streaming_initial_draft_and_shortcut(desktop):
                     "japanese", "japanese", "chinese", "B1")
     until(lambda: not vm.busy)
     assert not vm.topics and not vm.materialPrepared
-    click(window, "readWholeMaterialButton", scroll="materialScroll")
-    until(lambda: vm.readingScopeConfirmed and not vm.busy)
-    click(window, "discussionOptionsButton", scroll="materialScroll")
+    ws = workspace_of(window)
+    ws.browseMaterial(vm.selectedMaterialId)
+    ws.openScope()
+    QTest.qWait(80)
+    click(window, "readWholeMaterialButton")
+    click(window, "saveScopeButton")
+    until(lambda: not vm.busy)
+    ws.newThreadPage()
+    QTest.qWait(60)
     custom = item(window, "customTopicInput")
     custom.forceActiveFocus()
     for character in "friendship choices":
         QTest.keyClick(window, Qt.Key(ord(character.upper())))
-    assert vm.customTopic == "friendship choices"
-    custom_title = vm.customTopic
-    click(window, "startDiscussionButton", scroll="materialScroll")
+    assert ws.openingDraft == "friendship choices"
+    custom_title = ws.openingDraft
+    click(window, "startDiscussionButton")
     until(lambda: vm.sessionActive and not vm.busy)
     assert scaffold.property("currentPage") == 1
     assert vm._workbench.session.topic is None and vm.draft == custom_title
@@ -536,7 +517,7 @@ def test_free_text_streaming_initial_draft_and_shortcut(desktop):
     QTest.keyClick(window, Qt.Key.Key_Return, Qt.KeyboardModifier.ControlModifier)
     until(lambda: bool(vm.streamingText))
     assert vm.busy and vm.pendingUserText and len(vm.messages) == 1
-    assert item(window, "streamingReplyCard").isVisible()
+    assert item(window, "streamingReplyText").isVisible()
     assert item(window, "streamingReplyText").property("text") == vm.streamingText
     until(lambda: not vm.busy)
     assert len(vm.messages) == 3 and not vm.streamingText and not vm.pendingUserText
@@ -581,27 +562,23 @@ def test_frameless_controls_and_window_geometry(desktop):
 
 
 def test_material_poll_does_not_destroy_pressed_reading_confirmation(desktop):
-    """The first post-import polling tick may arrive between press and release."""
-    vm, window, scaffold, provider, speech, audio, database = desktop
-    vm._preparation_timer.stop()
-    vm.loadMaterial("Polling race", "放課後、二人は喫茶店で話した。離れても友達でいようと約束した。",
-                    "japanese", "japanese", "chinese", "B1")
+    vm, window, scaffold, *_ = desktop
+    vm.loadMaterial('Polling race', 'A first paragraph.\n\nA final paragraph.', 'english', 'english', 'chinese', 'B1')
     until(lambda: not vm.busy)
-    target = item(window, "readWholeMaterialButton")
-    view = item(window, "materialScroll")
-    flick = view.property("contentItem")
-    y = target.mapToItem(flick, QPointF()).y() + flick.property("contentY")
-    flick.setProperty("contentY", max(0, min(y - 16, flick.property("contentHeight") - flick.height())))
-    QTest.qWait(60)
-    point = target.mapToScene(QPointF(target.width() / 2, target.height() / 2)).toPoint()
+    ws = workspace_of(window)
+    ws.browseMaterial(vm.selectedMaterialId)
+    ws.openScope()
+    QTest.qWait(100)
+    target = item(window, 'readWholeMaterialButton')
+    point = target.mapToScene(QPointF(target.width()/2,target.height()/2)).toPoint()
     QTest.mousePress(window, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, point)
-    QTest.qWait(20)
     vm._poll_preparation()
-    QTest.qWait(20)
     QTest.mouseRelease(window, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, point)
-    QTest.qWait(30)
-    until(lambda: vm.readingScopeConfirmed and not vm.busy)
-    until(lambda: vm.materialPrepared)
+    assert ws.pendingEnd > 0
+    assert not ws.material['confirmed']
+    click(window,'saveScopeButton')
+    until(lambda: not vm.busy)
+    assert ws.material['confirmed']
 
 
 def test_background_preparation_does_not_move_composer_actions(desktop):
@@ -657,14 +634,18 @@ def test_partial_reading_is_explicit_and_optional_direction_only_fills_draft(des
     text = "友達が駅に戻ってきた。二人は再会を喜んだ。\n未読の結末には別れがある。"
     vm.loadMaterial("途中までの本", text, "japanese", "japanese", "chinese", "B1")
     until(lambda: not vm.busy)
-    assert not item(window, "startDiscussionButton").isEnabled()
-    click(window, "partialReadingButton", scroll="materialScroll")
-    assert not item(window, "readingPreviewText").isVisible()
+    ws = workspace_of(window)
+    ws.browseMaterial(vm.selectedMaterialId)
+    ws.openScope()
+    QTest.qWait(100)
     passage = "友達が駅に戻ってきた。二人は再会を喜んだ。"
-    item(window, "readingPassageInput").setProperty("text", passage)
-    click(window, "confirmReadingPassageButton", scroll="materialScroll")
-    until(lambda: vm.readingScopeConfirmed and not vm.busy)
+    ws.locateSentence(passage)
+    click(window, 'saveScopeButton')
+    until(lambda: not vm.busy)
+    assert ws.material['confirmed']
     assert vm.materialNormalizedContent == passage
+    ws.newThreadPage()
+    QTest.qWait(50)
     assert "未読の結末" not in vm.analysisSummary
     assert not vm.suggestedDirections
     async def prepare(request):
@@ -673,7 +654,7 @@ def test_partial_reading_is_explicit_and_optional_direction_only_fills_draft(des
         data["directions"] = ["友達が戻った理由について話したい。"]
         return prepared.model_copy(update={"content": json.dumps(data, ensure_ascii=False)})
     provider.prepare_focus = prepare
-    click(window, "startDiscussionButton", scroll="materialScroll")
+    click(window, "startDiscussionButton")
     until(lambda: vm.sessionActive and not vm.busy)
     QTest.qWait(80)  # Wait for navigation and the first layout polish.
     send_position = item(window, "sendMessageButton").mapToScene(QPointF())

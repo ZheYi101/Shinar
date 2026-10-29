@@ -7,138 +7,52 @@ import "pages"
 
 Item {
     id: root
-    property int currentPage: learningViewModel.hasSession ? 1 : 0
-    readonly property bool compact: width < AppTheme.compactBreakpoint
-    readonly property bool showContext: width >= AppTheme.expandedBreakpoint && currentPage === 1
-    readonly property int pageMargin: compact ? AppTheme.compactPageMargin : AppTheme.pageMargin
-    readonly property var destinations: [
-        {label: "材料", symbol: "library_books"}, {label: "对话", symbol: "chat_bubble"}
-    ]
+    property int currentPage: workspace.route === "chat" ? 1 : workspace.route === "review" || workspace.route === "queue" ? 2 : workspace.route === "settings" ? 3 : 0
+    readonly property bool compact: width < 600
+    readonly property int sidebarWidth: workspace.collapsed ? 56 : width < 1100 ? 192 : 208
+    onCurrentPageChanged: {
+        const route = currentPage === 1 ? "chat" : currentPage === 2 ? "review" : currentPage === 3 ? "settings" : "library"
+        if (currentPage !== (workspace.route === "chat" ? 1 : workspace.route === "review" || workspace.route === "queue" ? 2 : workspace.route === "settings" ? 3 : 0)) workspace.navigate(route)
+    }
     Rectangle { anchors.fill: parent; color: AppTheme.surface }
-    ColumnLayout {
-        anchors.fill: parent
-        spacing: 0
-        WindowTitleBar {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 56
-            onNavigate: page => root.currentPage = page
-        }
-        MProgress { visible: learningViewModel.busy; Layout.fillWidth: true; Layout.preferredHeight: 4 }
-        MCard {
-            visible: learningViewModel.errorMessage.length > 0
-            Layout.leftMargin: root.pageMargin; Layout.rightMargin: root.pageMargin
-            color: AppTheme.errorContainer
-            MLabel { text: learningViewModel.errorMessage; color: AppTheme.colorOnErrorContainer; Accessible.role: Accessible.AlertMessage }
+    RowLayout {
+        anchors.fill: parent; spacing: 0
+        WorkspaceSidebar { visible: !root.compact; Layout.preferredWidth: root.sidebarWidth; Layout.fillHeight: true; collapsed: workspace.collapsed }
+        ColumnLayout {
+            Layout.fillWidth: true; Layout.fillHeight: true; spacing: 0
+            WindowTitleBar { Layout.fillWidth: true; Layout.preferredHeight: 30; onToggleSidebar: root.compact ? drawer.open() : workspace.toggleSidebar(); onNavigate: page => workspace.navigate(page === 3 ? "settings" : "review") }
+            ProgressBar { visible: learningViewModel.busy; Layout.fillWidth: true; Layout.preferredHeight: 2; indeterminate: true }
             RowLayout {
-                MButton { text: "重试"; variant: "text"; enabled: learningViewModel.canRetryOperation && !learningViewModel.busy; onClicked: learningViewModel.retryOperation() }
-                MButton { text: "关闭提示"; variant: "text"; onClicked: learningViewModel.dismissError() }
-            }
-        }
-        RowLayout {
-            Layout.fillWidth: true; Layout.fillHeight: true
-            spacing: 0
-            Rectangle {
-                visible: !root.compact
-                Layout.preferredWidth: AppTheme.railWidth; Layout.fillHeight: true
-                color: AppTheme.surfaceContainerLow
-                ColumnLayout {
-                    anchors.fill: parent; anchors.topMargin: 16
-                    spacing: AppTheme.gapSmall
-                    Repeater {
-                        model: root.destinations
-                        MNavItem {
-                            required property var modelData
-                            required property int index
-                            objectName: "nav" + index
-                            text: modelData.label
-                            symbol: modelData.symbol
-                            checked: root.currentPage === index
-                            onClicked: root.currentPage = index
-                        }
-                    }
-                    Item { Layout.fillHeight: true }
-                    MIconButton { objectName: "nav2"; Layout.alignment: Qt.AlignHCenter; symbol: "history"; label: "复盘" + (learningViewModel.dueReviewCount > 0 ? " · " + learningViewModel.dueReviewCount : ""); onClicked: root.currentPage = 2 }
-                    MIconButton { objectName: "nav3"; Layout.alignment: Qt.AlignHCenter; Layout.bottomMargin: 16; symbol: "settings"; label: "设置"; onClicked: root.currentPage = 3 }
-                }
+                visible: learningViewModel.errorMessage.length > 0 || workspace.error.length > 0
+                Layout.fillWidth: true; Layout.leftMargin: 20; Layout.rightMargin: 12; spacing: 8
+                MLabel { text: workspace.error || learningViewModel.errorMessage; color: AppTheme.error; maximumLineCount: 3; elide: Text.ElideRight; Accessible.role: Accessible.AlertMessage }
+                MButton { visible: learningViewModel.canRetryOperation; text: "重试"; variant: "text"; enabled: !learningViewModel.busy; onClicked: learningViewModel.retryOperation() }
+                MIconButton { symbol: "close"; label: "关闭提示"; onClicked: { learningViewModel.dismissError(); workspace.navigate(workspace.route) } }
             }
             StackLayout {
-                currentIndex: root.currentPage
                 Layout.fillWidth: true; Layout.fillHeight: true
-                Layout.margins: root.pageMargin
-                MaterialsPage { onNavigate: page => root.currentPage = page }
-                ConversationPage { onOpenContext: contextDialog.open(); onOpenMaterials: root.currentPage = 0 }
-                ReviewPage {}
-                SettingsPage {}
-            }
-            MCard {
-                visible: root.showContext
-                Layout.preferredWidth: AppTheme.contextWidth; Layout.fillWidth: false
-                Layout.fillHeight: true; Layout.topMargin: 24; Layout.bottomMargin: 24; Layout.rightMargin: 24
-                MLabel { text: "本次语境"; role: "title" }
-                MLabel { text: learningViewModel.materialTitle; role: "label" }
-                ScrollView {
-                    id: contextScroll
-                    Layout.fillWidth: true; Layout.fillHeight: true
-                    contentWidth: availableWidth
-                    contentHeight: contextSummaryText.implicitHeight
-                    MLabel { id: contextSummaryText; width: contextScroll.availableWidth; height: implicitHeight; text: learningViewModel.materialSummary; role: "supporting" }
-                }
-            }
-        }
-        Rectangle {
-            visible: root.compact
-            Layout.fillWidth: true; Layout.preferredHeight: AppTheme.navigationBarHeight
-            color: AppTheme.surfaceContainer
-            RowLayout {
-                anchors.fill: parent; spacing: 0
-                Repeater {
-                    model: root.destinations
-                    MNavItem {
-                        required property var modelData
-                        required property int index
-                        objectName: "bottomNav" + index
-                        Layout.fillWidth: true
-                        text: modelData.label
-                        symbol: modelData.symbol
-                        checked: root.currentPage === index
-                        onClicked: root.currentPage = index
-                    }
+                currentIndex: ["library","material","import","scope","new","chat","review","queue","settings","more"].indexOf(workspace.route)
+                Item { LibraryPage { anchors.fill: parent; anchors.margins: root.compact ? 12 : 24 } }
+                Item { MaterialSpace { anchors.fill: parent; anchors.margins: root.compact ? 12 : 24 } }
+                Item { ImportPage { anchors.fill: parent; anchors.margins: root.compact ? 12 : 28 } }
+                Item { ReadingScopePage { anchors.fill: parent; anchors.margins: root.compact ? 8 : 20 } }
+                Item { NewThreadPage { anchors.fill: parent; anchors.margins: root.compact ? 12 : 28 } }
+                ConversationPage { onOpenMaterials: workspace.navigate("library") }
+                Item { ReviewPage { anchors.fill: parent; anchors.margins: root.compact ? 12 : 28 } }
+                Item { ReviewPage { queueOnly: true; anchors.fill: parent; anchors.margins: root.compact ? 12 : 28 } }
+                Item { SettingsPage { anchors.fill: parent; anchors.margins: root.compact ? 12 : 28 } }
+                ColumnLayout {
+                    Layout.margins: 28
+                    MButton { text: "表达复习"; variant: "text"; onClicked: workspace.navigate("queue") }
+                    MButton { text: "本地语音模型"; variant: "text"; onClicked: { workspace.setCategory("local"); workspace.navigate("settings") } }
+                    Item { Layout.fillHeight: true }
                 }
             }
         }
     }
-    MDialog {
-        id: contextDialog
-        parent: Overlay.overlay
-        anchors.centerIn: parent
-        width: Math.min(root.width - 32, 560)
-        height: Math.min(root.height - 32, 620)
-        title: "本次语境"
-        standardButtons: Dialog.Close
-        contentItem: ScrollView {
-            contentWidth: availableWidth
-            MLabel { width: parent.width; text: learningViewModel.materialSummary }
-        }
-    }
-    MSnackbar {
-        id: snackbar
-        parent: Overlay.overlay
-        x: Math.max(16, (root.width - width) / 2)
-        y: root.height - height - (root.compact ? 96 : 24)
-        width: Math.min(root.width - 32, 420)
-    }
-    Connections {
-        target: learningViewModel
-        function onReviewReady() { root.currentPage = 2 }
-        function onPracticeStarted() { root.currentPage = 1 }
-        function onStatusChanged() {
-            if (!learningViewModel.busy && learningViewModel.errorMessage.length === 0 && learningViewModel.status !== "练习已更新。") {
-                snackbar.message = learningViewModel.status
-                snackbar.open()
-            }
-        }
-    }
-    Shortcut { sequence: "Ctrl+1"; context: Qt.ApplicationShortcut; onActivated: root.currentPage = 0 }
-    Shortcut { sequence: "Ctrl+2"; context: Qt.ApplicationShortcut; onActivated: root.currentPage = 1 }
-    Shortcut { sequence: "Ctrl+,"; context: Qt.ApplicationShortcut; onActivated: root.currentPage = 3 }
+    Drawer { id: drawer; width: Math.min(root.width * 0.8, 260); height: root.height; WorkspaceSidebar { anchors.fill: parent; onActivated: drawer.close() } }
+    Connections { target: workspace; function onChanged() { root.currentPage = workspace.route === "chat" ? 1 : workspace.route === "review" || workspace.route === "queue" ? 2 : workspace.route === "settings" ? 3 : 0 } }
+    Shortcut { sequence: "Ctrl+1"; onActivated: workspace.navigate("library") }
+    Shortcut { sequence: "Ctrl+2"; onActivated: workspace.navigate("chat") }
+    Shortcut { sequence: "Ctrl+,"; onActivated: workspace.navigate("settings") }
 }

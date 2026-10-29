@@ -17,7 +17,7 @@
 | 当前语义准备与自由聊天 | 全范围精简理解、范围概述、统一本地依据、按缺口准备、有出处记忆与预算账本 | 机制与实机恢复已验证；事实质量和完整回复一秒未过，见[语义方案实测](../validation/text/SEMANTIC_PREPARATION_2026-10-28.md) |
 | 旧零模型索引路径 | 原文索引、无选题开场、固定后台次数 | 保留为历史／回退；六轮旧完整回复 1049.78–2448.47ms，见[自由聊天报告](../validation/text/FREE_CHAT_2026-10-28.md) |
 | 旧整书准备路径 | 完整小说 30 段与整书汇总；3 段共 17 轮实际交流、复盘、历史切换与重启 | 丰富题库成本高，完整回复一秒未达；保留为兼容资产，不恢复为默认。见[小说报告](../validation/text/NOVEL_ACCEPTANCE_2026-10-28.md) |
-| 桌面与本地数据 | Python/Pydantic、PySide6/QML MD3、SQLite/WAL、可恢复资料和历史 | 当前代码与阶段报告共同确认，规划不能冒充交付 |
+| 桌面与本地数据 | Python/Pydantic、PySide6/QML 暖纸工作区、SQLite/WAL、材料下多线程与原文对照 | [合并检查](../validation/engineering/WORKSPACE_INTEGRATION_2026-10-29.md)覆盖离线交互与资源打包，真人/最终视觉验收另列 |
 | 分轮语音与 LiveKit | Qt 分轮录放音、可替换 STT/TTS；独立 RTC 探针及诊断 | 不代表已完成真人连续语音；探针历史和未决见[LiveKit 指南](../desktop/LIVEKIT.md) |
 | 可选本地语音库 | 模型/计算两设置子页、固定下载、CPU/GPU 策略、驻留释放及首批本地分轮接入 | 准确率、音质和连续链路分开验收，见[阶段报告](../validation/speech/LOCAL_SPEECH_ACCEPTANCE_2026-10-28.md) |
 | 工程基础 | 离线回归、真实调用开关、架构边界和打包检查 | 测试数量与候选版本见各报告；不是实时工作区状态，见[维护性检查](../validation/engineering/MAINTAINABILITY_2026-10-28.md) |

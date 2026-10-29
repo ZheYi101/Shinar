@@ -155,6 +155,7 @@ class LearningWorkbench:
         track: MaterialTrack = MaterialTrack.ARTICLE_READING,
         subtitle_cues: list[SubtitleCue] | None = None,
         auto_prepare: bool = True,
+        source_sections: list | None = None,
     ) -> LearningMaterial:
         self._require_idle_conversation()
         draft = LearningMaterial(
@@ -166,6 +167,7 @@ class LearningWorkbench:
             normalized_content=normalized_content or content,
             source_hash=digest(normalized_content or content),
             source_path=source_path,
+            source_sections=source_sections or [],
             track=track,
             normalization_status=NormalizationStatus.NORMALIZED,
             subtitle_cues=subtitle_cues or [],
@@ -267,11 +269,40 @@ class LearningWorkbench:
             source_path=imported.source_path,
             track=track,
             subtitle_cues=imported.subtitle_cues,
+            source_sections=imported.source_sections,
             auto_prepare=auto_prepare,
         )
 
-    def set_reading_scope(self, end: int) -> LearningMaterial:
+    def get_material(self, material_id: str) -> LearningMaterial | None:
+        return next((item for item in self._materials if item.id == material_id), None)
+
+    def list_sessions(self, material_id: str | None = None) -> list[PracticeSession]:
+        if isinstance(self._event_store, SQLiteStore):
+            return self._event_store.list_sessions(material_id=material_id)
+        return [self._session] if self._session and (
+            material_id is None or self._session.material_id == material_id) else []
+
+    async def store_imported_material(self, imported: ImportedMaterial, **kwargs: Any) -> LearningMaterial:
+        """Save an import without replacing the foreground conversation."""
+        previous = self._material, self._session, self._profile
+        try:
+            return await self.load_imported_material(imported, auto_prepare=False, **kwargs)
+        finally:
+            self._material, self._session, self._profile = previous
+
+    def set_reading_scope(self, end: int, *, material_id: str | None = None) -> LearningMaterial:
         self._require_idle_conversation()
+        if material_id is not None:
+            material = self.get_material(material_id)
+            if material is None:
+                raise ValueError("找不到材料。")
+            previous = self._material, self._session, self._profile
+            try:
+                self._material, self._session, self._profile = material, None, material.profile
+                return self.set_reading_scope(end)
+            finally:
+                prior_material, self._session, self._profile = previous
+                self._material = self.get_material(prior_material.id) if prior_material else None
         material = self._material
         if material is None:
             raise ValueError("请先导入材料。")
@@ -435,8 +466,39 @@ class LearningWorkbench:
     async def start_session(self, *, topic_id: str | None = None,
                             custom_topic: str | None = None,
                             options: PracticeOptions | None = None,
-                            profile: SessionUserProfile | None = None) -> SessionStepResult:
+                            profile: SessionUserProfile | None = None,
+                            material_id: str | None = None,
+                            new_thread: bool = False) -> SessionStepResult:
         self._require_idle_conversation()
+        previous = self._material, self._session, self._profile
+        try:
+            return await self._start_session(topic_id=topic_id, custom_topic=custom_topic,
+                options=options, profile=profile, material_id=material_id, new_thread=new_thread)
+        except Exception:
+            self._material, self._session, self._profile = previous
+            raise
+
+    async def _start_session(self, *, topic_id: str | None = None,
+                            custom_topic: str | None = None,
+                            options: PracticeOptions | None = None,
+                            profile: SessionUserProfile | None = None,
+                            material_id: str | None = None,
+                            new_thread: bool = False) -> SessionStepResult:
+        if self._sending:
+            raise RuntimeError("上一条消息仍在生成，请稍候。")
+        if material_id is not None:
+            material = self.get_material(material_id)
+            if material is None:
+                raise ValueError("找不到材料。")
+            if not new_thread and self._session and self._session.status is SessionStatus.ACTIVE:
+                raise RuntimeError("请先结束当前对话。")
+            self._material = material
+            self._profile = material.profile
+        if new_thread:
+            if self._session:
+                self._save_session(self._session)
+            self._cancel_preparation()
+            self._session = None
         if self._material is None:
             raise RuntimeError("Load a material before starting a session.")
         if reading_end(self._material) == 0:

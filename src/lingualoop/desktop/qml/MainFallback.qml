@@ -5,6 +5,7 @@ import "design"
 import "components"
 
 ApplicationWindow {
+    readonly property var workspaceController: workspace
     flags: Qt.Window | Qt.FramelessWindowHint | Qt.WindowMinMaxButtonsHint
     visible: initialWindowVisible
     width: 1180; height: 780

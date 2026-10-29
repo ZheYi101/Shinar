@@ -1,0 +1,12 @@
+[
+  {
+    "file": "NotoSerifSC-Regular.otf",
+    "source": "https://raw.githubusercontent.com/notofonts/noto-cjk/main/Serif/SubsetOTF/SC/NotoSerifSC-Regular.otf",
+    "sha256": "e8f396decc1f0963a016a989c3d8852e863d1350996f573860a80767c83a1cd3"
+  },
+  {
+    "file": "NotoSerifJP-Regular.otf",
+    "source": "https://raw.githubusercontent.com/notofonts/noto-cjk/main/Serif/SubsetOTF/JP/NotoSerifJP-Regular.otf",
+    "sha256": "2c9a12dbd4f2408c4610c7ee84a108b62d7236c3775baed618c64d9cb44b2f04"
+  }
+]

@@ -27,6 +27,8 @@
 
 ## 工程
 
+- [语音与桌面工作区合并检查](./engineering/WORKSPACE_INTEGRATION_2026-10-29.md)：两批提交边界、353 项普通回归、原文真实 QML 交互和 67 项 wheel 资源检查；保留视觉/真人语音未验收限制。
+
 - [代码审查](./engineering/CODE_AUDIT_2026-10-24.md)：对应候选的缺陷、修复及独立复核。
 - [维护性检查](./engineering/MAINTAINABILITY_2026-10-28.md)：门禁、架构检查、实际回归及后续技术债。
 

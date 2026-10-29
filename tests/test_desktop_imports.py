@@ -125,7 +125,7 @@ def test_qml_engine_factory_works_offscreen(monkeypatch, tmp_path, width, height
     qt_app.processEvents()
     assert root.width == width
     assert root.height == height
-    for object_name in ("materialScroll", "practiceScroll", "reviewScroll"):
+    for object_name in ("sourceScroll", "practiceScroll", "reviewScroll"):
         scroll = root.findChild(QObject, object_name)
         assert scroll is not None
         assert scroll.property("contentWidth") == scroll.property("availableWidth")

@@ -17,12 +17,12 @@ Button {
     highlighted: false
     flat: variant === "text" || variant === "outlined"
     hoverEnabled: true
-    leftPadding: 24
-    rightPadding: 24
+    leftPadding: 12
+    rightPadding: 12
     icon.width: 24
     icon.height: 24
     icon.color: contentColor
-    Material.roundedScale: Material.FullScale
+    Material.roundedScale: Material.SmallScale
     Material.elevation: 0
     Material.background: variant === "text" || variant === "outlined" ? "transparent" : variant === "tonal" ? AppTheme.secondaryContainer : AppTheme.primary
     Material.foreground: contentColor
@@ -41,7 +41,7 @@ Button {
     }
     background: Rectangle {
         implicitHeight: 40
-        radius: height / 2
+        radius: 5
         color: control.flat ? "transparent" : !control.enabled ? Qt.alpha(AppTheme.colorOnSurface, 0.12) : control.Material.background
         border.width: control.variant === "outlined" || control.visualFocus ? 1 : 0
         border.color: control.visualFocus ? AppTheme.primary : AppTheme.outline

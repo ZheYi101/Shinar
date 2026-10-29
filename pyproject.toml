@@ -75,7 +75,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "lingualoop.local_speech" = ["catalog.json"]
-"lingualoop.desktop" = ["qml/*.qml", "qml/*/*.qml", "qml/*/qmldir", "qml/assets/*.svg", "qml/assets/LICENSE"]
+"lingualoop.desktop" = ["qml/*.qml", "qml/*/*.qml", "qml/*/qmldir", "qml/assets/*.svg", "qml/assets/LICENSE", "qml/assets/fonts/*", "qml/assets/illustrated/*"]
 
 [project.scripts]
 lingualoop = "lingualoop.cli:main"

@@ -6,6 +6,7 @@ import org.kde.kirigami as Kirigami
 
 Kirigami.ApplicationWindow {
     id: root
+    readonly property var workspaceController: workspace
     flags: Qt.Window | Qt.FramelessWindowHint | Qt.WindowMinMaxButtonsHint
     Material.theme: AppTheme.dark ? Material.Dark : Material.Light
     Material.accent: AppTheme.primary

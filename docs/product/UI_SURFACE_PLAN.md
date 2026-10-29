@@ -1,4 +1,8 @@
-# LinguaLoop MD3 页面方案
+# LinguaLoop 页面方案与实现记录
+
+## 2026-10-29：首批 QML 工作区已迁移
+
+当前已实现暖纸主题、材料树、主区导入/范围核对、独立线程草稿、原文选择与分类设置，保留 PySide6/QML 技术栈。运行与状态见[工作区指南](../desktop/WORKSPACE.md)，离线/打包证据见[合并检查](../validation/engineering/WORKSPACE_INTEGRATION_2026-10-29.md)。以下各节保留原设计及历史说明，“尚未迁移”描述的是当时状态。
 
 ## 2026-10-29：总体布局首轮稿
 
