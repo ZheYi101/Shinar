@@ -93,7 +93,7 @@ def test_foreground_stream_does_not_wait_for_reasoning_and_measures_both_times(t
     async def run():
         work = LearningWorkbench(BlockedReasoning(), event_store=SQLiteStore(tmp_path / "stream.sqlite3"))
         await load(work)
-        await work.start_session()
+        await work.start_session(topic_id=work.material.analysis.topics[0].id)
         await asyncio.sleep(0)
         assert work.preparation_status == "preparing"
         deltas = []
@@ -125,8 +125,8 @@ def test_stale_prediction_is_discarded_even_if_provider_ignores_cancellation(tmp
         provider = LatePrediction()
         work = LearningWorkbench(provider, event_store=SQLiteStore(tmp_path / "stale.sqlite3"))
         await load(work)
-        await work.start_session()
-        await provider.started.wait()
+        await work.start_session(topic_id=work.material.analysis.topics[0].id)
+        await asyncio.wait_for(provider.started.wait(), timeout=1)
         await work.send_message("違うと思います。")
         await asyncio.sleep(0.07)
         assert work.session.preparation.based_on_message_count == 3

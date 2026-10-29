@@ -11,7 +11,7 @@ from lingualoop.core.preparation_validation import validate_prepared_topic
 CHUNK_CHARS = 12000
 MAX_MATERIAL_CHARS = 1000000
 MAX_TOPICS = 60
-PREPARATION_CACHE_VERSION = 'novel-v3'
+PREPARATION_CACHE_VERSION = 'free-chat-v1'
 
 
 def preparation_cache_key(provider, material: LearningMaterial, profile: SessionUserProfile) -> tuple[str, str]:
@@ -19,7 +19,7 @@ def preparation_cache_key(provider, material: LearningMaterial, profile: Session
     identity = getattr(provider, 'preparation_cache_identity', type(provider).__module__ + '.' + type(provider).__qualname__)
     data = {'version': PREPARATION_CACHE_VERSION, 'provider': identity, 'source_hash': source_hash,
             'title': material.title, 'source_language': material.source_language.value,
-            'profile': profile.model_dump(mode='json')}
+            'profile': profile.model_dump(mode='json'), 'read_through': material.read_through}
     return source_hash, sha256(json.dumps(data, sort_keys=True, ensure_ascii=False).encode('utf-8')).hexdigest()
 
 
@@ -45,6 +45,9 @@ def split_material(text: str, size: int = CHUNK_CHARS):
 
 
 async def prepare_material(provider, material: LearningMaterial, profile: SessionUserProfile, on_progress=None) -> MaterialAnalysis:
+    if getattr(provider, "supports_free_chat", False):
+        from lingualoop.application.source_index import build_source_index
+        return build_source_index(material)
     try:
         budget = int(os.getenv("LINGUALOOP_PREPARATION_DEADLINE_SECONDS", "1800"))
         if not 1 <= budget <= 86400:

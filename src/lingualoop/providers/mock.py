@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import json
 from collections import Counter
 
 from lingualoop.core.domain import (
@@ -21,9 +22,39 @@ from lingualoop.core.domain import (
     AnswerBranch, DialoguePreparation,
 )
 from lingualoop.core.ports import LearningLLMProvider
+from lingualoop.core.knowledge import ReasoningRequest, ReasoningResponse
 
 
 class MockLearningLLMProvider(LearningLLMProvider):
+    supports_semantic_preparation = True
+
+    @staticmethod
+    def _knowledge_response(value):
+        from lingualoop.core.knowledge import ReasoningResponse
+        return ReasoningResponse(content=json.dumps(value, ensure_ascii=False),
+            usage={"input_tokens": 100, "output_tokens": 100, "finish_reason": "stop"})
+
+    async def prepare_source_unit(self, request: ReasoningRequest) -> ReasoningResponse:
+        paragraphs = request.payload["paragraphs"]
+        selected = paragraphs[:2] + paragraphs[-1:] if len(paragraphs) > 2 else paragraphs
+        return self._knowledge_response({"notes": [{"text": paragraph["text"][:220].strip(),
+            "support_ids": [paragraph["id"]], "attribution": "source", "statement_kind": "narrated",
+            "entities": [], "search_terms": [], "aliases": {}} for paragraph in selected]})
+
+    async def summarize_reading(self, request: ReasoningRequest) -> ReasoningResponse:
+        notes = request.payload["ordered_notes"]
+        selected = notes[:2] + notes[-1:] if len(notes) > 2 else notes
+        return self._knowledge_response({"summary": " ".join(note["text"][:180] for note in selected),
+            "points": [{"text": note["text"][:180], "support_ids": [note["id"]]} for note in selected]})
+
+    async def prepare_focus(self, request: ReasoningRequest) -> ReasoningResponse:
+        return self._knowledge_response({"points": [{"text": evidence["text"][:160],
+            "support_ids": [evidence["id"]]} for evidence in request.payload["evidence"][:1]], "directions": []})
+
+    async def summarize_conversation(self, request: ReasoningRequest) -> ReasoningResponse:
+        return self._knowledge_response({"items": [{"text": message["text"][:160],
+            "message_ids": [message["id"]], "speaker": message["role"], "kind": "stance"}
+            for message in request.payload["messages"][-4:]]})
     """Deterministic provider for CLI demos and offline tests."""
 
     async def analyze_material(

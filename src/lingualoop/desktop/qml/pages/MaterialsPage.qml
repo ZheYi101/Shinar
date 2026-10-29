@@ -11,9 +11,10 @@ Item {
     property bool editing: false
     property bool showSource: false
     property bool showStructure: false
-    property bool normalized: true
     property bool optionsExpanded: false
-    property bool showFullSummary: false
+    property bool partialReading: false
+    property int approximateProgress: 50
+    property bool showProgressPreview: false
     ColumnLayout {
         anchors.fill: parent
         spacing: AppTheme.sectionGap
@@ -22,7 +23,7 @@ Item {
             ColumnLayout {
                 Layout.fillWidth: true
                 MLabel { text: "材料"; role: "headline" }
-                MLabel { visible: page.width > 500; text: "把沉浸中的故事，变成下一次想聊的话题。"; role: "supporting" }
+                MLabel { visible: page.width > 500; text: "带着你读过的故事，随意聊聊。"; role: "supporting" }
             }
             MButton { text: "导入"; objectName: "importButton"; enabled: !learningViewModel.busy; onClicked: fileDialog.open() }
             MButton { text: "粘贴"; variant: "tonal"; onClicked: page.editing = !page.editing }
@@ -38,18 +39,18 @@ Item {
                 spacing: AppTheme.sectionGap
                 MCard {
                     visible: learningViewModel.materials.length === 0 && !page.editing
-                    MLabel { text: "从你喜欢的一段内容开始"; role: "title" }
-                    MLabel { text: "小说、文章、字幕或已有转写。导入后，AI 会先整理内容和可聊的方向。"; role: "supporting" }
+                    MLabel { text: "最近在读什么？"; role: "title" }
+                    MLabel { text: "导入小说、文章或字幕。读了一部分也没关系，我们只聊你已经看过的内容。"; role: "supporting" }
                     MButton { text: "粘贴一段内容"; variant: "tonal"; onClicked: page.editing = true }
                 }
                 MCard {
                     visible: page.editing
                     MLabel { text: "粘贴内容"; role: "title" }
                     MTextField { id: titleField; objectName: "materialTitleInput"; Layout.fillWidth: true; placeholderText: "材料标题" }
-                    MTextArea { id: materialField; objectName: "materialTextInput"; Layout.fillWidth: true; Layout.preferredHeight: 160; placeholderText: "本次已看过的内容" }
-                    MLabel { text: "先保存原文，再分段整理。分析失败时，已完成的部分仍会保留。"; role: "supporting" }
+                    MTextArea { id: materialField; objectName: "materialTextInput"; Layout.fillWidth: true; Layout.preferredHeight: 160; placeholderText: "原文或字幕" }
+                    MLabel { text: "先保存到本机。导入不会调用 AI 生成题库。"; role: "supporting" }
                     MButton {
-                        text: learningViewModel.busy ? "正在整理…" : "保存并整理"
+                        text: learningViewModel.busy ? "正在保存…" : "保存材料"
                         objectName: "saveMaterialButton"
                         enabled: !learningViewModel.busy && titleField.text.trim().length > 0 && materialField.text.trim().length > 0
                         onClicked: learningViewModel.loadMaterial(titleField.text, materialField.text,
@@ -74,108 +75,69 @@ Item {
                 MCard {
                     visible: learningViewModel.hasMaterial
                     MLabel { text: learningViewModel.materialTitle; role: "title" }
-                    MLabel { objectName: "materialSummaryText"; text: learningViewModel.analysisSummary; maximumLineCount: page.showFullSummary ? 2147483647 : 7; elide: Text.ElideRight }
-                    MButton { objectName: "expandMaterialSummaryButton"; visible: learningViewModel.analysisSummary.length > 400; text: page.showFullSummary ? "收起概要" : "展开概要"; variant: "text"; onClicked: page.showFullSummary = !page.showFullSummary }
-                    MLabel { text: learningViewModel.materialPreparation + (learningViewModel.busy && learningViewModel.materialPrepared ? " · " + learningViewModel.status : ""); role: "supporting"; objectName: "materialPreparationLabel" }
+                    MLabel { text: learningViewModel.readingScopeLabel; role: "supporting"; objectName: "readingScopeLabel" }
+                    MLabel { text: "读到哪里了？确认后会使用推理服务整理已读内容，可先聊天。后文不进入参考。"; role: "supporting" }
                     Flow {
                         Layout.fillWidth: true; spacing: AppTheme.gapSmall
-                        MButton { text: page.showStructure ? "收起内容结构" : "大纲与人物"; variant: "text"; visible: learningViewModel.analysisOutline.length > 0 || learningViewModel.analysisCharacters.length > 0; onClicked: page.showStructure = !page.showStructure }
-                        MButton { text: learningViewModel.materialPrepared ? "检查整理" : "继续整理"; variant: "text"; enabled: !learningViewModel.busy; onClicked: learningViewModel.reanalyze() }
-                        MButton { text: page.showSource ? "收起原文" : "查看原文"; variant: "text"; onClicked: page.showSource = !page.showSource }
+                        MButton { text: "已经读完"; objectName: "readWholeMaterialButton"; variant: "tonal"; enabled: !learningViewModel.busy && !learningViewModel.sessionActive; onClicked: learningViewModel.confirmReadingPercent(100) }
+                        MButton { text: page.partialReading ? "收起阅读进度" : "还在读，设置位置"; objectName: "partialReadingButton"; variant: "text"; enabled: !learningViewModel.sessionActive; onClicked: page.partialReading = !page.partialReading }
                     }
                     ColumnLayout {
-                        visible: page.showStructure; Layout.fillWidth: true; spacing: 12
-                        Repeater { model: learningViewModel.analysisOutline; MLabel { required property string modelData; text: "· " + modelData; role: "supporting" } }
-                        Repeater { model: learningViewModel.analysisCharacters; MLabel { required property var modelData; text: modelData.name + "：" + modelData.description; role: "supporting" } }
+                        visible: page.partialReading
+                        Layout.fillWidth: true
+                        MLabel { text: "粘贴已读到的最后一句，精确定位"; role: "label" }
+                        MTextField { id: lastPassage; objectName: "readingPassageInput"; Layout.fillWidth: true; placeholderText: "原文中唯一的一句，至少 8 个字符" }
+                        MButton { text: "确认读到这句"; objectName: "confirmReadingPassageButton"; variant: "tonal"; enabled: !learningViewModel.busy && !learningViewModel.sessionActive && lastPassage.text.trim().length >= 8; onClicked: learningViewModel.confirmReadingPassage(lastPassage.text) }
+                        MLabel { text: "也可用大致进度定位。请核对下面的实际末尾，确认自己已经读过。"; role: "supporting" }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            SpinBox { objectName: "readingPercentInput"; from: 1; to: 99; value: page.approximateProgress; implicitHeight: 48; editable: true; onValueModified: { page.approximateProgress = value; page.showProgressPreview = false } Accessible.name: "已读原文百分比" }
+                            MLabel { text: "% · 按原文长度，向前取整到段落"; role: "supporting"; Layout.fillWidth: true }
+                        }
+                        MButton { text: "核对这个位置"; objectName: "previewReadingPositionButton"; variant: "text"; onClicked: page.showProgressPreview = true }
+                        MLabel { visible: page.showProgressPreview; objectName: "readingPreviewText"; text: learningViewModel.hasMaterial ? learningViewModel.readingPreview(page.approximateProgress) : ""; role: "supporting"; maximumLineCount: 8; elide: Text.ElideLeft }
+                        MButton { visible: page.showProgressPreview; text: "确认读过以上内容"; objectName: "confirmReadingPercentButton"; variant: "tonal"; enabled: !learningViewModel.busy && !learningViewModel.sessionActive; onClicked: learningViewModel.confirmReadingPercent(page.approximateProgress) }
                     }
-                }
-                MCard {
-                    visible: learningViewModel.hasMaterial
-                    color: AppTheme.surfaceContainer
-                    MLabel { text: learningViewModel.customTopic.trim().length > 0 ? "自定义：" + learningViewModel.customTopic : learningViewModel.selectedTopicTitle; role: "label" }
+                    MLabel { text: learningViewModel.materialPreparation; role: "supporting"; objectName: "materialPreparationLabel" }
+                    MButton { visible: learningViewModel.canResumeMaterialPreparation; text: "继续基础整理"; objectName: "resumeMaterialPreparationButton"; variant: "tonal"; enabled: !learningViewModel.busy; onClicked: learningViewModel.resumeMaterialPreparation() }
+                    MLabel { text: "不用选题。先说说你的感受，聊着聊着再找方向。"; role: "body" }
                     MTextField {
-                        objectName: "customTopicInput"
                         visible: page.optionsExpanded
-                        Layout.fillWidth: true; placeholderText: "自己想聊的话题（AI 会先整理参考）"
+                        objectName: "customTopicInput"
+                        Layout.fillWidth: true; placeholderText: "想先聊什么？（可留空，将放入草稿）"
                         text: learningViewModel.customTopic
                         onTextEdited: learningViewModel.customTopic = text
                     }
-                    ButtonGroup { id: modeGroup }
                     Flow {
                         visible: page.optionsExpanded
                         Layout.fillWidth: true; spacing: AppTheme.gapSmall
-                        MChip { text: "自然讨论"; ButtonGroup.group: modeGroup; checked: learningViewModel.practiceMode === "discussion"; onClicked: learningViewModel.practiceMode = "discussion" }
-                        MChip { text: "语境 roleplay"; ButtonGroup.group: modeGroup; checked: learningViewModel.practiceMode === "roleplay"; onClicked: learningViewModel.practiceMode = "roleplay" }
+                        MChip { text: "自由聊天"; checked: learningViewModel.practiceMode === "discussion"; onClicked: learningViewModel.practiceMode = "discussion" }
+                        MChip { text: "语境 roleplay"; checked: learningViewModel.practiceMode === "roleplay"; onClicked: learningViewModel.practiceMode = "roleplay" }
                     }
                     MTextField { visible: page.optionsExpanded && learningViewModel.practiceMode === "roleplay"; Layout.fillWidth: true; placeholderText: "描述你和 AI 各自的角色"; text: learningViewModel.roleDescription; onTextEdited: learningViewModel.roleDescription = text }
                     Flow {
-                        Layout.fillWidth: true; spacing: 8
+                        Layout.fillWidth: true; spacing: AppTheme.gapSmall
                         MButton {
-                        text: learningViewModel.sessionActive ? "继续当前对话" : learningViewModel.customTopic.trim().length > 0 ? "整理话题并开始" : "开始对话"
-                        objectName: "startDiscussionButton"
-                        enabled: !learningViewModel.busy && (learningViewModel.sessionActive || learningViewModel.materialPrepared && (learningViewModel.topics.length > 0 || learningViewModel.customTopic.trim().length > 0))
-                        onClicked: { if (learningViewModel.sessionActive) page.navigate(1); else learningViewModel.startPractice() }
+                            text: learningViewModel.sessionActive ? "继续聊天" : "聊聊这份材料"
+                            objectName: "startDiscussionButton"
+                            enabled: !learningViewModel.busy && (learningViewModel.sessionActive || learningViewModel.readingScopeConfirmed)
+                            onClicked: { if (learningViewModel.sessionActive) page.navigate(1); else learningViewModel.startPractice() }
                         }
-                        MButton { text: page.optionsExpanded ? "收起选项" : "自定义话题与模式"; objectName: "discussionOptionsButton"; variant: "text"; onClicked: page.optionsExpanded = !page.optionsExpanded }
-                    }
-                }
-                RowLayout {
-                    visible: learningViewModel.topics.length > 0
-                    Layout.fillWidth: true
-                    MLabel { text: "话题 · " + learningViewModel.topics.length; role: "title"; Layout.fillWidth: false }
-                    MTextField { visible: learningViewModel.topics.length > 6; objectName: "topicSearchInput"; Layout.fillWidth: true; placeholderText: "查找话题"; text: learningViewModel.topicSearch; onTextEdited: learningViewModel.topicSearch = text }
-                }
-                Flow {
-                    Layout.fillWidth: true; spacing: AppTheme.gapSmall
-                    Repeater {
-                        model: learningViewModel.topicCategories
-                        MChip { required property string modelData; required property int index; objectName: "topicCategory" + index; text: modelData; checked: learningViewModel.topicFilter === modelData; onClicked: learningViewModel.topicFilter = modelData }
-                    }
-                }
-                GridLayout {
-                    Layout.fillWidth: true
-                    columns: page.width >= 820 ? 2 : 1
-                    columnSpacing: 16; rowSpacing: 16
-                    Repeater {
-                        model: learningViewModel.filteredTopics
-                        MCard {
-                            id: topicCard
-                            required property var modelData
-                            required property int index
-                            property bool expanded: false
-                            Layout.fillWidth: true; Layout.alignment: Qt.AlignTop
-                            outlined: true
-                            border.color: learningViewModel.selectedTopicId === modelData.id ? AppTheme.primary : AppTheme.outlineVariant
-                            color: learningViewModel.selectedTopicId === modelData.id ? AppTheme.primaryContainer : AppTheme.surfaceContainerLow
-                            MLabel { text: topicCard.modelData.category_label || "讨论"; role: "label"; color: AppTheme.primary }
-                            MLabel { text: topicCard.modelData.title; role: "title" }
-                            MLabel { text: topicCard.modelData.opening_question; font.family: AppTheme.japaneseFont }
-                            RowLayout {
-                                Layout.fillWidth: true
-                                MButton { objectName: "selectTopic" + topicCard.index; text: learningViewModel.selectedTopicId === topicCard.modelData.id ? "已选择" : "选这个"; variant: learningViewModel.selectedTopicId === topicCard.modelData.id ? "filled" : "outlined"; enabled: !learningViewModel.busy; onClicked: learningViewModel.selectTopic(topicCard.modelData.id) }
-                                MButton { objectName: "topicReference" + topicCard.index; text: topicCard.expanded ? "收起" : "参考"; variant: "text"; onClicked: topicCard.expanded = !topicCard.expanded }
-                            }
-                            ColumnLayout {
-                                visible: topicCard.expanded; Layout.fillWidth: true
-                                MLabel { text: "材料依据：" + topicCard.modelData.source_excerpt; role: "supporting" }
-                                Repeater {
-                                    model: topicCard.modelData.answer_branches || []
-                                    ColumnLayout {
-                                        required property var modelData
-                                        Layout.fillWidth: true
-                                        MLabel { text: "可能的讨论方向：" + modelData.user_intent; role: "label" }
-                                        MLabel { text: (modelData.response_points || []).join("\n"); role: "supporting" }
-                                        MLabel { text: modelData.suggested_reply || ""; font.family: AppTheme.japaneseFont }
-                                    }
-                                }
-                            }
-                        }
+                        MButton { text: page.optionsExpanded ? "收起选项" : "开场想法与模式"; objectName: "discussionOptionsButton"; variant: "text"; onClicked: page.optionsExpanded = !page.optionsExpanded }
                     }
                 }
                 MCard {
-                    visible: page.showSource && learningViewModel.hasMaterial
-                    Switch { text: "显示清洗结果"; checked: page.normalized; onToggled: page.normalized = checked }
-                    MLabel { text: page.normalized ? learningViewModel.materialNormalizedContent : learningViewModel.materialRawContent; font.family: AppTheme.japaneseFont }
+                    visible: learningViewModel.hasMaterial && learningViewModel.readingScopeConfirmed
+                    MButton { text: page.showStructure ? "收起已有参考" : "查看已有参考"; objectName: "expandMaterialSummaryButton"; variant: "text"; onClicked: page.showStructure = !page.showStructure }
+                    ColumnLayout {
+                        visible: page.showStructure; Layout.fillWidth: true
+                        MLabel { objectName: "materialSummaryText"; text: learningViewModel.analysisSummary; maximumLineCount: page.showStructure ? 2147483647 : 7; elide: Text.ElideRight }
+                        Repeater { model: page.showStructure ? learningViewModel.analysisOutline : []; MLabel { required property string modelData; text: "· " + modelData; role: "supporting" } }
+                        Repeater { model: page.showStructure ? learningViewModel.analysisCharacters : []; MLabel { required property var modelData; text: modelData.name + "：" + modelData.description; role: "supporting" } }
+                        MLabel { visible: learningViewModel.topics.length > 0; text: "已有话题资料继续作为内部参考，聊天不需要按顺序进行。"; role: "supporting" }
+                    }
+                    MButton { text: page.showSource ? "收起已读原文" : "查看已读原文"; variant: "text"; onClicked: page.showSource = !page.showSource }
+                    MLabel { visible: page.showSource; text: learningViewModel.materialNormalizedContent; font.family: AppTheme.japaneseFont }
                 }
                 Item { Layout.preferredHeight: 16 }
             }
@@ -184,7 +146,7 @@ Item {
     Dialogs.FileDialog {
         id: fileDialog
         objectName: "materialFileDialog"
-        title: "导入看过的内容"
+        title: "导入沉浸材料"
         nameFilters: ["沉浸材料 (*.txt *.srt *.vtt *.md *.markdown *.docx *.epub *.xlsx *.mp4 *.mkv *.webm *.mov *.avi)"]
         onAccepted: learningViewModel.importMaterial(selectedFile.toString(), "",
             learningViewModel.preferences.targetLanguage, learningViewModel.preferences.targetLanguage,

@@ -1,27 +1,45 @@
-from typing import Protocol, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Protocol
+
+from lingualoop.core.knowledge import ReasoningRequest, ReasoningResponse
+
 
 from lingualoop.core.domain import (
+    DialoguePreparation,
+    DiscussionTopic,
     FeedbackItem,
     LanguageEnum,
-    MaterialAnalysis,
     LearningMaterial,
+    MaterialAnalysis,
     Message,
     PracticeInstruction,
+    PracticeOptions,
+    PracticeSession,
     ProficiencyLevel,
     ReviewItem,
-    SessionReview,
-    PracticeSession,
     SessionEvent,
-    DiscussionTopic,
-    PracticeOptions,
-    DialoguePreparation,
+    SessionReview,
 )
 
 
+class MaterialReasoningProvider(Protocol):
+    """Independent, bounded reasoning operations; foreground text is a separate role."""
+
+    async def prepare_source_unit(self, request: ReasoningRequest) -> ReasoningResponse: ...
+
+    async def summarize_reading(self, request: ReasoningRequest) -> ReasoningResponse: ...
+
+    async def prepare_focus(self, request: ReasoningRequest) -> ReasoningResponse: ...
+
+    async def summarize_conversation(self, request: ReasoningRequest) -> ReasoningResponse: ...
+
+
 class LearningLLMProvider(Protocol):
-    """defining basic protocol of LLM
-    protocol is similar to interface in Typescript and Java
-    need to be implemented by other classes"""
+    """Provider-neutral learning operations shared by runners and adapters.
+
+    Replies use the dialogue role; analysis and preparation use the reasoning role.
+    Audio and transport capabilities are separate ports.
+    """
 
     async def analyze_material(
         self,
@@ -52,12 +70,29 @@ class LearningLLMProvider(Protocol):
         target_language: LanguageEnum,
     ) -> str: ...
 
-    def stream_reply(self, **kwargs) -> AsyncIterator[str]: ...
+    def stream_reply(
+        self,
+        *,
+        current_instruction: PracticeInstruction,
+        material: LearningMaterial,
+        message_history: list[Message],
+        user_message: Message,
+        corrections: list[FeedbackItem],
+        target_language: LanguageEnum,
+    ) -> AsyncIterator[str]: ...
 
-    async def prepare_custom_topic(self, *, material: LearningMaterial, title: str,
-                                   target_language: LanguageEnum, native_language: LanguageEnum) -> DiscussionTopic: ...
+    async def prepare_custom_topic(
+        self,
+        *,
+        material: LearningMaterial,
+        title: str,
+        target_language: LanguageEnum,
+        native_language: LanguageEnum,
+    ) -> DiscussionTopic: ...
 
-    async def prepare_dialogue(self, *, material: LearningMaterial, session: PracticeSession) -> DialoguePreparation: ...
+    async def prepare_dialogue(
+        self, *, material: LearningMaterial, session: PracticeSession
+    ) -> DialoguePreparation: ...
 
     async def correct_answer(
         self,

@@ -1,0 +1,461 @@
+[
+  {
+    "id": "sensevoice-int8-20250909",
+    "revision": "355f4d4884d8afd08aef04b9007a8556d7b463b2",
+    "name": "SenseVoice Small INT8",
+    "task": "stt",
+    "languages": [
+      "zh",
+      "en",
+      "ja",
+      "ko",
+      "yue"
+    ],
+    "scenarios": [
+      "conversation",
+      "import"
+    ],
+    "streaming": "整段识别；连续输入需另接 VAD，不提供原生 partial",
+    "license_note": "代码与权重许可不同：权重遵循 FunASR 模型许可，发布前须保留署名并复核当前条款。",
+    "sources": [
+      "https://github.com/QwenAudio/SenseVoice",
+      "https://k2-fsa.github.io/sherpa/onnx/sense-voice/pretrained.html"
+    ],
+    "adapter": "sensevoice",
+    "evaluation_budget_mb": 2048,
+    "files": [
+      {
+        "path": "model.int8.onnx",
+        "url": "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2025-09-09/resolve/355f4d4884d8afd08aef04b9007a8556d7b463b2/model.int8.onnx",
+        "size": 237115547,
+        "sha256": "12ca1a2ae7ecf3e0019ef2822307ee0b5cadc9196569e379b4c4026f8205276d"
+      },
+      {
+        "path": "tokens.txt",
+        "url": "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2025-09-09/resolve/355f4d4884d8afd08aef04b9007a8556d7b463b2/tokens.txt",
+        "size": 315894,
+        "sha256": "f449eb28dc567533d7fa59be34e2abca8784f771850c78a47fb731a31429a1dc"
+      }
+    ],
+    "required_files": [
+      "model.int8.onnx",
+      "tokens.txt"
+    ],
+    "notes": "CPU ONNX；中英日共用同一包。短语音结束后才运行整段识别会增加尾延迟，RTF 不能代替实际停顿测量。"
+  },
+  {
+    "id": "zipformer-small-zhen-20230216",
+    "revision": "sha256-2b7c63322b32",
+    "name": "Zipformer Small 中英流式",
+    "task": "stt",
+    "languages": [
+      "zh",
+      "en"
+    ],
+    "scenarios": [
+      "conversation",
+      "import"
+    ],
+    "streaming": "原生增量 ASR；端点检测仍需独立验收",
+    "license_note": "包内许可证和训练来源需要单独核对；现阶段仅作本地技术评估，不作为默认分发包。",
+    "sources": [
+      "https://k2-fsa.github.io/sherpa/onnx/pretrained_models/online-transducer/zipformer-transducer-models.html"
+    ],
+    "adapter": "zipformer",
+    "evaluation_budget_mb": 2048,
+    "files": [
+      {
+        "path": "model.tar.bz2",
+        "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-small-bilingual-zh-en-2023-02-16.tar.bz2",
+        "size": 458187351,
+        "sha256": "2b7c63322b32e5e0f2526043a1103366119ca58dd615cd7105a37c01db9553d7",
+        "archive_root": "sherpa-onnx-streaming-zipformer-small-bilingual-zh-en-2023-02-16",
+        "unpacked_limit": 2147483648
+      }
+    ],
+    "required_files": [
+      "tokens.txt"
+    ],
+    "notes": "下载包包含 FP32/INT8 版本，运行选择 INT8。包名 Small 不代表下载小，完整下载约 437 MiB；本机通过后才考虑精简资产。"
+  },
+  {
+    "id": "kokoro-int8-zhen-v11",
+    "revision": "sha256-259c9c8bc906",
+    "name": "Kokoro v1.1 中英 INT8",
+    "task": "tts",
+    "languages": [
+      "zh",
+      "en"
+    ],
+    "scenarios": [
+      "conversation",
+      "reading"
+    ],
+    "streaming": "按完整文本/句子合成，可回调 PCM；未接增量文本流",
+    "license_note": "权重 Apache-2.0；包内字典、eSpeak NG 数据各有许可（含 GPL），须随分发保留并复核。",
+    "sources": [
+      "https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/kokoro.html",
+      "https://huggingface.co/hexgrad/Kokoro-82M-v1.1-zh"
+    ],
+    "adapter": "kokoro",
+    "evaluation_budget_mb": 1536,
+    "files": [
+      {
+        "path": "model.tar.bz2",
+        "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-int8-multi-lang-v1_1.tar.bz2",
+        "size": 147052523,
+        "sha256": "259c9c8bc906d6078e4e0570421885dabb68b539c2f970fcbb890a58eeaf3e9c",
+        "archive_root": "kokoro-int8-multi-lang-v1_1",
+        "unpacked_limit": 805306368
+      }
+    ],
+    "required_files": [
+      "model.int8.onnx",
+      "tokens.txt",
+      "voices.bin",
+      "lexicon-us-en.txt",
+      "lexicon-zh.txt",
+      "date-zh.fst",
+      "number-zh.fst",
+      "phone-zh.fst",
+      "dict/jieba.dict.utf8",
+      "espeak-ng-data/phontab"
+    ],
+    "notes": "现成 ONNX 前端仅中英，不能用于日语。首次中文分词/合成也需预热；默认试听 zf_001 / af_maple。"
+  },
+  {
+    "id": "voicevox-japanese",
+    "revision": "candidate",
+    "name": "VOICEVOX 日语",
+    "task": "tts",
+    "languages": [
+      "ja"
+    ],
+    "scenarios": [
+      "conversation",
+      "reading"
+    ],
+    "streaming": "短句合成；尚未集成",
+    "license_note": "CORE MIT；Engine 和每个角色声音分别有许可与署名要求。",
+    "sources": [
+      "https://github.com/VOICEVOX/voicevox_core",
+      "https://github.com/VOICEVOX/voicevox_engine"
+    ],
+    "notes": "日语优先候选，先固定一个允许分发的声音及完整运行包，再开放下载。"
+  },
+  {
+    "id": "kokoro-japanese-frontend",
+    "revision": "candidate",
+    "name": "Kokoro 日语前端",
+    "task": "tts",
+    "languages": [
+      "ja"
+    ],
+    "scenarios": [
+      "conversation",
+      "reading"
+    ],
+    "streaming": "分句合成；尚未集成",
+    "license_note": "Kokoro 权重 Apache-2.0；日语前端、词典需逐项复核。",
+    "sources": [
+      "https://huggingface.co/hexgrad/Kokoro-82M",
+      "https://github.com/hexgrad/misaki"
+    ],
+    "notes": "需要 misaki 日语前端；与现成 sherpa 中英包是不同部署方案。"
+  },
+  {
+    "id": "vosk-small-language-packs",
+    "revision": "candidate",
+    "name": "Vosk Small 语言包",
+    "task": "stt",
+    "languages": [
+      "zh",
+      "en",
+      "ja",
+      "de",
+      "fr",
+      "es"
+    ],
+    "scenarios": [
+      "conversation",
+      "import"
+    ],
+    "streaming": "原生增量 ASR；尚未集成",
+    "license_note": "每个语言包的模型许可分别核对，不能以引擎许可代替。",
+    "sources": [
+      "https://alphacephei.com/vosk/models"
+    ],
+    "notes": "低配置候选；各语言需单独下载模型，学习者口音识别待测。"
+  },
+  {
+    "id": "whisper-small-multilingual",
+    "revision": "candidate",
+    "name": "Whisper Small 多语言",
+    "task": "stt",
+    "languages": [
+      "zh",
+      "en",
+      "ja",
+      "ko",
+      "de",
+      "fr",
+      "es"
+    ],
+    "scenarios": [
+      "import",
+      "conversation"
+    ],
+    "streaming": "非原生增量 ASR，窗口重识别会占用算力",
+    "license_note": "Whisper 模型 MIT；CTranslate2 等依赖单独保留许可。",
+    "sources": [
+      "https://github.com/SYSTRAN/faster-whisper",
+      "https://huggingface.co/Systran/faster-whisper-small"
+    ],
+    "notes": "离线导入优先；不能把长音频转录吞吐量当成短轮次尾延迟。日语不可选择 .en 模型。"
+  },
+  {
+    "id": "piper-language-voices",
+    "revision": "candidate",
+    "name": "Piper 各语种声音",
+    "task": "tts",
+    "languages": [
+      "zh",
+      "en",
+      "de",
+      "fr",
+      "es"
+    ],
+    "scenarios": [
+      "conversation",
+      "reading"
+    ],
+    "streaming": "短句合成；尚未集成",
+    "license_note": "当前引擎 GPL-3.0；每个声音按自己的 MODEL_CARD 许可。",
+    "sources": [
+      "https://github.com/OHF-Voice/piper1-gpl"
+    ],
+    "notes": "轻量 CPU 候选；当前目录不宣称支持日语。"
+  },
+  {
+    "id": "qwen3-asr-06b",
+    "revision": "candidate",
+    "name": "Qwen3-ASR 0.6B",
+    "task": "stt",
+    "languages": [
+      "zh",
+      "en",
+      "ja",
+      "ko",
+      "de",
+      "fr",
+      "es"
+    ],
+    "scenarios": [
+      "conversation",
+      "import"
+    ],
+    "streaming": "官方流式依赖 vLLM 后端；Windows 尚未验证",
+    "license_note": "Apache-2.0；部署依赖另行核对。",
+    "sources": [
+      "https://github.com/QwenLM/Qwen3-ASR"
+    ],
+    "notes": "GPU 进阶候选；不凭检测到显卡就判定 CUDA 后端或配对显存足够。"
+  },
+  {
+    "id": "qwen3-tts-06b",
+    "revision": "candidate",
+    "name": "Qwen3-TTS 0.6B",
+    "task": "tts",
+    "languages": [
+      "zh",
+      "en",
+      "ja",
+      "ko",
+      "de",
+      "fr",
+      "es"
+    ],
+    "scenarios": [
+      "conversation",
+      "reading"
+    ],
+    "streaming": "支持流式架构；具体推理接口尚未集成",
+    "license_note": "Apache-2.0；声音、前端与部署依赖分别核对。",
+    "sources": [
+      "https://github.com/QwenLM/Qwen3-TTS"
+    ],
+    "notes": "GPU 进阶候选；先测 ASR+TTS 并发显存、首 PCM 与打断后释放。"
+  },
+  {
+    "id": "melo-zhen-onnx",
+    "revision": "sha256-e58351ed7149",
+    "name": "MeloTTS 中英 ONNX",
+    "task": "tts",
+    "languages": [
+      "zh",
+      "en"
+    ],
+    "scenarios": [
+      "conversation",
+      "reading"
+    ],
+    "streaming": "完整短句合成后回调 PCM；不是增量文本流",
+    "license_note": "包内 MIT 许可；中文分词字典等依赖需保留各自许可。",
+    "sources": [
+      "https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/vits.html",
+      "https://github.com/myshell-ai/MeloTTS"
+    ],
+    "adapter": "vits",
+    "evaluation_budget_mb": 1536,
+    "files": [
+      {
+        "path": "model.tar.bz2",
+        "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-melo-tts-zh_en.tar.bz2",
+        "size": 167006755,
+        "sha256": "e58351ed7149f290a54534538badd4077cdbe6fddc964b24d0bee870415d1514",
+        "archive_root": "vits-melo-tts-zh_en",
+        "unpacked_limit": 402653184
+      }
+    ],
+    "required_files": [
+      "model.onnx",
+      "tokens.txt",
+      "lexicon.txt",
+      "dict/jieba.dict.utf8",
+      "date.fst",
+      "phone.fst",
+      "number.fst"
+    ],
+    "notes": "轻量 TTS 对照；单个声音，英文只能可靠读出词典覆盖的单词，专有名词需特别验证。不能仅因速度快就认定音质、语言覆盖合格。"
+  },
+  {
+    "id": "sensevoice-fp32-20240717",
+    "revision": "2365baeacb507f821a0c8120fcee3d484dba7a07",
+    "name": "SenseVoice 2024 FP32",
+    "task": "stt",
+    "languages": [
+      "zh",
+      "en",
+      "ja"
+    ],
+    "scenarios": [
+      "conversation",
+      "import"
+    ],
+    "streaming": "整段识别；首结果时间从录音结束后开始计算",
+    "license_note": "模型 Apache-2.0；按需从官方仓库下载。",
+    "sources": [
+      "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17"
+    ],
+    "adapter": "sensevoice-ort",
+    "files": [
+      {
+        "path": "model.onnx",
+        "url": "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/2365baeacb507f821a0c8120fcee3d484dba7a07/model.onnx",
+        "size": 937617178,
+        "sha256": "977016bd9c79f9eb343430b5cc305e07ab64d5212dff41b0dcfa1694bee9a8cb"
+      },
+      {
+        "path": "tokens.txt",
+        "url": "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/2365baeacb507f821a0c8120fcee3d484dba7a07/tokens.txt",
+        "size": 315894,
+        "sha256": "f449eb28dc567533d7fa59be34e2abca8784f771850c78a47fb731a31429a1dc"
+      }
+    ],
+    "required_files": [
+      "model.onnx",
+      "tokens.txt"
+    ],
+    "evaluation_budget_mb": 2048,
+    "notes": "推荐 GPU。固定公开语料上平均约 53–58 ms；CPU 平均 505–714 ms，未通过 500 ms 筛选。数值不含录音、端点等待或播放。"
+  },
+  {
+    "id": "reazonspeech-k2-v2-int8",
+    "revision": "291488c8151be24d7da4bf7af26e533fad96e407",
+    "name": "ReazonSpeech k2 v2 INT8 日语",
+    "task": "stt",
+    "languages": [
+      "ja"
+    ],
+    "scenarios": [
+      "conversation",
+      "import"
+    ],
+    "streaming": "整段识别；使用 FP32 decoder 与 INT8 encoder/joiner",
+    "license_note": "Apache-2.0；依赖各自保留许可。",
+    "sources": [
+      "https://huggingface.co/reazon-research/reazonspeech-k2-v2"
+    ],
+    "adapter": "reazon",
+    "files": [
+      {
+        "path": "encoder-epoch-99-avg-1.int8.onnx",
+        "url": "https://huggingface.co/reazon-research/reazonspeech-k2-v2/resolve/291488c8151be24d7da4bf7af26e533fad96e407/encoder-epoch-99-avg-1.int8.onnx",
+        "size": 154670139,
+        "sha256": "2c7bd08a8a99f9ddd0d9e458456577b1f6279214e51426f114f9eced44c54e1d"
+      },
+      {
+        "path": "decoder-epoch-99-avg-1.onnx",
+        "url": "https://huggingface.co/reazon-research/reazonspeech-k2-v2/resolve/291488c8151be24d7da4bf7af26e533fad96e407/decoder-epoch-99-avg-1.onnx",
+        "size": 11767836,
+        "sha256": "58b18211ae06265466bfa17172dab574df94f76c8bcb61a3640c28ba860e4124"
+      },
+      {
+        "path": "joiner-epoch-99-avg-1.int8.onnx",
+        "url": "https://huggingface.co/reazon-research/reazonspeech-k2-v2/resolve/291488c8151be24d7da4bf7af26e533fad96e407/joiner-epoch-99-avg-1.int8.onnx",
+        "size": 2696970,
+        "sha256": "49cc7ea1d3d35a40a27442db5e89996da64bf0e683a903dce76e99e57a12e4de"
+      },
+      {
+        "path": "tokens.txt",
+        "url": "https://huggingface.co/reazon-research/reazonspeech-k2-v2/resolve/291488c8151be24d7da4bf7af26e533fad96e407/tokens.txt",
+        "size": 45754,
+        "sha256": "2c3ac659818a48a0c04010e0593bbc4d7c8a24a054340b01131499c05fd52def"
+      }
+    ],
+    "required_files": [
+      "encoder-epoch-99-avg-1.int8.onnx",
+      "decoder-epoch-99-avg-1.onnx",
+      "joiner-epoch-99-avg-1.int8.onnx",
+      "tokens.txt"
+    ],
+    "evaluation_budget_mb": 1536,
+    "notes": "日语 CPU 备选：评估平均 323 ms、p95 546 ms；GPU 尚未验证。"
+  },
+  {
+    "id": "piper-lessac-medium",
+    "revision": "sha256-9e3febfacf0a",
+    "name": "Piper Lessac medium 英语",
+    "task": "tts",
+    "languages": [
+      "en"
+    ],
+    "scenarios": [
+      "conversation",
+      "reading"
+    ],
+    "streaming": "sentence batch",
+    "license_note": "声音许可见来源 MODEL_CARD；包内依赖许可须保留。不宣称已获权重再分发许可。",
+    "sources": [
+      "https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/lessac/medium"
+    ],
+    "adapter": "vits",
+    "files": [
+      {
+        "path": "model.tar.bz2",
+        "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-en_US-lessac-medium.tar.bz2",
+        "sha256": "9e3febfacf0abf4270172d2958bcec246032b7e88efc2720840cc80c93de334e",
+        "size": 67230653,
+        "archive_root": "vits-piper-en_US-lessac-medium",
+        "unpacked_limit": 167772160
+      }
+    ],
+    "required_files": [
+      "en_US-lessac-medium.onnx",
+      "tokens.txt",
+      "espeak-ng-data/phontab"
+    ],
+    "notes": "用户已认可音质；CPU 首 PCM 约 57 ms。按声音原许可个人下载，安装包不附带权重。",
+    "evaluation_budget_mb": 1536
+  }
+]

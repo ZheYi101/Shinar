@@ -28,6 +28,7 @@ from lingualoop.core.domain import (
 )
 from lingualoop.core.ports import EventStore, LearningLLMProvider
 from lingualoop.core.preparation_validation import validate_dialogue_preparation
+from lingualoop.core.knowledge import TurnContext, model_call_usage
 
 DEFAULT_PATTERN_ID = "guided_roleplay"
 
@@ -68,13 +69,16 @@ class DirectLearningSessionRunner:
                 material=material, learner_level=profile.profile_level,
                 target_language=profile.target_language, topic=topic, options=options,
             )
-        else:  # Existing integrations without a topic retain the original task API.
+        elif options and options.mode is PracticeMode.DISCUSSION:
+            task_prompt = _free_chat_opening(profile.target_language.value)
+        else:  # Existing integrations without options retain the original task API.
             task_prompt = await self._llm_provider.generate_task(
                 material=material, learner_level=profile.profile_level,
                 target_language=profile.target_language,
+                **({"options": options} if options else {}),
             )
         if options:
-            pattern_id = "topic-discussion" if options.mode is PracticeMode.DISCUSSION else "guided_roleplay"
+            pattern_id = ("topic-discussion" if topic else "free-discussion") if options.mode is PracticeMode.DISCUSSION else "guided_roleplay"
 
         instruction = PracticeInstruction(
             prompt=task_prompt,
@@ -122,6 +126,7 @@ class DirectLearningSessionRunner:
     async def handle_user_message(
         self, *, session: PracticeSession, material: LearningMaterial, user_content: str,
         on_delta: Callable[[str], None] | None = None,
+        turn_context: TurnContext | None = None,
     ) -> SessionStepResult:
         instruction = session.current_instruction
         if instruction is None:
@@ -158,6 +163,8 @@ class DirectLearningSessionRunner:
 
         preparation = session.preparation
         metadata = dict(instruction.metadata)
+        if turn_context is not None:
+            metadata["turn_context"] = turn_context.model_dump(mode="json")
         if preparation and preparation.based_on_message_count == len(session.messages):
             try:
                 validated = validate_dialogue_preparation(preparation, material.content)
@@ -196,11 +203,23 @@ class DirectLearningSessionRunner:
                 on_delta(assistant_text)
         if not assistant_text.strip():
             raise ValueError("对话服务未返回文字，当前发言尚未保存，请重试。")
+        usage = model_call_usage.get() or {}
         timing = ReplyTiming(ttft_ms=(first_token-started)*1000 if first_token and streamed else None,
-                             total_ms=(perf_counter()-started)*1000, streamed=streamed)
+                             total_ms=(perf_counter()-started)*1000, streamed=streamed,
+                             context_ms=turn_context.retrieval_ms if turn_context else 0,
+                             verification_ms=turn_context.verification_ms if turn_context else 0,
+                             input_tokens=usage.get("input_tokens"), output_tokens=usage.get("output_tokens"))
 
-        assistant_message = Message(role=MessageRole.ASSISTANT, content=assistant_text,
-                                    metadata={"timing": timing.model_dump(mode="json")})
+        audit = {"timing": timing.model_dump(mode="json")}
+        if turn_context:
+            audit["context"] = {"scope_end": turn_context.scope_end,
+                "prompt_version": turn_context.prompt_version,
+                "retrieval_version": turn_context.retrieval_version,
+                "evidence_ids": [item.id for item in turn_context.evidence],
+                "note_ids": [note.id for note in turn_context.notes], "gaps": turn_context.gaps,
+                "background_included": bool(turn_context.focus_points),
+                "memory_message_ids": [value for item in turn_context.memory for value in item.message_ids]}
+        assistant_message = Message(role=MessageRole.ASSISTANT, content=assistant_text, metadata=audit)
 
         updated_session = session.model_copy(
             update={
@@ -372,3 +391,14 @@ def _message_event(session_id: str, message: Message) -> SessionEvent:
             "content": message.content,
         },
     )
+
+
+def _free_chat_opening(language: str) -> str:
+    return {
+        "chinese": "读到这里，有什么让你特别在意的地方？我们就从那里聊起。",
+        "japanese": "ここまで読んで、何がいちばん気になった？そこから話そう。",
+        "english": "What has stayed with you in the part you’ve read? We can start there.",
+        "french": "Qu’est-ce qui t’a marqué dans ce que tu as lu ?",
+        "germany": "Was ist dir in dem gelesenen Teil besonders im Kopf geblieben?",
+        "spanish": "¿Qué se te ha quedado en la cabeza de lo que has leído?",
+    }.get(language, "What has stayed with you in the part you’ve read?")

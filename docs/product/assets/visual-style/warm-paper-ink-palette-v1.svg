@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="178" viewBox="0 0 1200 178" role="img" aria-labelledby="palette-title palette-desc">
+<title id="palette-title">LinguaLoop warm paper and ink — provisional core palette</title>
+<desc id="palette-desc">Six design colors: pale warm ivory paper, oatmeal panel, walnut ink, dark olive-gray, muted sage and warm brass rule. Design defaults, not pixel samples.</desc>
+<rect width="1200" height="178" rx="6" fill="#FCF9F1"/>
+<g fill="#3F382F" font-family="Arial, sans-serif">
+<g transform="translate(24 22)"><rect x="0" y="0" width="172" height="76" rx="3" fill="#F7F3E9" stroke="#887A67" stroke-width="0.6"/><text x="0" y="103" font-size="16" font-weight="600">paper</text><text x="0" y="128" font-size="15">#F7F3E9</text></g>
+<g transform="translate(220 22)"><rect x="0" y="0" width="172" height="76" rx="3" fill="#EEE8DC" stroke="#887A67" stroke-width="0.6"/><text x="0" y="103" font-size="16" font-weight="600">panel</text><text x="0" y="128" font-size="15">#EEE8DC</text></g>
+<g transform="translate(416 22)"><rect x="0" y="0" width="172" height="76" rx="3" fill="#3F382F" stroke="#887A67" stroke-width="0.6"/><text x="0" y="103" font-size="16" font-weight="600">ink</text><text x="0" y="128" font-size="15">#3F382F</text></g>
+<g transform="translate(612 22)"><rect x="0" y="0" width="172" height="76" rx="3" fill="#56634F" stroke="#887A67" stroke-width="0.6"/><text x="0" y="103" font-size="16" font-weight="600">primary</text><text x="0" y="128" font-size="15">#56634F</text></g>
+<g transform="translate(808 22)"><rect x="0" y="0" width="172" height="76" rx="3" fill="#78816B" stroke="#887A67" stroke-width="0.6"/><text x="0" y="103" font-size="16" font-weight="600">sage</text><text x="0" y="128" font-size="15">#78816B</text></g>
+<g transform="translate(1004 22)"><rect x="0" y="0" width="172" height="76" rx="3" fill="#B9AB91" stroke="#887A67" stroke-width="0.6"/><text x="0" y="103" font-size="16" font-weight="600">rule</text><text x="0" y="128" font-size="15">#B9AB91</text></g>
+</g>
+</svg>

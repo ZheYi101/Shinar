@@ -2,7 +2,7 @@
 
 评审日期：2026-10-24。结论是保留现有 Python 材料准备、Pro 后台准备、Flash 流式回应三层边界，吸收方案对证据、预测消费和测量的约束；无需为了这份参考文档扩大本机 LiveKit 探针范围。完整回复小于 1 秒仍是优化目标，不能改成首字目标，也不再作为用户已同意先行的本机探针硬门槛。
 
-本文件是参考方案与代码的设计对照，不是执行状态源或新增排期。实际状态、授权及证据更新仍统一见 [Roadmap](../planning/ROADMAP.md)；实测数据见 [文本独立验收](../planning/TEXT_ACCEPTANCE_2026-10-24.md)，服务事实见 [服务选型](./SERVICE_SELECTION_2026-10-24.md)。本评审只新增本文件，没有修改 core、provider、桌面、README 或 Roadmap，也没有发起模型调用、STT/TTS、RTC 部署或购买。
+本文件是参考方案与代码的设计对照，不是执行状态源或新增排期。实际状态、授权及证据更新仍统一见 [Roadmap](../planning/ROADMAP.md)；实测数据见 [文本独立验收](../validation/text/TEXT_ACCEPTANCE_2026-10-24.md)，服务事实见 [服务选型](./SERVICE_SELECTION_2026-10-24.md)。本评审只新增本文件，没有修改 core、provider、桌面、README 或 Roadmap，也没有发起模型调用、STT/TTS、RTC 部署或购买。
 
 ## 参考材料与证据边界
 
@@ -10,7 +10,7 @@
 
 代码在协作中的工作树上只读核对，取样时间为 2026-10-24 12:06 +08:00；后续实现可以变化，本文不替其他工作包签署通过。已阅读 AGENTS、当前执行地图、PROJECT_BRIEF、MVP_SPEC，并核对 material_preparation、learning_workbench、domain、provider、session_runner、来源选择和对应测试。本文所说“已有”指代码存在；测试或真实调用的通过结论仅在注明既有验收报告的地方使用，未重新执行全仓或付费测试。
 
-最新事实补充：下文已纳入 Roadmap E35 对应的 04:07:19–04:07:31 UTC 最终背景探针，证明一次真实候选可用并进入 Flash prompt；原代码取样指纹及先前失败历史仍保留。完整证据见[文本独立验收](../planning/TEXT_ACCEPTANCE_2026-10-24.md)“最终背景修正：一次准备与一次真实消费”。
+最新事实补充：下文已纳入 [历史执行记录 E35](../archive/2026-10/ROADMAP_SNAPSHOT_2026-10-28.md#e35) 对应的 04:07:19–04:07:31 UTC 最终背景探针，证明一次真实候选可用并进入 Flash prompt；原代码取样指纹及先前失败历史仍保留。完整证据见[文本独立验收](../validation/text/TEXT_ACCEPTANCE_2026-10-24.md)“最终背景修正：一次准备与一次真实消费”。
 
 ## 对当前交付的直接影响
 
@@ -76,7 +76,7 @@ DOCX P21 要求模型输入前完成剧透过滤；当前全书摘要、全书�
 | `intent_match` | 本轮真实意图与候选相符 | 最新 E35 仍未测；需标注或经审查的轻量规则，不能从前两项推出 |
 | `preparation_benefit` | 同条件下质量、延迟或成本的增量改善 | 最新 E35 仍未测；需开关对照，单次 included 不证明收益 |
 
-E35 的 19 文件聚合 SHA256 在调用前后均为 `dbbd27eb66d3097ba8eb67cf8f8839d40b3df7e53362e684f8b0f635f6d6610a`。唯一 Pro 请求为 low/4,000 token，输入 403、输出 939 token，耗时 10,690.96 ms，`finish_reason=stop`；随后唯一 Flash 确认纳入该包，首字 645.12 ms、完整 1,060.34 ms。由此可确认 available/included 的一次真实闭环；完整回复仍超过 1 秒，后台约 10.7 秒也不保证快速连续每轮都就绪。该结果不与旧候选混算预测准确率、提速幅度或 P95。来源见[文本独立验收](../planning/TEXT_ACCEPTANCE_2026-10-24.md)“最终背景修正：一次准备与一次真实消费”。
+E35 的 19 文件聚合 SHA256 在调用前后均为 `dbbd27eb66d3097ba8eb67cf8f8839d40b3df7e53362e684f8b0f635f6d6610a`。唯一 Pro 请求为 low/4,000 token，输入 403、输出 939 token，耗时 10,690.96 ms，`finish_reason=stop`；随后唯一 Flash 确认纳入该包，首字 645.12 ms、完整 1,060.34 ms。由此可确认 available/included 的一次真实闭环；完整回复仍超过 1 秒，后台约 10.7 秒也不保证快速连续每轮都就绪。该结果不与旧候选混算预测准确率、提速幅度或 P95。来源见[文本独立验收](../validation/text/TEXT_ACCEPTANCE_2026-10-24.md)“最终背景修正：一次准备与一次真实消费”。
 
 既有 benchmark 的 `prepared_hit` 更接近第一项，`prepared_intent_visible` 接近第二项。保留历史字段可复现性，但在后续报告注明语义，不把旧字段改名后重算成预测准确率。
 

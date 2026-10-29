@@ -143,7 +143,7 @@ def test_workbench_rejects_invalid_adapter_preparation_and_preserves_old_valid_s
         await work.load_material(title="旅", source_language=LanguageEnum.JAPANESE,
             target_language=LanguageEnum.JAPANESE, native_language=LanguageEnum.CHINESE,
             learner_level=ProficiencyLevel.B1, content=SOURCE)
-        await work.start_session()
+        await work.start_session(topic_id=work.material.analysis.topics[0].id)
         await asyncio.gather(*work._preparation_tasks)
         old = work.session.preparation.model_dump()
         assert work.preparation_status == "ready"

@@ -23,6 +23,7 @@ from lingualoop.core import (
     SessionUserProfile,
 )
 from lingualoop.infrastructure.material_import import import_material_file
+from lingualoop.core.reading_scope import scope_material, reading_end, paragraph_boundary
 from lingualoop.kernel import SessionStepResult
 from lingualoop.desktop.worker import AsyncWorker
 from lingualoop.desktop.preferences import DesktopPreferences
@@ -106,6 +107,7 @@ class LearningViewModel(QObject):
         self._last_reply = ""
         self._stt = stt_provider
         self._tts = tts_provider
+        self._local_speech = None
         speech_notes = []
         if "Mock" not in provider_label:
             for kind, attribute in (("STT", "_stt"), ("TTS", "_tts")):
@@ -197,6 +199,10 @@ class LearningViewModel(QObject):
         material = self._workbench.material
         if material is None:
             return "尚未加载材料。"
+        if self._workbench.session and self._workbench.session.material_id == material.id:
+            material = self._workbench._session_material()
+        else:
+            material = scope_material(material)
         names = {"japanese": "日语", "english": "英语", "chinese": "中文", "french": "法语", "germany": "德语", "spanish": "西班牙语"}
         lines = [f"材料：{material.title}", f"材料语言：{names.get(material.source_language.value, material.source_language.value)}"]
         if self._workbench.profile is not None:
@@ -205,7 +211,9 @@ class LearningViewModel(QObject):
                 [f"目标语言：{names.get(profile.target_language.value, profile.target_language.value)}", f"学习等级：{profile.profile_level.value if profile.profile_level.value != 'unknown' else '暂不确定'}"]
             )
         if material.analysis is not None:
-            lines.append(f"摘要：{material.analysis.summary}")
+            knowledge = material.analysis.knowledge
+            summary = (knowledge.brief.summary if knowledge.brief else "基础理解尚未完成，已有原文可供聊天。") if knowledge else material.analysis.summary
+            lines.append(f"摘要：{summary}")
             if material.analysis.keywords:
                 lines.append("关键词：" + "、".join(material.analysis.keywords))
             if material.analysis.difficulties:
@@ -263,21 +271,29 @@ class LearningViewModel(QObject):
     def materialContent(self) -> str:
         if self._workbench.material is None:
             return ""
-        return self._workbench.material.normalized_content or self._workbench.material.content
+        return scope_material(self._workbench.material).content
 
     @Property(str, notify=materialChanged)
     def analysisSummary(self):
         material = self._workbench.material
-        return material.analysis.summary if material and material.analysis else "材料已保存，可重试分析或自提话题。"
+        material = scope_material(material) if material else None
+        if material and material.analysis and material.analysis.knowledge:
+            knowledge = material.analysis.knowledge
+            return knowledge.brief.summary if knowledge.brief else "基础理解尚未完成，可查看已保存的局部笔记并先开始聊天。"
+        return material.analysis.summary if material and material.analysis else "先确认读到哪里，然后随时开聊。"
 
     @Property(list, notify=materialChanged)
     def analysisOutline(self):
-        analysis = self._workbench.material.analysis if self._workbench.material else None
+        analysis = scope_material(self._workbench.material).analysis if self._workbench.material else None
+        if analysis and analysis.knowledge:
+            if analysis.knowledge.brief:
+                return [point.text for point in analysis.knowledge.brief.points]
+            return [note.text for note in analysis.knowledge.notes[:12] if note.source_kind not in {"foreword", "author_note", "commentary"}]
         return list(getattr(analysis, "outline", []))
 
     @Property(list, notify=materialChanged)
     def analysisCharacters(self):
-        analysis = self._workbench.material.analysis if self._workbench.material else None
+        analysis = scope_material(self._workbench.material).analysis if self._workbench.material else None
         return [item.model_dump() for item in getattr(analysis, "characters", [])]
 
     @Property(bool, notify=materialChanged)
@@ -291,24 +307,36 @@ class LearningViewModel(QObject):
         if not material:
             return "尚未导入"
         analysis = material.analysis
+        if analysis and analysis.knowledge:
+            knowledge = analysis.knowledge
+            count = len(knowledge.completed_unit_ids)
+            total = len(knowledge.units) - len(knowledge.excluded_unit_ids)
+            label = {"saved": "基础理解待开始", "preparing": "正在理解已读内容", "partial": "基础理解尚未完成",
+                     "ready": "基础理解与概述已保存", "failed": "基础理解暂未完成"}[knowledge.status]
+            auxiliary = f" · {len(knowledge.excluded_unit_ids)} 段附属资料独立保留" if knowledge.excluded_unit_ids else ""
+            return f"{label} · {count}/{total} 段 · {len(knowledge.notes)} 条有出处笔记" + auxiliary
         if analysis and not getattr(analysis, "preparation_complete", True):
             chunks = getattr(analysis, 'chunks', [])
             if sum(chunk.end_char - chunk.start_char for chunk in chunks) == len(material.content):
                 return "各段已保存，正在汇总整书概要和话题…" if self._workbench.is_analyzing else "各段已保存，继续完成整书汇总后可开聊"
             return f"已整理并保存 {len(chunks)} 段" + ("，正在继续…" if self._busy else "，继续分析后可开聊")
-        return f"已准备 {len(analysis.topics)} 个话题" if analysis else "原文已保存，等待整理"
+        if material.read_through == 0:
+            return "原文已保存在本机 · 请确认已读范围"
+        if analysis and analysis.preparation_strategy == "source-index-v1":
+            return f"已建立 {len(analysis.chunks)} 段本地引用 · 未调用 AI 生成题库"
+        return "已有整理资料可供聊天参考" if analysis else "原文已保存，确认范围即可开聊"
 
     @Property(str, notify=materialChanged)
     def materialRawContent(self) -> str:
         if self._workbench.material is None:
             return ""
-        return self._workbench.material.raw_content or self._workbench.material.content
+        return scope_material(self._workbench.material).content
 
     @Property(str, notify=materialChanged)
     def materialNormalizedContent(self) -> str:
         if self._workbench.material is None:
             return ""
-        return self._workbench.material.normalized_content or self._workbench.material.content
+        return scope_material(self._workbench.material).content
 
     @Slot(str, str, str, str, str, str)
     def loadMaterial(
@@ -338,9 +366,10 @@ class LearningViewModel(QObject):
                 native_language=LanguageEnum(native_language),
                 learner_level=ProficiencyLevel(learner_level),
                 source_type=MaterialSourceType.TEXT,
+                auto_prepare=False,
             )
 
-        self._run_operation("正在分析材料...", operation, self._after_material_loaded)
+        self._run_operation("正在保存材料...", operation, self._after_material_loaded)
 
     @Slot(str, str, str, str, str, str, str)
     def importMaterial(
@@ -373,9 +402,10 @@ class LearningViewModel(QObject):
                 native_language=LanguageEnum(native_language),
                 learner_level=ProficiencyLevel(learner_level),
                 track=MaterialTrack(track),
+                auto_prepare=False,
             )
 
-        self._run_operation("正在导入并分析材料...", operation, self._after_material_loaded)
+        self._run_operation("正在导入材料...", operation, self._after_material_loaded)
 
     @Slot()
     def startPractice(self) -> None:
@@ -387,9 +417,9 @@ class LearningViewModel(QObject):
                                   feedback_timing=FeedbackTiming(self._preferences.feedbackTiming),
                                   role_description=self._role_description)
         profile = self._selected_profile()
-        self._run_operation("正在整理自定义话题…" if self._custom_topic.strip() else "正在开始对话…",
-                            lambda: self._workbench.start_session(topic_id=self._selected_topic or None,
-                                custom_topic=self._custom_topic or None, options=options, profile=profile), self._after_started)
+        self._run_operation("正在开始对话…",
+                            lambda: self._workbench.start_session(topic_id=None,
+                                custom_topic=None, options=options, profile=profile), self._after_started)
 
     @Slot(str)
     def sendMessage(self, content: str) -> None:
@@ -589,7 +619,7 @@ class LearningViewModel(QObject):
         self.topicsChanged.emit()
         self.historyChanged.emit()
         if not self._error:
-            self._set_status("材料已保存，可以选择话题。" if self.materialPrepared else "已加载本地整理进度，继续整理后可开聊。")
+            self._set_status("范围已确认，可以先聊天，基础理解会在后台保存。" if self.readingScopeConfirmed else "材料已保存，请确认已读范围。")
 
     def _after_completed(self, result):
         self._after_session_changed(result)
@@ -724,6 +754,7 @@ class LearningViewModel(QObject):
     @Property(list, notify=topicsChanged)
     def topics(self):
         material = self._workbench.material
+        material = scope_material(material) if material else None
         return [dict(topic.model_dump(), category_label=_topic_category_label(topic.category))
                 for topic in material.analysis.topics] if material and material.analysis else []
 
@@ -755,7 +786,7 @@ class LearningViewModel(QObject):
 
     @Property(str, notify=uiChanged)
     def selectedTopicTitle(self):
-        return next((topic["title"] for topic in self.topics if topic["id"] == self._selected_topic), "选择下方话题，或使用第一个话题开始")
+        return next((topic["title"] for topic in self.topics if topic["id"] == self._selected_topic), "随便聊聊，不用先选话题")
 
     @Property(str, notify=uiChanged)
     def streamingText(self): return self._streaming_text
@@ -791,13 +822,13 @@ class LearningViewModel(QObject):
     @Property(str, notify=sessionChanged)
     def topicTitle(self):
         session = self._workbench.session
-        return session.topic.title if session and session.topic else "选择一个想聊的话题"
+        return session.topic.title if session and session.topic else "随便聊聊"
     @Property(bool, notify=sessionChanged)
     def sessionActive(self):
         return self._workbench.session is not None and self._workbench.session.status.value == "active"
     @Property(bool, notify=uiChanged)
-    def voiceReady(self): return bool(self._stt and self._tts and self._audio is not None)
-    @Property(str, constant=True)
+    def voiceReady(self): return bool(self._speech_available("stt") and self._speech_available("tts") and self._audio is not None)
+    @Property(str, notify=uiChanged)
     def speechStatus(self): return self._speech_status
     @Property(str, notify=uiChanged)
     def voiceState(self): return self._voice_state
@@ -808,13 +839,116 @@ class LearningViewModel(QObject):
     @Property(list, notify=uiChanged)
     def outputDevices(self): return self._audio.output_devices if self._audio else []
     @Property(bool, notify=uiChanged)
-    def canRetryTranscription(self): return bool(self._recording and self._stt)
+    def canRetryTranscription(self): return bool(self._recording and self._speech_available("stt"))
     @Property(bool, notify=uiChanged)
-    def canSpeak(self): return bool(self._last_reply and self._tts)
+    def canSpeak(self): return bool(self._last_reply and self._speech_available("tts"))
+
+    def configure_local_speech(self, library):
+        self._local_speech = library.local_service
+        library.inferenceStatus.connect(self._local_speech_status)
+        library.configurationChanged.connect(self.uiChanged)
+
+    @Slot(str)
+    def _local_speech_status(self, value):
+        self._speech_status = value
+        self.uiChanged.emit()
+
+    def _speech_available(self, task):
+        return bool((self._local_speech and self._local_speech.enabled(task)) or getattr(self, "_" + task))
+
+    def _speech_language(self):
+        session = self._workbench.session
+        language = session.profile.target_language.value if session else self._preferences.targetLanguage
+        return {"japanese": "ja", "english": "en", "chinese": "zh", "korean": "ko",
+                "french": "fr", "germany": "de", "spanish": "es"}.get(language, language)
+
+    def _speech_operation(self, task, content):
+        # Resolve the real session's language on the GUI thread; library filters are unrelated.
+        if self._local_speech and self._local_speech.enabled(task):
+            language = self._speech_language()
+            method = self._local_speech.transcribe if task == "stt" else self._local_speech.synthesize
+            return lambda: method(content, language)
+        provider = getattr(self, "_" + task)
+        method = provider.transcribe if task == "stt" else provider.synthesize
+        return lambda: method(content)
     @Property(str, notify=sessionChanged)
     def reviewSummary(self):
         session = self._workbench.session
         return session.review.summary if session and session.review else "对话结束后，这里会显示本轮总结。"
+
+    @Property(bool, notify=materialChanged)
+    def readingScopeConfirmed(self):
+        return bool(self._workbench.material and reading_end(self._workbench.material) > 0)
+
+    @Property(str, notify=materialChanged)
+    def readingScopeLabel(self):
+        material = self._workbench.material
+        if not material or material.read_through == 0:
+            return "尚未确认已读范围"
+        end = reading_end(material)
+        return "已读完本份材料" if end == len(material.content) else f"只聊已读部分 · 原文约 {100 * end / len(material.content):.1f}%"
+
+    @Slot(int, result=str)
+    def readingPreview(self, percent):
+        material = self._workbench.material
+        if not material:
+            return ""
+        end = paragraph_boundary(material.content, percent)
+        return material.content[max(0, end - 240):end].strip()
+
+    @Slot(int)
+    def confirmReadingPercent(self, percent):
+        if self._busy or not self._workbench.material:
+            return
+        end = paragraph_boundary(self._workbench.material.content, percent)
+        self._confirm_scope(end)
+
+    @Slot(str)
+    def confirmReadingPassage(self, passage):
+        if self._busy or not self._workbench.material:
+            return
+        text = self._workbench.material.content
+        passage = passage.strip()
+        if len(passage) < 8 or text.count(passage) != 1:
+            self.errorOccurred.emit("请粘贴原文中唯一的一句（至少 8 个字符），以便精确确定已读位置。")
+            return
+        self._confirm_scope(text.index(passage) + len(passage))
+
+    def _confirm_scope(self, end):
+        async def operation():
+            return self._workbench.set_reading_scope(end)
+        self._run_operation("正在建立本地引用…", operation, self._after_material_loaded)
+
+    @Property(bool, notify=materialChanged)
+    def canResumeMaterialPreparation(self):
+        material = self._workbench.material
+        knowledge = material.analysis.knowledge if material and material.analysis else None
+        return bool(knowledge and knowledge.status in {"saved", "partial", "failed"})
+
+    @Slot()
+    def resumeMaterialPreparation(self):
+        if not self._busy:
+            async def operation():
+                return self._workbench.resume_material_preparation()
+            self._run_operation("正在继续基础理解…", operation, self._after_material_loaded)
+
+    @Property(list, notify=uiChanged)
+    def suggestedDirections(self):
+        session = self._workbench.session
+        if session and session.focus_reference:
+            if session.focus_reference.based_on_message_ids == [message.id for message in session.messages]:
+                return session.focus_reference.directions[:2]
+            return []
+        if not session or not session.preparation or session.preparation.based_on_message_count != len(session.messages):
+            return []
+        if sum(message.role.value == "user" for message in session.messages) < 2:
+            return []
+        return session.preparation.suggested_directions[:3]
+
+    @Slot(str)
+    def useDirection(self, direction):
+        if direction in self.suggestedDirections:
+            self.draft = direction
 
     @Slot(str)
     def selectTopic(self, topic_id):
@@ -852,6 +986,8 @@ class LearningViewModel(QObject):
         self.uiChanged.emit()
 
     def _after_started(self, result):
+        self._draft = self._custom_topic.strip()
+        self._custom_topic = ""
         if result.session.topic:
             self._selected_topic = result.session.topic.id
         self.topicsChanged.emit()
@@ -861,7 +997,7 @@ class LearningViewModel(QObject):
         self._last_reply = result.assistant_message.content if result.assistant_message else ""
         self._reply_audio = b""
         self.practiceStarted.emit()
-        if self._tts:
+        if self._speech_available("tts"):
             self.speakReply()
 
     @Slot()
@@ -871,7 +1007,7 @@ class LearningViewModel(QObject):
         if self._draft.strip():
             self._voice_error("请先发送或清空当前草稿，再开始录音。")
             return
-        if not self._stt or self._audio is None:
+        if not self._speech_available("stt") or self._audio is None:
             self._voice_error("语音识别尚未配置，请查看设置；文字输入仍可使用。")
             return
         self._error = ""
@@ -907,10 +1043,10 @@ class LearningViewModel(QObject):
 
     @Slot()
     def retryTranscription(self):
-        if self._busy or not self._recording or not self._stt:
+        if self._busy or not self._recording or not self._speech_available("stt"):
             return
         self._voice_state = "transcribing"
-        self._run_operation("正在识别发言...", lambda: self._stt.transcribe(self._recording), self._after_transcription)
+        self._run_operation("正在识别发言...", self._speech_operation("stt", self._recording), self._after_transcription)
 
     def _after_transcription(self, text):
         self._draft = text
@@ -920,7 +1056,7 @@ class LearningViewModel(QObject):
 
     @Slot()
     def speakReply(self):
-        if self._busy or self._voice_state == "recording" or not self._tts or not self._last_reply or self._audio is None:
+        if self._busy or self._voice_state == "recording" or not self._speech_available("tts") or not self._last_reply or self._audio is None:
             return
         self._audio_action = "play"
         if self._reply_audio:
@@ -928,7 +1064,7 @@ class LearningViewModel(QObject):
             self._audio.play(self._reply_audio)
             return
         self._voice_state = "synthesizing"
-        self._run_operation("正在生成 AI 语音...", lambda: self._tts.synthesize(self._last_reply), self._after_speech)
+        self._run_operation("正在生成 AI 语音...", self._speech_operation("tts", self._last_reply), self._after_speech)
 
     def _after_speech(self, audio):
         self._reply_audio = audio
@@ -980,7 +1116,11 @@ class LearningViewModel(QObject):
         if not self._closed:
             self._closed = True
             self._preparation_timer.stop()
-            self._worker.close(self._workbench.aclose)
+            async def cleanup():
+                if self._local_speech:
+                    await self._local_speech.close()
+                await self._workbench.aclose()
+            self._worker.close(cleanup)
             self._clear_audio()
 
 

@@ -1,0 +1,44 @@
+{
+  "zh": [
+    {"id":"ack","category":"short","text":"我明白了。"},
+    {"id":"question","category":"short","text":"你为什么这样想？"},
+    {"id":"character","category":"medium","text":"你更喜欢故事里的哪位人物？可以说说原因吗？"},
+    {"id":"reflection","category":"medium","text":"我觉得这个结尾留下了很多没有说出口的话。"},
+    {"id":"long","category":"long","text":"如果我们只根据叙述者提供的信息来判断这个角色，就可能忽略其他人物的感受，所以我想先回到他们第一次争论的场景，再讨论他的选择是否合理。"},
+    {"id":"sentences","category":"multi_sentence","text":"先别急着下结论。她确实说了谎，但这不代表她的所有解释都不可信。你怎么看？"},
+    {"id":"negation","category":"negation","text":"我不是说他没有责任，而是说我们还不知道全部事实。"},
+    {"id":"numbers","category":"numbers","text":"三个人花了二十五分钟，走完了三点五公里。"},
+    {"id":"date","category":"date","text":"我们约在二零二六年十月二十八日下午三点半讨论第二章。"},
+    {"id":"names","category":"proper_names","text":"夏洛特和亨伯特对同一件事的解释完全不同。"},
+    {"id":"quote","category":"punctuation","text":"他说：“我会回来。”这句话究竟是承诺，还是安慰？"},
+    {"id":"mixed","category":"code_switch","text":"这个角色说了一句 sorry，然后关掉了电脑上的 Wi-Fi。"}
+  ],
+  "en": [
+    {"id":"ack","category":"short","text":"I see."},
+    {"id":"question","category":"short","text":"Why do you think so?"},
+    {"id":"character","category":"medium","text":"Which character stayed with you after reading, and why?"},
+    {"id":"reflection","category":"medium","text":"I thought the ending left a lot unsaid between the two friends."},
+    {"id":"long","category":"long","text":"If we judge this character only by the narrator's account, we may overlook how the other people felt, so I would like to return to their first argument before deciding whether his choice was reasonable."},
+    {"id":"sentences","category":"multi_sentence","text":"Let's not rush to a conclusion. She did lie, but that doesn't mean every explanation she gave was false. What do you think?"},
+    {"id":"negation","category":"negation","text":"I didn't say he wasn't responsible; I said we didn't know all the facts."},
+    {"id":"numbers","category":"numbers","text":"Three people walked three point five kilometers in twenty-five minutes."},
+    {"id":"date","category":"date","text":"Let's discuss chapter two on October twenty-eighth, twenty twenty-six, at three thirty in the afternoon."},
+    {"id":"names","category":"proper_names","text":"Charlotte and Humbert interpreted the same incident very differently."},
+    {"id":"quote","category":"punctuation","text":"He said, 'I'll come back.' Was that a promise, or was he simply trying to comfort her?"},
+    {"id":"uncommon","category":"uncommon_words","text":"The unreliable narrator's ambivalence made her reinterpret the foreshadowing."}
+  ],
+  "ja": [
+    {"id":"ack","category":"short","text":"なるほど。"},
+    {"id":"question","category":"short","text":"どうしてそう思いますか？"},
+    {"id":"character","category":"medium","text":"読み終わってからも印象に残っている人物は誰ですか。理由も教えてください。"},
+    {"id":"reflection","category":"medium","text":"この結末には、二人が言葉にしなかった気持ちが残っていると思います。"},
+    {"id":"long","category":"long","text":"語り手の説明だけでこの人物を判断すると、ほかの人の気持ちを見落としてしまうかもしれないので、彼の選択が正しかったかを考える前に、最初の口論の場面に戻ってみたいです。"},
+    {"id":"sentences","category":"multi_sentence","text":"まだ結論を急がないでください。彼女がうそをついたのは確かですが、説明がすべて間違っているとは限りません。どう思いますか？"},
+    {"id":"negation","category":"negation","text":"責任がないと言ったのではなく、まだすべての事実が分からないと言ったのです。"},
+    {"id":"numbers","category":"numbers","text":"三人で二十五分かけて、三点五キロメートル歩きました。"},
+    {"id":"date","category":"date","text":"二千二十六年十月二十八日の午後三時半に、第二章について話しましょう。"},
+    {"id":"names","category":"proper_names","text":"シャーロットとハンバートは、同じ出来事をまったく違うように説明しました。"},
+    {"id":"quote","category":"punctuation","text":"彼は「きっと戻ってくる」と言いました。それは約束だったのでしょうか、それとも慰めだったのでしょうか。"},
+    {"id":"polyphony","category":"kanji_reading","text":"今日は日本橋で待ち合わせて、そのあと図書館へ行く予定です。"}
+  ]
+}

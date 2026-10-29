@@ -7,6 +7,8 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from lingualoop.core.knowledge import MaterialKnowledge, ConversationMemory, FocusReference
+
 
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
@@ -73,6 +75,7 @@ class PracticeOptions(DomainModel):
     correction_intensity: CorrectionIntensity = CorrectionIntensity.LOW
     feedback_timing: FeedbackTiming = FeedbackTiming.END
     role_description: str = ""
+    read_through: int | None = Field(default=None, ge=0)
 
 
 class AnswerBranch(DomainModel):
@@ -247,11 +250,15 @@ class MaterialAnalysis(DomainModel):
     chunks: list[PreparedChunk] = Field(default_factory=list)
     preparation_complete: bool = True
     overview_complete: bool = False
+    preparation_strategy: str = "legacy"
+    scope_end: int | None = Field(default=None, ge=0)
+    knowledge: MaterialKnowledge | None = None
 
 
 class DialoguePreparation(DomainModel):
     based_on_message_count: int
     predicted_intents: list[str] = Field(default_factory=list)
+    suggested_directions: list[str] = Field(default_factory=list)
     response_points: list[str] = Field(default_factory=list)
     source_excerpts: list[str] = Field(default_factory=list)
 
@@ -260,6 +267,10 @@ class ReplyTiming(DomainModel):
     ttft_ms: float | None = None
     total_ms: float
     streamed: bool = False
+    context_ms: float = 0
+    verification_ms: float = 0
+    input_tokens: int | None = None
+    output_tokens: int | None = None
 
 
 class LearningMaterial(DomainModel):
@@ -275,6 +286,10 @@ class LearningMaterial(DomainModel):
     normalization_status: NormalizationStatus = NormalizationStatus.RAW
     analysis: MaterialAnalysis | None = None
     analysis_cache_key: str | None = None
+    full_analysis_cache_key: str | None = None
+    source_hash: str = ""
+    # None preserves whole-material access for existing libraries; 0 is unconfirmed.
+    read_through: int | None = Field(default=None, ge=0)
     profile: SessionUserProfile | None = None
     subtitle_cues: list[SubtitleCue] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=utc_now)
@@ -387,6 +402,11 @@ class PracticeSession(DomainModel):
     options: PracticeOptions | None = None
     topic: DiscussionTopic | None = None
     preparation: DialoguePreparation | None = None
+    reference_refresh_count: int = Field(default=0, ge=0)
+    reference_source_key: str = ""
+    conversation_memory: ConversationMemory | None = None
+    focus_reference: FocusReference | None = None
+    initial_focus: str = ""
     status: SessionStatus = SessionStatus.ACTIVE
     plan: PracticePlan | None = None
     messages: list[Message] = Field(default_factory=list)

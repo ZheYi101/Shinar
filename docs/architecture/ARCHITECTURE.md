@@ -1,6 +1,35 @@
 # Architecture
 
+## 当前默认：适量基础理解与模型协作（2026-10-28）
+
+[AI 专项方案](./ai/PREPARATION_AND_DIALOGUE.md)的资料、缓存、预算和协作机制已落地，见 [Decision 0019](../decisions/TECH_DECISIONS.md#decision-0019)。真实全书／部分阅读、三条件回放和恢复已形成[阶段报告](../validation/text/SEMANTIC_PREPARATION_2026-10-28.md)，**事实质量与完整回复一秒门禁未过**。旧题库、零模型索引和固定后台次数路径保留兼容，不再代表支持新接口的真实 provider 默认行为。
+
+`core/knowledge.py` 定义 provider 中立的来源单元、笔记、整体认识、聊天记忆和 `TurnContext`。`application/semantic_preparation.py` 负责有限单元理解、按顺序合并、结构修复、独立缓存与预算；材料确认先保存范围，再启动可恢复任务，不锁住聊天。`core/knowledge_context.py` 联合原文、笔记、别名、事件和近期指代选择依据；provider 直接消费这一个上下文，不再二次装配。
+
+原文稳定字符坐标及哈希留在本地；`knowledge_end` 按全部输入依赖计算，已识别前言／作者说明／评论默认与正文分离。部分阅读读取匹配范围的 manifest，拒绝整书概述和依赖不明的旧全局资料。启动、历史切换与更换模型不自动重做已选资料。新缓存身份含格式、服务／模型、影响输出的思考设置与资料语言；难度和反馈偏好不重读材料。
+
+SQLite 新增 `knowledge_artifacts`、`knowledge_cache_hits`、`model_budgets` 和 `model_calls`，保持 WAL 与按操作事务。逐单元成功落盘；截断不原样无限重试或提高输出预算，可保存更小来源单元方案后继续。请求前事务预留，成功按实际用量结算，失败／取消未知量保留预留。旧 `preparation_cache` 不改写为新方案 ready。
+
+前台常规一次对话请求，显式事实核对允许有限慢路径；推理四接口分别负责基础笔记、整体合并、局部核对和聊天记忆。后台缺口单并发、前台优先、45 秒总截止，并合并等待期间最新缺口；来源事实和会话判断分别校验有效期。确认历史只写完整成功消息，草稿、候选、失败半段流不进入真实发言。来源／消息 ID、版本、缓存命中、用量和计时与内容分开记录，不保存推理链或密钥。
+
+当前检索仍是本地词项与语义笔记启发式，没有 embedding／云重排。最终检索 v2 保留预算允许的中等完整段落并补相邻短段，避免固定截短丢结论；该修正在 100 次真实请求上限之后，仅离线验证。完整质量、隐喻召回及舒适度不由结构正确自动保证。
+
+## 历史／兼容：本地索引与固定后台次数
+
+默认桌面导入先保存原文，`read_through=0` 等待确认。`source_index` 用字符位置、哈希、词项和附近标题提示建立本地引用；不调用材料分析模型生成题库。`reading_scope.scope_material` 在进入会话模型前裁掉后文，部分阅读不使用全局概要/人物/话题；只允许完整位于已读前缀的旧段落资料。`PracticeOptions.read_through` 冻结本会话范围。
+
+会话默认 `free-discussion`、`topic=None`，目标语言短开场无需模型。前台以实际发言和最近两条线程消息检索，最多三段源文（各至多 1200 字符），区分标题提示、出处与解读；不把全书所有段落概要和可能回答放进每轮。旧版有出处的准备继续可供内部检索。
+
+至少两次真实发言后，来源发生变化才后台请求微型参考，可选方向最多三个。尝试次数及来源键随 session 保存，自由会话上限三次，失败/取消亦计数；已有陈旧结果不冒充 ready。单次后台输出最多 4000 tokens（含供应商计入的思考部分），自由会话结构无效不自动重试。复盘只看真实输出，不重复全书分析，同样使用有限预算。
+
+缓存键新增已读末尾与格式版本，旧整书 analysis 由 `full_analysis_cache_key` 保留；局部材料切回全书可恢复原付费资料。SQLite/WAL、按操作事务、长期 asyncio worker、独立 provider 保持不变。低词项召回与模型固有知识的剧透风险仍需实测，不宣称零幻觉。见 Decision 0018 与[自由聊天记录](../validation/text/FREE_CHAT_2026-10-28.md)。下文较早的题库及整书汇总实现作为兼容/历史说明，不再是默认桌面流程。
+
+
 ## 本地缓存与可恢复历史（2026-10-28）
+
+真实长篇迭代补充：相同来源/profile 的完整材料在换模型后重复导入也保留原资料，显式重新分析才按新模型的独立缓存处理。讨论 system 指令约束口语节奏、异议/改口和按需引用；仅前台包把持久化章节 UUID 映射成有序编号，数据库来源标识不变。UI 类别归并为有界中文标签，不改领域原始分类；自定义题准备成功才进入新会话页。
+
+文本网络使用按角色独立的 HTTPX AsyncClient，推理最多 4 个、对话最多 2 个连接，空闲保留 120 秒并随 provider 关闭。保留 HTTPX 系统代理处理；避免后台取消关闭对话池的连接。localhost HTTP/1.1 已验证超过默认 5 秒后的复用，线上 Flash SSE 仍出现每轮建连，不能据此宣称实际延迟改善。模型首字/完整计时与 UI 按键至显示/结束计时分别保存。
 
 继续采用标准库 SQLite，无独立缓存服务、ORM 或云数据库。按操作连接和事务适配后台 worker，启用 WAL。新增 `preparation_cache` 表（键、原文哈希、更新时间、分析 payload）及按材料/更新时间的会话索引，启动时幂等创建，旧 JSON 通过默认值兼容读取。
 
@@ -43,7 +72,7 @@ Flash 的实时上下文新增本地 `dialogue_knowledge`：只在预先保存�
 
 第一版架构应支持快速验证产品闭环，同时保留 LLM provider、存储层和前端形态的替换空间。不要为了早期 MVP 引入过重的分布式架构。
 
-当前产品主线见 [Project Brief](../product/PROJECT_BRIEF.md)：沉浸材料理解、话题选择、语音讨论与轻量复盘。已有话题和分轮语音实现；真实语音验收状态见 [初版验证记录](../planning/INITIAL_VERSION_2026-10-24.md)。下文插件注册和完整 Kernel 合约仍包含目标架构。
+当前产品主线见 [Project Brief](../product/PROJECT_BRIEF.md)：沉浸材料理解、话题选择、语音讨论与轻量复盘。已有话题和分轮语音实现；真实语音验收状态见 [初版验证记录](../validation/mvp/INITIAL_VERSION_2026-10-24.md)。下文插件注册和完整 Kernel 合约仍包含目标架构。
 
 核心和 agent kernel 采用 Python-first 方向。前端形态仍可独立选择，但领域模型、Pattern、Plugin capability、Agent Kernel 和第一批 provider adapter 应优先用 Python 编写。
 
@@ -229,6 +258,8 @@ MVP 运行时持久化采用标准库 `sqlite3`，不引入 ORM。SQLite adapter
 当前导入器支持 `.md`、`.markdown` 和 `.docx`。导入流程保留 raw content，同时生成 lesson-ready normalized copy；Google Docs 在线授权、旧式 `.doc`、PDF 和视频导入不进入第一阶段关键路径。
 
 ## 待定架构问题
+
+本地语音的可选目录、硬件准入、下载与计算测速位于独立 `lingualoop.local_speech`。桌面模型库使用单个后台管理线程，推理由有界独立 Python 进程运行，Qt/音频播放器留主线程；模型与数值报告用本地文件缓存，不增加数据库或云服务。当前尚未将该运行时连接到 Core 语音 ports / LiveKit；边界与下一阶段见[本地语音指南](../desktop/LOCAL_SPEECH.md)。
 
 - 前端是否采用 Next.js、Vite SPA，还是其他形态。
 - 后端是否采用同构应用 API routes、独立 API 服务，还是 BaaS。

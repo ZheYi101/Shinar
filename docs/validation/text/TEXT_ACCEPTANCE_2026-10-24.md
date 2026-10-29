@@ -1,13 +1,13 @@
 # 双模型文本独立验收（2026-10-24）
 
-唯一执行状态源：[Roadmap](./ROADMAP.md)。本报告由 `research_services` 独立执行，不修改被测后端/UI；供应商能力研究见 [服务选型](../research/SERVICE_SELECTION_2026-10-24.md)。
+本文保留当时候选的验收结果，原执行地图见[历史快照](../../archive/2026-10/ROADMAP_SNAPSHOT_2026-10-28.md)；当前计划见[路线图](../../planning/ROADMAP.md)。本报告由 `research_services` 独立执行，不修改被测后端/UI；供应商能力研究见 [服务选型](../../research/SERVICE_SELECTION_2026-10-24.md)。
 
 ## 范围与证据边界
 
 - 离线：后台推理失效与中断后的重试、前台模型路由、旧反馈偏好、复盘与 SQLite 重启恢复；全仓单元/服务/Qt Test 回归。
 - 真实 HTTP：一份公开日文短篇分析、四轮预制题、一个自定义题及两轮讨论、两次结束复盘、临时 SQLite 恢复；后续仅同源最小夹具的有界差异与背景修正验证。累计前台 10 轮。仅此负责人运行真实探针，不并行重复调用。
 - 性能：分别记录 provider 首个可见 content、完整回复、应用服务回调与完成；本脚本不构成实际 UI 渲染或语音延迟测量。
-- `prepared_hit` 指发送前确有有效准备包，其 `based_on_message_count` 与当前消息数严格相同，且非空来源引用仍存在于当前材料。该历史字段实际表示 `preparation_available`，并不判定真实用户意图与预测匹配；后续消费验证表示 `preparation_included`，仅记录候选意图是否进入实际 Flash prompt 的布尔值。`intent_match` 与 `preparation_benefit` 均未测，指标区分见 [参考方案评审](../research/REFERENCE_PLAN_REVIEW_2026-10-24.md#前后台任务与预测消费)。
+- `prepared_hit` 指发送前确有有效准备包，其 `based_on_message_count` 与当前消息数严格相同，且非空来源引用仍存在于当前材料。该历史字段实际表示 `preparation_available`，并不判定真实用户意图与预测匹配；后续消费验证表示 `preparation_included`，仅记录候选意图是否进入实际 Flash prompt 的布尔值。`intent_match` 与 `preparation_benefit` 均未测，指标区分见 [参考方案评审](../../research/REFERENCE_PLAN_REVIEW_2026-10-24.md#前后台任务与预测消费)。
 - 文本基准不调用 LiveKit；本机 RTC 探针另节记录，不运行 STT/TTS 或设备录放。文本、离线协议和本机探针结果不能互相外推为真实语音通过。
 
 ## 可复现入口
@@ -164,7 +164,7 @@ $env:RUN_REAL_AI_TESTS = '0'
 .venv\Scripts\python.exe scripts/probe_livekit.py --output build/livekit-probe/independent-results.json
 ```
 
-2026-10-24 04:23:38 UTC 开始；Windows / CPython 3.13.5，RTC SDK 1.1.21、API SDK 1.2.2，官方 server 1.13.10。固定资产 SHA256 为 `fd4b7c2c3c1e4c71adaa4f6a046ad1c0abaaaf1e09fae904b35bf231ffae11d2`，已缓存，未再次下载。具体配置与官方依据见 [LiveKit 文档](../desktop/LIVEKIT.md)。该候选使用非空 `[IceServer(urls=[])]` 覆盖继承的 server ICE 列表。**后续静态追查已确证这是配置缺陷**：SDK 固定源码转换不丢弃该空项，WebRTC `ParseIceServersOrError` 对空 urls/uri 返回 `SYNTAX_ERROR / Empty uri`，安装的 native DLL 也有相应字符串。此轮失败不能作为 ICE 环境问题的证据。历史 `ice_servers=[]` 不能证明没有外部 STUN，未假称存在抓包证据。
+2026-10-24 04:23:38 UTC 开始；Windows / CPython 3.13.5，RTC SDK 1.1.21、API SDK 1.2.2，官方 server 1.13.10。固定资产 SHA256 为 `fd4b7c2c3c1e4c71adaa4f6a046ad1c0abaaaf1e09fae904b35bf231ffae11d2`，已缓存，未再次下载。具体配置与官方依据见 [LiveKit 文档](../../desktop/LIVEKIT.md)。该候选使用非空 `[IceServer(urls=[])]` 覆盖继承的 server ICE 列表。**后续静态追查已确证这是配置缺陷**：SDK 固定源码转换不丢弃该空项，WebRTC `ParseIceServersOrError` 对空 urls/uri 返回 `SYNTAX_ERROR / Empty uri`，安装的 native DLL 也有相应字符串。此轮失败不能作为 ICE 环境问题的证据。历史 `ice_servers=[]` 不能证明没有外部 STUN，未假称存在抓包证据。
 
 | 项目 | 独立实测 |
 | --- | --- |
@@ -216,7 +216,7 @@ server PID 56244 只有 TCP `127.0.0.1:17880` 和 UDP `127.0.0.1:17882`。子 PI
 
 **完整回复稳定小于 1 秒、真实 LiveKit RTC 链路仍未通过。** 用户决定允许先尝试本机探针后，已记录首次无效配置缺陷，并在合法 loopback 配置下仅做一次差异验证；该轮外层 deadline 取消，native 创建状态未知，后续文本/音轨均未到达。既有性能结果保持原样，不把统计改成首字/平均值来假装达成。STT/TTS、真人语音、国内三网稳定性、长篇整本真实分析质量与商业多用户分发仍未验。原文引用存在性也不等于每个回答要点的语义蕴含已经人工核实。
 
-用户随后实际提交了“**1 秒保留为优化目标，文本功能通过后先做 LiveKit 探针**”（Roadmap E32）。因此文本正确性与真实前台链路验证后允许进行本地 LiveKit 探针；历史延迟失败照常保留，不能把探针、mock 或本机 RTC 结果写成真人语音已通过。未授权自动采购 STT/TTS、对外部署或扩大真实调用。本报告后续记录只按这项已提交的选择推进，不再等待或重复索要同一决定。
+用户随后实际提交了“**1 秒保留为优化目标，文本功能通过后先做 LiveKit 探针**”（[历史执行记录 E32](../../archive/2026-10/ROADMAP_SNAPSHOT_2026-10-28.md#e32)）。因此文本正确性与真实前台链路验证后允许进行本地 LiveKit 探针；历史延迟失败照常保留，不能把探针、mock 或本机 RTC 结果写成真人语音已通过。未授权自动采购 STT/TTS、对外部署或扩大真实调用。本报告后续记录只按这项已提交的选择推进，不再等待或重复索要同一决定。
 
 ## 收束检查与数据边界
 
@@ -232,7 +232,7 @@ server PID 56244 只有 TCP `127.0.0.1:17880` 和 UDP `127.0.0.1:17882`。子 PI
 
 `research_services` 只读取现有分轮语音端口、应用/桌面契约和当前配置的非空存在性；没有启动 server/RTC/AI/STT/TTS，不与 RTC 实现者的实际实验并发。现有 STT 三个必填键和 TTS 四个必填键在进程环境及仓库 `.env` 均未配置，只记录键名/布尔状态，没有输出值。现有端口是完整 WAV/完整文本请求，不能作为流式接入已经完成的证据。
 
-后续最小流式端口、ASR preview/final、TTS PCM/取消、pending 转写与历史持久化边界，以及不新增服务费用的 fake WebSocket + Mock LLM 路径已补入 [服务报告增量](../research/SERVICE_SELECTION_2026-10-24.md#后续增量rtc-通过后的最小流式语音接入)。官方当前 Qwen-TTS 事件页没有已核实的远端 response-cancel；本地取消、关闭连接与供应商停止生成/停止计费必须分开说明。
+后续最小流式端口、ASR preview/final、TTS PCM/取消、pending 转写与历史持久化边界，以及不新增服务费用的 fake WebSocket + Mock LLM 路径已补入 [服务报告增量](../../research/SERVICE_SELECTION_2026-10-24.md#后续增量rtc-通过后的最小流式语音接入)。官方当前 Qwen-TTS 事件页没有已核实的远端 response-cancel；本地取消、关闭连接与供应商停止生成/停止计费必须分开说明。
 
 ### 新候选交接后的独立真实检查
 

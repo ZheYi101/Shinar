@@ -25,15 +25,19 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--real', action='store_true', help='Allow actual model calls; also requires RUN_REAL_AI_TESTS=1')
     parser.add_argument('--offscreen', action='store_true')
+    parser.add_argument('--mock', action='store_true', help='Use an isolated offline provider')
+    parser.add_argument('--settings-dir', type=Path, help='Keep Qt preferences/window state in this directory')
     parser.add_argument('--qt-dialogs', action='store_true')
     parser.add_argument('--target-language')
     parser.add_argument('--difficulty')
+    parser.add_argument('--request-ledger', type=Path, help='Shared attempt ledger across real validation processes')
+    parser.add_argument('--request-limit', type=int, default=100)
     parser.add_argument('--output', type=Path, default=ROOT / 'build' / 'native-session')
     args = parser.parse_args()
     os.environ['QT_QPA_PLATFORM'] = 'offscreen' if args.offscreen else 'windows'
     os.environ.setdefault('QT_QUICK_BACKEND', 'software')
     os.environ['LINGUALOOP_KIRIGAMI_MODE'] = 'off'
-    from PySide6.QtCore import QObject, QPointF, Qt, QTimer
+    from PySide6.QtCore import QObject, QPointF, Qt, QTimer, QSettings
     from PySide6.QtGui import QGuiApplication, QFontDatabase, QKeyEvent
     from PySide6.QtQuick import QQuickWindow
     from PySide6.QtTest import QTest
@@ -48,10 +52,16 @@ def main():
     for name in ('msyh.ttc', 'msyhbd.ttc', 'YuGothR.ttc'):
         QFontDatabase.addApplicationFont(str(Path(os.environ.get('WINDIR', 'C:/Windows')) / 'Fonts' / name))
     args.output.mkdir(parents=True, exist_ok=True)
-    work = create_workbench()
+    if args.mock and args.real:
+        parser.error("--mock and --real cannot be combined")
+    if args.mock and not os.getenv("LINGUALOOP_DATA_DIR"):
+        os.environ["LINGUALOOP_DATA_DIR"] = str(args.output / "mock-library")
+    work = create_workbench(use_mock=args.mock)
     if args.real and os.getenv('RUN_REAL_AI_TESTS') != '1':
         raise SystemExit('--real requires RUN_REAL_AI_TESTS=1 in the local environment or .env')
     records = []
+    from model_request_guard import ModelRequestGuard
+    guard = ModelRequestGuard(args.request_ledger or args.output / 'request-guard.sqlite3', args.request_limit) if args.real else None
     network = []
     for role, http_client in getattr(work._provider, '_http_async_clients', {}).items():
         async def trace_request(request, request_role=role):
@@ -67,19 +77,27 @@ def main():
         def begin(self, streaming):
             if not args.real:
                 raise RuntimeError('此探针当前只读；真实调用需要 --real 和 RUN_REAL_AI_TESTS=1。')
+            guard.reserve(self.role)
             return super().begin(streaming)
     for name, role in (('_reasoning_client', 'reasoning'), ('_dialogue_client', 'dialogue')):
         client = getattr(work._provider, name, None)
         if client:
             client = client.model_copy(update={'max_retries': 0})
-            setattr(work._provider, name, ProbeClient(client, role, records, max_calls=40))
-    prefs = DesktopPreferences()
+            setattr(work._provider, name, ProbeClient(client, role, records, max_calls=args.request_limit))
+    if args.settings_dir:
+        args.settings_dir.mkdir(parents=True, exist_ok=True)
+    prefs = DesktopPreferences(QSettings(str(args.settings_dir / "preferences.ini"), QSettings.Format.IniFormat)) if args.settings_dir else DesktopPreferences()
     if args.target_language: prefs.setValue('targetLanguage', args.target_language)
     if args.difficulty: prefs.setValue('difficulty', args.difficulty)
     vm = LearningViewModel(work, '真实 AI', preferences=prefs)
     # This probe validates text; no speech request is made.
     vm._stt = vm._tts = None
-    engine = create_engine(vm)
+    engine_kwargs = {}
+    if args.settings_dir:
+        from lingualoop.desktop.speech_library import SpeechLibraryViewModel
+        engine_kwargs = {"window_settings": QSettings(str(args.settings_dir / "window.ini"), QSettings.Format.IniFormat),
+                         "speech_library": SpeechLibraryViewModel(root=args.settings_dir / "speech")}
+    engine = create_engine(vm, **engine_kwargs)
     window = engine.rootObjects()[0]
     if args.qt_dialogs:
         dialog = window.findChild(QObject, 'materialFileDialog')
@@ -93,6 +111,7 @@ def main():
                 break
     window.setWidth(1440)
     window.setHeight(960)
+    window.showNormal()
     window.requestActivate()
     queue = Queue()
     report = {'started': datetime.now().isoformat(), 'platform': app.platformName(),
@@ -100,6 +119,7 @@ def main():
               'network': network,
               'database': str(work._event_store.path), 'requests': records, 'commands': [], 'ui_turns': []}
     active_turn = {}
+    processing = False
     scaffold = next(obj for obj in window.findChildren(QObject) if obj.metaObject().indexOfProperty('currentPage') >= 0)
     window_refs = [window]
     item_refs = {}
@@ -169,7 +189,16 @@ def main():
 
     def state():
         session = work.session
+        knowledge = work.material.analysis.knowledge if work.material and work.material.analysis else None
         return {'busy': vm.busy, 'error': vm.errorMessage, 'material': vm.materialTitle,
+            'knowledge': {'status': knowledge.status, 'units': len(knowledge.units),
+                'completed': len(knowledge.completed_unit_ids), 'excluded': len(knowledge.excluded_unit_ids),
+                'notes': len(knowledge.notes), 'errors': knowledge.errors, 'scope_end': knowledge.scope_end} if knowledge else None,
+            'request_attempts': guard.count() if guard else 0,
+            'window': {'width': window.width(), 'height': window.height(),
+                'content_width': window.contentItem().width(), 'scaffold_width': scaffold.width(),
+                'compact': scaffold.property('compact'), 'exposed': window.isExposed(),
+                'state': str(window.windowState())},
             'materials': len(vm.materials), 'prepared': vm.materialPrepared,
             'preparation': vm.materialPreparation, 'topics': len(vm.topics), 'page': scaffold.property('currentPage'),
             'session_id': session.id if session else None, 'active': vm.sessionActive,
@@ -190,19 +219,29 @@ def main():
         QTest.qWait(40)
 
     def handle():
+        nonlocal processing
+        if processing:
+            return
         try:
             command = queue.get_nowait()
         except Empty:
             return
+        processing = True
         try:
             action = command.get('action')
+            if action != 'quit' and window.windowState() == Qt.WindowState.WindowMinimized:
+                window.showNormal()
+                window.requestActivate()
+                QTest.qWait(100)
             report['commands'].append({'action': action, 'at': datetime.now().isoformat()})
             if action == 'state': emit(state())
             elif action == 'click':
                 click(find(command['name']), command.get('scroll'))
                 emit(state())
             elif action == 'click_text':
-                target = next(obj for obj in visual_items() if obj.isVisible() and obj.property('text') == command['text'] and obj.property('down') is not None)
+                target = next(obj for obj in visual_items() if obj.isVisible() and obj.isEnabled() and (
+                    (obj.property('text') == command['text'] and obj.property('down') is not None)
+                    or obj.property('currentText') == command['text']))
                 click(target, command.get('scroll'))
                 emit(state())
             elif action == 'type':
@@ -241,6 +280,7 @@ def main():
                 assert window.grabWindow().save(str(path))
                 emit({'snapshot': str(path), 'state': state()})
             elif action == 'resize':
+                window.showNormal()
                 window.setWidth(command['width'])
                 window.setHeight(command.get('height', 900))
                 emit(state())
@@ -252,6 +292,8 @@ def main():
             import traceback
             emit({'command_error': type(exc).__name__, 'action': command.get('action'),
                 'message': str(exc)[:250], 'trace': traceback.format_exc(limit=4)})
+        finally:
+            processing = False
 
     def reader():
         for line in sys.stdin:

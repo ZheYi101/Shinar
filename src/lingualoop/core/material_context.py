@@ -6,6 +6,7 @@ import re
 from math import log
 
 from lingualoop.core.domain import LearningMaterial
+from lingualoop.core.reading_scope import scope_material
 
 
 def _stem(word: str) -> str:
@@ -22,7 +23,17 @@ def _terms(text: str) -> set[str]:
             'you', 'your', 'his', 'her', 'she', 'him', 'not', 'how', 'can', 'did', 'its', 'are', 'there',
             'me', 'is', 'on', 'in', 'at', 'be', 'as', 'to', 'it', 'he', 'we', 'do', 'if', 'or', 'by', 'of',
             'an', 'no', 'up', 'so', 'am', 'when', 'than', 'then', 'also', 'very', 'their', 'them', 'they',
-            'those', 'these', 'my', 'our', 'own', 'us', 'why', 'more', 'most', 'all', 'some', 'any', 'had', 'has'}
+            'those', 'these', 'my', 'our', 'own', 'us', 'why', 'more', 'most', 'all', 'some', 'any', 'had', 'has',
+            'think', 'thought', 'thing', 'things', 'feel', 'felt', 'feels', 'feeling', 'really', 'mean',
+            'means', 'seem', 'seems', 'made', 'make', 'makes', 'making', 'say', 'says', 'said', 'saying',
+            'tell', 'told', 'something', 'anything', 'everything', 'nothing', 'perhaps', 'maybe', 'almost',
+            'actually', 'honestly', 'rather', 'quite', 'still', 'much', 'well', 'right', 'okay', 'hmm',
+            'both', 'each', 'one', 'two', 'three', 'first', 'last', 'little', 'small', 'back', 'get', 'gets',
+            'got', 'going', 'went', 'go', 'come', 'comes', 'coming', 'want', 'wanted', 'know', 'knew',
+            'see', 'seen', 'look', 'looks', 'read', 'reading', 'remember', 'remembered', 'earlier', 'later',
+            'also', 'now', 'here', 'where', 'way', 'take', 'takes', 'taken', 'through', 'over', 'other',
+            'another', 'out', 'into', 'doesn', 'isn', 'wasn', 'don', 'didn', 'wouldn', 'couldn', 'isnt',
+            'doe', 'thank', 'thanks', 'talk', 'talking', 'let', 'even', 'instead', 'being'}
     return {term for run in runs if run not in stop for term in
             ([_stem(run)] if run.isascii() else [run, *[run[index:index+2] for index in range(len(run)-1)]])}
 
@@ -39,9 +50,12 @@ def dialogue_knowledge(material: LearningMaterial, query: str, previous: str = '
     Global overview and actual conversation remain separate from these quotations
     and possible readings. A late-book detail has the same chance as an opening one.
     """
+    material = scope_material(material)
     analysis = material.analysis
     if not analysis:
         return []
+    if analysis.preparation_strategy == "source-index-v1":
+        return _source_references(material, query, previous)
     current_terms, previous_terms = _terms(query), _terms(previous)
     candidates = []
     searchable = []
@@ -94,6 +108,56 @@ def dialogue_knowledge(material: LearningMaterial, query: str, previous: str = '
     return selected
 
 
+def _source_references(material: LearningMaterial, query: str, previous: str) -> list[dict]:
+    """Prefer named participants, quoted wording and the latest conversational focus."""
+    current, prior = _terms(query), _terms(previous)
+    chunks = material.analysis.chunks
+    names = set(material.analysis.keywords)
+    current_names = current & names
+    focus_names = current_names or (prior & names)
+    quoted = [phrase.strip().casefold() for phrase in re.findall(r'[“"「](.*?)[”"」]', query)
+              if len(phrase.strip()) >= 4]
+    hits = [set(chunk.analysis_payload.get("search_terms", [])) & (current | prior) for chunk in chunks]
+    frequency = {term: sum(term in hit for hit in hits) for term in current | prior}
+    ranked = []
+    for chunk, hit in zip(chunks, hits):
+        score = sum((4 if term in current else 1) * min(len(term), 8)
+                    * log(1 + len(chunks) / (1 + frequency[term])) for term in hit)
+        source = material.content[chunk.start_char:chunk.end_char]
+        matched_names = focus_names & hit
+        score += 90 * len(matched_names)
+        score += 180 * sum(phrase in source.casefold() for phrase in quoted)
+        if score:
+            ranked.append((score, chunk, matched_names))
+    ranked.sort(key=lambda pair: pair[0], reverse=True)
+    # Comparisons need both characters' scenes, not three passages about one name.
+    selected, covered = [], set()
+    notes_selected = 0
+    requesting_notes = bool((current | prior) & {"commentary", "afterword", "foreword", "author", "nabokov", "critic"})
+    for score, chunk, matched in ranked:
+        heading = chunk.analysis_payload.get("source_section", "").casefold()
+        is_note = "afterword" in heading or "on a book entitled" in heading
+        if is_note and notes_selected >= 1 and not requesting_notes:
+            continue
+        if len(focus_names) > 1 and len(selected) == 1 and covered >= matched and focus_names - covered:
+            continue
+        selected.append((score, chunk))
+        notes_selected += is_note
+        covered.update(matched)
+        if len(selected) == 3:
+            break
+    result = []
+    for _, chunk in selected:
+        text = material.content[chunk.start_char:chunk.end_char]
+        window_terms = (current - names) | focus_names
+        windows = _matching_windows(text, window_terms or prior, size=1200)
+        excerpt = windows[0][2] if windows else text[:1200]
+        result.append({"section": chunk.id, "source_heading_hint": chunk.analysis_payload.get("source_section", "Unlabeled source passage"),
+                       "start_char": chunk.start_char, "end_char": chunk.end_char,
+                       "points": [], "quotes": [excerpt]})
+    return result
+
+
 def _spread(items, count):
     if len(items) <= count:
         return list(items)
@@ -128,6 +192,7 @@ def _matching_windows(text: str, terms: set[str], *, size: int = 600) -> list[tu
 
 
 def custom_topic_context(material: LearningMaterial, title: str) -> dict:
+    material = scope_material(material)
     analysis = material.analysis
     if analysis is None:
         return {"evidence": [material.content[:2000]], "coverage": {"total_chunks": 0, "selected_chunk_ids": []}}

@@ -142,7 +142,8 @@ def _is_same_or_child(path: Path, root: Path) -> bool:
     return True
 
 
-def create_engine(viewmodel: Any, *, window_settings=None, initial_visible: bool = True) -> Any:
+def create_engine(viewmodel: Any, *, window_settings=None, initial_visible: bool = True,
+                  speech_library=None) -> Any:
     qt = _load_qt()
     from PySide6.QtQuickControls2 import QQuickStyle
     if QQuickStyle.name() != "Material":
@@ -152,6 +153,13 @@ def create_engine(viewmodel: Any, *, window_settings=None, initial_visible: bool
     if use_kirigami:
         _configure_kirigami_dll_path()
     engine = qt["QQmlApplicationEngine"]()
+    from lingualoop.desktop.speech_library import SpeechLibraryViewModel
+    library = speech_library if speech_library is not None else SpeechLibraryViewModel(parent=engine)
+    engine.rootContext().setContextProperty("speechLibrary", library)
+    engine.speech_library = library
+    if hasattr(viewmodel, "configure_local_speech"):
+        viewmodel.configure_local_speech(library)
+    qt["QGuiApplication"].instance().aboutToQuit.connect(library.close)
     from lingualoop.desktop.window import DesktopWindowController
     controller = DesktopWindowController(window_settings, engine)
     engine.rootContext().setContextProperty("learningViewModel", viewmodel)

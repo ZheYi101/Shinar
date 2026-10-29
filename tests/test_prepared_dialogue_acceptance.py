@@ -55,7 +55,8 @@ def test_new_discussion_routes_only_dialogue_despite_legacy_feedback_and_failed_
         await work.load_material(title="公園の散歩", source_language=LanguageEnum.JAPANESE,
             target_language=LanguageEnum.JAPANESE, native_language=LanguageEnum.CHINESE,
             learner_level=ProficiencyLevel.B1, content="花子は公園で太郎に会った。二人は雨の話をした。")
-        await work.start_session(options=PracticeOptions(feedback_timing=FeedbackTiming.IMMEDIATE))
+        await work.start_session(topic_id=work.material.analysis.topics[0].id,
+                                 options=PracticeOptions(feedback_timing=FeedbackTiming.IMMEDIATE))
         await asyncio.sleep(0.02)
         assert work.preparation_status == "unavailable"
         with pytest.raises(RuntimeError, match="Stream disconnected"):

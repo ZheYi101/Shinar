@@ -1,0 +1,60 @@
+{
+  "date": "2026-10-29",
+  "revision": 3,
+  "evidence": "Headless Edge rendering and local prototype interaction; no QML, LLM, microphone, audio playback, model download or database writes",
+  "checks": [
+    "Draft preserved, chapter/paragraph selection direct, range clearing hierarchical, keyboard alternative",
+    "Text selection keeps its exact visible highlight and range",
+    "Reader uses 34px utility row; directory and search overlays do not reduce reading height or change selection",
+    "Simulated voice state survives source expansion and controls remain accessible in narrow source view",
+    "Completed history remains read-only while source is open",
+    "Review reference reveal and four ratings are reachable",
+    "Import and read scope are main pages without blocking dialogs; tabs, cancel and browser Back preserve text and language",
+    "Read endpoint is selected directly; sentence and percentage inputs appear on demand and highlight the exact end sentence",
+    "File selection uses synthetic in-memory fixture; filename and language survive the range page without parsing or upload",
+    "All 21 views checked for horizontal overflow at 360 / 600 / 800 / 1180 / 1440px",
+    "All product views omit blocking dialogs, repeated headings/breadcrumbs and repeated book icons",
+    "Five additional task states checked at five widths, including sentence entry and narrow range controls",
+    "Six generated icon masters have transparent alpha and visible linework",
+    "Gallery category filter, enlarged preview and overview rendered"
+  ],
+  "icons": [
+    {
+      "name": "book",
+      "width": 1254,
+      "height": 1254,
+      "transparentPixels": 1409487
+    },
+    {
+      "name": "chat",
+      "width": 1254,
+      "height": 1254,
+      "transparentPixels": 1472566
+    },
+    {
+      "name": "mic",
+      "width": 1254,
+      "height": 1254,
+      "transparentPixels": 1472219
+    },
+    {
+      "name": "settings",
+      "width": 1254,
+      "height": 1254,
+      "transparentPixels": 1486514
+    },
+    {
+      "name": "review",
+      "width": 1254,
+      "height": 1254,
+      "transparentPixels": 1475517
+    },
+    {
+      "name": "audio",
+      "width": 1254,
+      "height": 1254,
+      "transparentPixels": 1442220
+    }
+  ],
+  "errors": []
+}

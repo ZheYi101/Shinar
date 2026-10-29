@@ -1,5 +1,4 @@
 import asyncio
-import os
 
 import pytest
 from dotenv import load_dotenv
@@ -14,21 +13,17 @@ from lingualoop.core import (
 from lingualoop.engine.langgraph import build_learning_session_graph
 from lingualoop.providers import OpenAICompatibleLLMProvider
 
-load_dotenv()
-
-RUN_REAL_AI_TESTS = os.getenv("RUN_REAL_AI_TESTS", "").strip() == "1"
-
 
 def is_model_routing_error(error: Exception) -> bool:
     message = str(error)
     return "model_not_found" in message or "No available channel for model" in message
 
 
-@pytest.mark.skipif(
-    not RUN_REAL_AI_TESTS,
-    reason="Set RUN_REAL_AI_TESTS=1 to run the real OpenAI-compatible graph smoke test.",
-)
+@pytest.mark.real_ai
 def test_real_openai_compatible_provider_through_langgraph_smoke() -> None:
+    # Collection and offline runs must not load personal service configuration.
+    load_dotenv()
+
     async def run_case() -> None:
         provider = OpenAICompatibleLLMProvider.from_env()
         graph = build_learning_session_graph(provider)
@@ -57,6 +52,8 @@ def test_real_openai_compatible_provider_through_langgraph_smoke() -> None:
                     "to model ids returned by your OpenAI-compatible provider."
                 )
             raise
+        finally:
+            await provider.aclose()
 
         assert result["current_instruction"].prompt.strip()
         assert isinstance(result["assistant_message"], str)

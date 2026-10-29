@@ -33,6 +33,7 @@ from lingualoop.core.domain import (
     AnswerBranch, MaterialCharacter, DialoguePreparation,
 )
 from lingualoop.core.ports import LearningLLMProvider
+from lingualoop.core.knowledge import ReasoningRequest, ReasoningResponse
 from lingualoop.core.preparation_validation import validate_prepared_topic, validate_dialogue_preparation
 from lingualoop.core.material_context import custom_topic_context, source_chunk_ids, dialogue_knowledge, _terms, _score
 
@@ -102,6 +103,7 @@ class OpenAICompatibleLLMSettings(BaseModel):
 
 
 class OpenAICompatibleLLMProvider(LearningLLMProvider):
+    supports_semantic_preparation = True
     """LearningLLMProvider implementation for OpenAI-compatible endpoints."""
 
     def __init__(
@@ -139,7 +141,8 @@ class OpenAICompatibleLLMProvider(LearningLLMProvider):
     def preparation_cache_identity(self) -> str:
         endpoint = urlparse(self._settings.base_url)
         return json.dumps({'adapter': 'openai-compatible', 'host': endpoint.hostname, 'port': endpoint.port,
-            'scheme': endpoint.scheme, 'path': endpoint.path, 'reasoning_model': self._settings.reasoning_model}, sort_keys=True)
+            'scheme': endpoint.scheme, 'path': endpoint.path, 'reasoning_model': self._settings.reasoning_model,
+            'reasoning_thinking': self._settings.reasoning_thinking}, sort_keys=True)
 
     @property
     def preparation_concurrency(self) -> int:
@@ -147,6 +150,38 @@ class OpenAICompatibleLLMProvider(LearningLLMProvider):
         if not 1 <= value <= 4:
             raise ValueError("LINGUALOOP_PREPARATION_CONCURRENCY 须为1到4。")
         return value
+
+    supports_free_chat = True
+
+    @property
+    def dialogue_output_budget(self) -> int:
+        return self._settings.dialogue_max_tokens
+
+    async def _knowledge_request(self, task: str, request: ReasoningRequest) -> ReasoningResponse:
+        from lingualoop.core.knowledge import ReasoningResponse
+        from lingualoop.providers.knowledge_prompts import PROMPTS
+
+        diagnostics = {}
+        options = {"max_tokens": request.max_tokens}
+        if _is_deepseek(self._settings.base_url):
+            options["reasoning_effort"] = "low"
+        content = await self._invoke_text(self._reasoning_client,
+            [SystemMessage(content=PROMPTS[task]), HumanMessage(content=json.dumps(request.payload, ensure_ascii=False, separators=(',', ':')))],
+            options=options, diagnostics=diagnostics,
+            deadline_seconds=min(request.deadline_seconds, self._settings.reasoning_deadline_seconds))
+        return ReasoningResponse(content=content, usage=diagnostics)
+
+    async def prepare_source_unit(self, request: ReasoningRequest) -> ReasoningResponse:
+        return await self._knowledge_request("unit", request)
+
+    async def summarize_reading(self, request: ReasoningRequest) -> ReasoningResponse:
+        return await self._knowledge_request("brief", request)
+
+    async def prepare_focus(self, request: ReasoningRequest) -> ReasoningResponse:
+        return await self._knowledge_request("focus", request)
+
+    async def summarize_conversation(self, request: ReasoningRequest) -> ReasoningResponse:
+        return await self._knowledge_request("memory", request)
 
     async def generate_task(
         self,
@@ -338,12 +373,45 @@ class OpenAICompatibleLLMProvider(LearningLLMProvider):
 
     def _reply_messages(self, *, current_instruction, material, message_history, user_message,
                         corrections, target_language):
+        from lingualoop.core.reading_scope import scope_material
+        material = scope_material(material)
         metadata = current_instruction.metadata
+        if metadata.get("turn_context") is not None:
+            from lingualoop.core.knowledge import TurnContext
+            context = TurnContext.model_validate(metadata["turn_context"])
+            packet = {
+                "title": context.title, "read_scope_end": context.scope_end,
+                "brief": context.brief,
+                "notes": [{"text": note.text, "attribution": note.attribution,
+                           "kind": note.statement_kind, "evidence_ids": note.support_ids,
+                           "source_order": min((item.start_char for item in context.evidence if item.id in note.support_ids), default=0)} for note in context.notes],
+                "evidence": [{"id": item.id, "text": item.text, "source_kind": item.source_kind,
+                              "source_order": item.start_char} for item in context.evidence],
+                "historical_memory": [{"speaker": item.speaker, "kind": item.kind, "text": item.text} for item in context.memory],
+                "interpretation_candidates": [point.model_dump() for point in context.focus_points],
+                "information_gaps": context.gaps,
+            }
+            prior = [message for message in message_history if message.id != user_message.id][-10:]
+            return [SystemMessage(content=_dialogue_system_prompt(target_language) +
+                "\nCurrent user statements override historical memory and optional interpretations. "
+                "The overview is context, not exhaustive evidence. Missing retrieval is not proof of absence. "
+                "When evidence cannot settle a concrete detail, say so or clarify; do not invent a scene. "
+                "If your own prior claim was wrong, correct it explicitly rather than merely praising the reader. "
+                "Correct a factual or causal mistake as a mistake, not just poor wording; do not patch it with a new unsupported motive. "
+                "Check causal and relational consistency with supplied facts before adding a neat inference. "
+                "Source order matters: do not use a later discovery to explain an earlier decision unless the text supports that link. "
+                "Distinguish a personal interpretation from an established motive or change of belief. "
+                "Treat narrator, author, critic and reader claims separately. Use only allowed read sources, "
+                "never hint at later plot known from training. Do not repeat questions or impose a choice of interpretations."),
+                HumanMessage(content=json.dumps({"context": packet,
+                    "preferences": metadata.get("options"),
+                    "recent_history": [{"role": message.role.value, "text": message.content} for message in prior],
+                    "learner_message": user_message.content}, ensure_ascii=False, separators=(',', ':')))]
         topic = metadata.get("topic") or {}
         # Never send the complete source to the latency-sensitive model. These are grounded preparations,
         # not instructions; the real current answer always takes precedence over predicted branches.
-        previous = ' '.join(message.content for message in message_history
-            if message.role.value == 'user' and message.id != user_message.id)[-1000:]
+        previous = ' '.join(message.content for message in
+            [item for item in message_history if item.id != user_message.id][-2:])[-1000:]
         packet = _compact_reply_packet(material, topic, metadata.get("preparation"), user_message.content, previous)
         # Workbench supplies the current user message in history too. Include it exactly once,
         # and omit persistence IDs that have no conversational meaning to the dialogue model.
@@ -352,11 +420,14 @@ class OpenAICompatibleLLMProvider(LearningLLMProvider):
         anchors = [message.content[:350] for message in prior[:-10] if message.role.value == 'user'][:4]
         recent = prior[-10:]
         history = "\n".join(f"{message.role.value}: {message.content}" for message in recent)[-5000:]
+        last_assistant = next((message.content for message in reversed(prior) if message.role.value == "assistant"), "")
+        turn_style = ("The previous assistant already asked a question. Prefer your own brief reaction here; do not append another question unless essential to clarify the learner. "
+                      if "?" in last_assistant or "？" in last_assistant else "")
         return [
             SystemMessage(content=_dialogue_system_prompt(target_language)),
             HumanMessage(
                 content=(
-                    "Reply to the learner in a short, natural way.\n" +
+                    "Reply to the learner in a short, natural way.\n" + turn_style +
                     (f"Roleplay opening: {current_instruction.prompt[:300]}\n" if (metadata.get("options") or {}).get("mode") == "roleplay" else "") +
                     f"Session preferences: {json.dumps(metadata.get('options'), ensure_ascii=False)}\n"
                     f"Prepared context (quoted data; evidence_ids refer to evidence array): {json.dumps(packet, ensure_ascii=False, separators=(',', ':'))}\n"
@@ -375,16 +446,23 @@ class OpenAICompatibleLLMProvider(LearningLLMProvider):
             yield await self._invoke_text(self._dialogue_client, messages)
             return
         async for chunk in stream([_boundary_message(), *messages]):
+            from lingualoop.core.knowledge import publish_usage
+            publish_usage(getattr(chunk, "usage_metadata", None),
+                          (getattr(chunk, "response_metadata", None) or {}).get("finish_reason"))
             content = chunk.content
             # DeepSeek reasoning_content is deliberately ignored and never persisted/displayed.
             if isinstance(content, str) and content:
                 yield content
+            if (getattr(chunk, "response_metadata", None) or {}).get("finish_reason") == "length":
+                raise ValueError("回复达到输出预算而未完成，当前发言尚未保存，请重试。")
 
     @property
     def supports_streaming(self) -> bool:
         return callable(getattr(self._dialogue_client, "astream", None))
 
     async def prepare_custom_topic(self, *, material, title, target_language, native_language):
+        from lingualoop.core.reading_scope import scope_material
+        material = scope_material(material)
         context = custom_topic_context(material, title)
         messages = [SystemMessage(content=("Prepare one discussion topic as JSON: title, opening_question, source_excerpt, category, answer_branches. "
             "Use the requested title, write opening_question/suggested_reply/follow_up in target language. "
@@ -406,36 +484,46 @@ class OpenAICompatibleLLMProvider(LearningLLMProvider):
         raise AssertionError("unreachable")
 
     async def prepare_dialogue(self, *, material, session):
+        from lingualoop.core.reading_scope import scope_material
+        material = scope_material(material)
         topic = session.topic
         branches = topic.answer_branches if topic else []
         quote = (branches[0].source_excerpts[0] if branches and branches[0].source_excerpts
                  else topic.source_excerpt if topic else material.content[:160])[:200]
         recent_user = next((message.content for message in reversed(session.messages) if message.role.value == 'user'), '')
         knowledge = dialogue_knowledge(material, recent_user, session.messages[-1].content if session.messages else '')
-        relevant = next((item for item in knowledge if item.get('quotes') and item.get('points')), None)
+        relevant = next((item for item in knowledge if item.get('quotes')), None)
         grounded_points = branches[0].response_points[:2] if branches else []
         if relevant:
-            quote = relevant['quotes'][0][:200]
-            grounded_points = relevant['points'][:2]
+            quote = relevant['quotes'][0][:600]
+            grounded_points = relevant.get('points', [])[:2]
         data = {"topic": topic.title[:120] if topic else material.title[:120],
             "candidate_intents": [branch.user_intent[:80] for branch in branches[:3]],
             "grounded_points": [point[:100] for point in grounded_points],
             "quote": quote,
+            "directions_language": session.profile.target_language.value,
+            "allowed_source": [item.get("quotes", [])[:1] for item in knowledge[:3]],
             "recent": [{"role": message.role.value, "text": message.content[:220]} for message in session.messages[-2:]]}
         messages = [SystemMessage(content=("Prepare a tiny next-turn reference. Return only JSON: "
             '{"intent":"one possible NEXT learner intent","points":["one or two short reply points"],"quote":"exact supplied quote"}. '
             "The intent is a hypothesis, never an actual learner statement. Each intent/point must be at most 80 characters. "
-            "Use only the supplied quote as factual evidence, do not add plot or explanations. Select useful existing points, "
-            "or briefly restate the quote if no candidate fits. Copy quote exactly. Keep the JSON under 250 characters apart from quote.")),
+            "Use only the supplied sources as evidence, do not add outside plot or future events. Select useful existing points, "
+            "or briefly restate a source if no candidate fits. Copy quote exactly. Optionally add directions: up to 3 short "
+            "specific, inviting discussion directions in directions_language, based on the reader's actual interests. "
+            "They are suggestions, not a lesson plan, test or fixed script. No prepared answers. Empty directions is valid. "
+            "Keep the JSON under 400 characters apart from quote. Stay within supplied read passages; never hint at later events.")),
             HumanMessage(content=json.dumps(data, ensure_ascii=False, separators=(',', ':')))]
         diagnostics: list[dict[str, Any]] = []
         self._preparation_diagnostics = diagnostics
-        for attempt in range(self._settings.background_max_attempts):
+        max_attempts = 1 if session.pattern_id == "free-discussion" else self._settings.background_max_attempts
+        for attempt in range(max_attempts):
             record = {"attempt": attempt + 1, "result": "started"}
             diagnostics.append(record)
             stage = "invoke"
             try:
-                options = {"reasoning_effort": "low", "max_tokens": 4000} if _is_deepseek(self._settings.base_url) else {}
+                options = {"max_tokens": 4000} if session.pattern_id == "free-discussion" else {}
+                if _is_deepseek(self._settings.base_url):
+                    options.update({"reasoning_effort": "low", "max_tokens": 4000})
                 record.update({key: value for key, value in options.items() if key in {"reasoning_effort", "max_tokens"}})
                 text = await self._invoke_text(self._reasoning_client, messages, options=options, diagnostics=record)
                 if record.get("finish_reason") == "length":
@@ -446,7 +534,8 @@ class OpenAICompatibleLLMProvider(LearningLLMProvider):
                 payload = _load_json_response(text)
                 if isinstance(payload, dict) and any(key in payload for key in ("intent", "points", "quote")):
                     payload = {"predicted_intents": [payload.get("intent", "")],
-                        "response_points": payload.get("points", []), "source_excerpts": [payload.get("quote", "")]}
+                        "response_points": payload.get("points", []), "source_excerpts": [payload.get("quote", "")],
+                        "suggested_directions": payload.get("directions", [])}
                 stage = "schema_validation"
                 result = DialoguePreparation.model_validate({**payload, "based_on_message_count": len(session.messages)})
                 stage = "evidence_validation"
@@ -455,7 +544,8 @@ class OpenAICompatibleLLMProvider(LearningLLMProvider):
                 if any(len(value) > 80 for value in [*result.predicted_intents[:1], *result.response_points[:2]]):
                     raise ValueError("Preparation intent and points exceed compact output budget")
                 result = result.model_copy(update={"predicted_intents": result.predicted_intents[:1],
-                    "response_points": result.response_points[:2], "source_excerpts": result.source_excerpts[:1]})
+                    "response_points": result.response_points[:2], "source_excerpts": result.source_excerpts[:1],
+                    "suggested_directions": [value.strip()[:70] for value in result.suggested_directions if value.strip()][:3]})
                 record["result"] = "validated"
                 return result
             except _PreparationBudgetExceeded:
@@ -463,7 +553,7 @@ class OpenAICompatibleLLMProvider(LearningLLMProvider):
             except (ValueError, TypeError):
                 record["result"] = "invalid_structure_or_evidence"
                 record["failure_stage"] = stage
-                if attempt + 1 >= self._settings.background_max_attempts:
+                if attempt + 1 >= max_attempts:
                     raise ValueError("后台准备格式或引用无效；当前对话仍可继续。") from None
                 messages.append(HumanMessage(content='Return only {"intent":"one nonempty possibility","points":["one nonempty reply point"],"quote":"copy supplied quote exactly"}. No other fields or explanations.'))
         raise AssertionError("unreachable")
@@ -535,6 +625,8 @@ class OpenAICompatibleLLMProvider(LearningLLMProvider):
         material: LearningMaterial,
         target_language: LanguageEnum,
     ) -> SessionReview:
+        review_context = (json.dumps({"title": material.title, "scope": "Only discuss confirmed learner output; no plot judgement."})
+                          if session.pattern_id == "free-discussion" else _prepared_material_context(material))
         messages = [
             SystemMessage(
                 content=(
@@ -554,13 +646,18 @@ class OpenAICompatibleLLMProvider(LearningLLMProvider):
                     f"Learner native language: {session.profile.native_language.value}. Write summary and explanations in this language; examples stay in the target language.\n"
                     "Respect correction_intensity: low focuses on one important pattern, medium on two, high on up to three.\n"
                     f"Material title: {material.title}\n"
-                    f"Material:\n{_prepared_material_context(material)}\n"
+                    f"Material:\n{review_context}\n"
                     f"Conversation:\n{_messages_to_text(session.messages[-40:])}\n"
                     f"Existing feedback:\n{_feedback_to_text(session.feedback_items)}"
                 )
             ),
         ]
-        content = await self._invoke_text(self._reasoning_client, messages)
+        options = None
+        if session.pattern_id == "free-discussion":
+            options = {"max_tokens": 4000}
+            if _is_deepseek(self._settings.base_url):
+                options["reasoning_effort"] = "low"
+        content = await self._invoke_text(self._reasoning_client, messages, options=options)
         return _parse_session_review(content)
 
     async def _invoke_text(
@@ -591,6 +688,9 @@ class OpenAICompatibleLLMProvider(LearningLLMProvider):
             for key in ("input_tokens", "output_tokens", "total_tokens"):
                 if isinstance(usage.get(key), int):
                     diagnostics[key] = usage[key]
+        from lingualoop.core.knowledge import publish_usage
+        publish_usage(getattr(response, "usage_metadata", None),
+                      (getattr(response, "response_metadata", None) or {}).get("finish_reason"))
         content = response.content
         if isinstance(content, str):
             return content.strip()
@@ -712,6 +812,29 @@ def _compact_reply_packet(material, topic, preparation, query='', previous=''):
             indices.append(evidence.index(quote))
         return indices
 
+    if not topic or (material.analysis and material.analysis.preparation_strategy == "source-index-v1"):
+        knowledge = []
+        for item in dialogue_knowledge(material, query, previous):
+            item = dict(item)
+            quotes = [quote for quote in item.pop("quotes", []) if quote and quote in material.content]
+            if not quotes:
+                continue
+            # Source paragraphs are already small; preserve enough context to avoid
+            # replying from a detached sentence. The total is capped at three passages.
+            indices = []
+            for quote in quotes[:1]:
+                quote = quote[:1200]
+                if quote not in evidence:
+                    evidence.append(quote)
+                indices.append(evidence.index(quote))
+            item["evidence_ids"] = indices
+            knowledge.append(item)
+        prepared = None
+        if preparation and all(quote in material.content for quote in preparation.get("source_excerpts", [])):
+            prepared = {"points": preparation.get("response_points", [])[:2],
+                        "evidence_ids": refs(preparation.get("source_excerpts", [])[:1])}
+        return {"title": material.title[:160], "read_scope": "Only the supplied read passages are known. No later events or hints.",
+                "relevant_prepared_knowledge": knowledge[:3], "preparation": prepared, "evidence": evidence}
     topic_evidence = refs([topic.get("source_excerpt", material.content[:300])])
     branches = []
     candidates = list(topic.get("answer_branches", []))
@@ -759,12 +882,18 @@ def _dialogue_system_prompt(target_language: LanguageEnum) -> str:
         f"Respond naturally in {target_language.value}. "
         "In discussion mode, be an attentive fellow reader; in roleplay, follow the supplied roles. "
         "Answer the specific claim, doubt or question just expressed. You may disagree gently. "
-        "Ground relevant points in prepared scenes; distinguish narrator assertions, events and the author's position. "
+        "Ground relevant points in supplied scenes; distinguish narrator assertions, events and the author's position. "
+        "The reader may have read only part of the work. Never use outside knowledge to reveal or hint at later events, "
+        "even if asked to guess what happens or given a familiar book title. Ask where they have read to if needed. "
+        "Free discussion has no required topic, agenda or correct reading. Follow the actual interests as they emerge. "
         "Respect changes of mind and resolve pronouns using the actual thread. Current words take precedence over predictions. "
         "Use plain spoken language at the requested difficulty. Usually one or two sentences, 20-45 English words "
         "or 40-90 Japanese/Chinese characters; a nuanced direct question may need three sentences. "
         "Acknowledge briefly when that is all the conversational move needs. "
-        "Start with the substance, not stock praise such as 'sharp distinction' or 'good example'. "
+        "Start directly with the substance. Skip evaluations of the reader, stock agreement and praise "
+        "such as 'fair point', 'good catch', 'interesting perspective' or 'sharp distinction'. "
+        "If your earlier claim was wrong or too neat, acknowledge your own mistake plainly and correct it. "
+        "Offer a tentative view of your own instead of always agreeing or interviewing the reader. "
         "Paraphrase scene details; quotations are evidence, not lines you must recite. Quote only when the wording matters. "
         "Preserve a concrete reason or detail instead of squeezing out substance for brevity. "
         "Ask at most one follow-up only when it naturally advances the exchange. Do not end every reply with a question. "

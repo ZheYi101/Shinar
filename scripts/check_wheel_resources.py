@@ -16,6 +16,7 @@ def main():
     source = Path(__file__).resolve().parents[1] / "src/lingualoop/desktop/qml"
     expected = {"lingualoop/desktop/qml/" + path.relative_to(source).as_posix()
                 for path in source.rglob("*") if path.is_file()}
+    expected.add("lingualoop/local_speech/catalog.json")
     with ZipFile(wheel) as archive, TemporaryDirectory(prefix="lingualoop-wheel-") as directory:
         missing = expected.difference(archive.namelist())
         if missing:
@@ -37,10 +38,12 @@ from lingualoop.providers import MockLearningLLMProvider
 from lingualoop.desktop.preferences import DesktopPreferences
 from lingualoop.desktop.viewmodel import LearningViewModel
 from lingualoop.desktop.window import DesktopWindowController
+from lingualoop.local_speech.catalog import load_catalog
 import lingualoop.desktop.window as window_module
 root = Path(sys.argv[1])
 assert Path(desktop.__file__).is_relative_to(root)
 assert Path(window_module.__file__).is_relative_to(root)
+assert any(package.id == 'sensevoice-int8-20250909' for package in load_catalog())
 app = QGuiApplication([])
 prefs = DesktopPreferences(QSettings(str(root / 'settings.ini'), QSettings.Format.IniFormat))
 vm = LearningViewModel(LearningWorkbench(MockLearningLLMProvider(), event_store=SQLiteStore(root / 'smoke.sqlite3')), 'Mock', preferences=prefs)

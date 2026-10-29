@@ -260,3 +260,22 @@ def _material() -> LearningMaterial:
         source_language=LanguageEnum.ENGLISH,
         content="Yesterday I went to the market.",
     )
+
+
+def test_truncated_dialogue_stream_is_not_a_complete_reply():
+    from langchain_core.messages import AIMessageChunk
+    import pytest
+
+    class Truncated:
+        async def astream(self, messages):
+            yield AIMessageChunk(content="An unfinished", response_metadata={"finish_reason": "length"})
+    async def run():
+        provider = OpenAICompatibleLLMProvider(_settings(),
+            reasoning_client=FakeChatClient("unused"), dialogue_client=Truncated())
+        material = LearningMaterial(title="Book", source_language=LanguageEnum.ENGLISH, content="A friend returned.")
+        user = Message(role=MessageRole.USER, content="Why did the friend return?")
+        with pytest.raises(ValueError, match="未完成"):
+            async for _ in provider.stream_reply(current_instruction=PracticeInstruction(prompt="Chat"),
+                material=material, message_history=[user], user_message=user, corrections=[], target_language=LanguageEnum.ENGLISH):
+                pass
+    asyncio.run(run())

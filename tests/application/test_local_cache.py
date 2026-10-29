@@ -59,6 +59,8 @@ def test_source_language_and_model_changes_do_not_use_wrong_cache(tmp_path):
         other = Counted('model-b')
         restored = LearningWorkbench(other, event_store=store)
         await load(restored)
+        assert other.calls == 0  # Reimport preserves an existing completed book, even after a model switch.
+        await restored.analyze_current_material()  # Explicit analysis uses the new model's separate cache.
         assert other.calls == 1
         await restored.aclose()
         await work.aclose()

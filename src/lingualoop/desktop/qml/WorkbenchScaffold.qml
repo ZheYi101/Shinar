@@ -77,9 +77,11 @@ Item {
                 MLabel { text: "本次语境"; role: "title" }
                 MLabel { text: learningViewModel.materialTitle; role: "label" }
                 ScrollView {
+                    id: contextScroll
                     Layout.fillWidth: true; Layout.fillHeight: true
                     contentWidth: availableWidth
-                    MLabel { width: parent.width; text: learningViewModel.materialSummary; role: "supporting" }
+                    contentHeight: contextSummaryText.implicitHeight
+                    MLabel { id: contextSummaryText; width: contextScroll.availableWidth; height: implicitHeight; text: learningViewModel.materialSummary; role: "supporting" }
                 }
             }
         }

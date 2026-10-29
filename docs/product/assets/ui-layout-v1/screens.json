@@ -1,0 +1,280 @@
+{
+  "date": "2026-10-29",
+  "revision": 3,
+  "screens": [
+    {
+      "id": "library",
+      "title": "材料库",
+      "status": "现有能力 · 新布局",
+      "file": "screens/01-library.png",
+      "mainOverflow": false,
+      "pageOverflow": false,
+      "failedImages": 0,
+      "sidebar": 208
+    },
+    {
+      "id": "material",
+      "title": "材料空间与对话",
+      "status": "现有数据 · 新组织",
+      "file": "screens/02-material.png",
+      "mainOverflow": false,
+      "pageOverflow": false,
+      "failedImages": 0,
+      "sidebar": 208
+    },
+    {
+      "id": "import",
+      "title": "导入材料",
+      "status": "主区页面 · 新布局",
+      "file": "screens/03-import.png",
+      "mainOverflow": false,
+      "pageOverflow": false,
+      "failedImages": 0,
+      "sidebar": 208
+    },
+    {
+      "id": "scope",
+      "title": "确认已读范围",
+      "status": "材料内核对 · 新布局",
+      "file": "screens/04-scope.png",
+      "mainOverflow": false,
+      "pageOverflow": false,
+      "failedImages": 0,
+      "sidebar": 208
+    },
+    {
+      "id": "new",
+      "title": "新建材料内对话",
+      "status": "现有能力 · 新布局",
+      "file": "screens/05-new.png",
+      "mainOverflow": false,
+      "pageOverflow": false,
+      "failedImages": 0,
+      "sidebar": 208
+    },
+    {
+      "id": "chat",
+      "title": "自由聊天",
+      "status": "现有能力 · 新布局",
+      "file": "screens/06-chat.png",
+      "mainOverflow": false,
+      "pageOverflow": false,
+      "failedImages": 0,
+      "sidebar": 208
+    },
+    {
+      "id": "paragraph",
+      "title": "原文对照 · 选段",
+      "status": "已认可交互 · 待实现",
+      "file": "screens/07-paragraph.png",
+      "mainOverflow": false,
+      "pageOverflow": false,
+      "failedImages": 0,
+      "sidebar": 208
+    },
+    {
+      "id": "selection",
+      "title": "原文对照 · 选句",
+      "status": "已认可交互 · 待实现",
+      "file": "screens/08-selection.png",
+      "mainOverflow": false,
+      "pageOverflow": false,
+      "failedImages": 0,
+      "sidebar": 208
+    },
+    {
+      "id": "voice",
+      "title": "连续语音进行中",
+      "status": "目标状态 · 待独立验收",
+      "file": "screens/09-voice.png",
+      "mainOverflow": false,
+      "pageOverflow": false,
+      "failedImages": 0,
+      "sidebar": 208
+    },
+    {
+      "id": "completed",
+      "title": "已结束的历史对话",
+      "status": "现有能力 · 新布局",
+      "file": "screens/10-completed.png",
+      "mainOverflow": false,
+      "pageOverflow": false,
+      "failedImages": 0,
+      "sidebar": 208
+    },
+    {
+      "id": "review",
+      "title": "本次复盘",
+      "status": "现有能力 · 新布局",
+      "file": "screens/11-review.png",
+      "mainOverflow": false,
+      "pageOverflow": false,
+      "failedImages": 0,
+      "sidebar": 208
+    },
+    {
+      "id": "queue",
+      "title": "表达复习",
+      "status": "现有能力 · 新布局",
+      "file": "screens/12-queue.png",
+      "mainOverflow": false,
+      "pageOverflow": false,
+      "failedImages": 0,
+      "sidebar": 208
+    },
+    {
+      "id": "settings-appearance",
+      "title": "设置 · 外观",
+      "status": "现有能力 · 新分类",
+      "file": "screens/13-settings-appearance.png",
+      "mainOverflow": false,
+      "pageOverflow": false,
+      "failedImages": 0,
+      "sidebar": 208
+    },
+    {
+      "id": "settings-learning",
+      "title": "设置 · 学习偏好",
+      "status": "现有能力 · 新分类",
+      "file": "screens/14-settings-learning.png",
+      "mainOverflow": false,
+      "pageOverflow": false,
+      "failedImages": 0,
+      "sidebar": 208
+    },
+    {
+      "id": "settings-services",
+      "title": "设置 · 模型与服务",
+      "status": "只读状态 · 新分类",
+      "file": "screens/15-settings-services.png",
+      "mainOverflow": false,
+      "pageOverflow": false,
+      "failedImages": 0,
+      "sidebar": 208
+    },
+    {
+      "id": "settings-audio",
+      "title": "设置 · 音频设备",
+      "status": "现有能力 · 新分类",
+      "file": "screens/16-settings-audio.png",
+      "mainOverflow": false,
+      "pageOverflow": false,
+      "failedImages": 0,
+      "sidebar": 208
+    },
+    {
+      "id": "settings-local",
+      "title": "设置 · 本地语音模型",
+      "status": "现有独立能力 · 新布局",
+      "file": "screens/17-settings-local.png",
+      "mainOverflow": false,
+      "pageOverflow": false,
+      "failedImages": 0,
+      "sidebar": 208
+    },
+    {
+      "id": "settings-data",
+      "title": "设置 · 数据与隐私",
+      "status": "现有能力 · 新分类",
+      "file": "screens/18-settings-data.png",
+      "mainOverflow": false,
+      "pageOverflow": false,
+      "failedImages": 0,
+      "sidebar": 208
+    },
+    {
+      "id": "empty",
+      "title": "空材料库",
+      "status": "空状态",
+      "file": "screens/19-empty.png",
+      "mainOverflow": false,
+      "pageOverflow": false,
+      "failedImages": 0,
+      "sidebar": 208
+    },
+    {
+      "id": "error",
+      "title": "回复失败与恢复",
+      "status": "失败状态",
+      "file": "screens/20-error.png",
+      "mainOverflow": false,
+      "pageOverflow": false,
+      "failedImages": 0,
+      "sidebar": 208
+    },
+    {
+      "id": "extensions",
+      "title": "后续功能扩展位置",
+      "status": "布局预留 · 非新增功能",
+      "file": "screens/21-extensions.png",
+      "mainOverflow": false,
+      "pageOverflow": false,
+      "failedImages": 0,
+      "sidebar": 208
+    },
+    {
+      "id": "chat",
+      "title": "22-chat-narrow.png",
+      "status": "responsive",
+      "file": "screens/22-chat-narrow.png",
+      "pageOverflow": false
+    },
+    {
+      "id": "selection",
+      "title": "23-source-narrow.png",
+      "status": "responsive",
+      "file": "screens/23-source-narrow.png",
+      "pageOverflow": false
+    },
+    {
+      "id": "settings-learning",
+      "title": "24-settings-narrow.png",
+      "status": "responsive",
+      "file": "screens/24-settings-narrow.png",
+      "pageOverflow": false
+    },
+    {
+      "id": "chat",
+      "title": "25-chat-focus.png",
+      "status": "responsive",
+      "file": "screens/25-chat-focus.png",
+      "pageOverflow": false
+    },
+    {
+      "id": "import",
+      "title": "26-import-paste.png",
+      "status": "responsive",
+      "file": "screens/26-import-paste.png",
+      "pageOverflow": false
+    },
+    {
+      "id": "import",
+      "title": "27-import-file.png",
+      "status": "responsive",
+      "file": "screens/27-import-file.png",
+      "pageOverflow": false
+    },
+    {
+      "id": "scope",
+      "title": "28-scope-sentence.png",
+      "status": "responsive",
+      "file": "screens/28-scope-sentence.png",
+      "pageOverflow": false
+    },
+    {
+      "id": "scope",
+      "title": "29-scope-progress.png",
+      "status": "responsive",
+      "file": "screens/29-scope-progress.png",
+      "pageOverflow": false
+    },
+    {
+      "id": "scope",
+      "title": "30-scope-narrow.png",
+      "status": "responsive",
+      "file": "screens/30-scope-narrow.png",
+      "pageOverflow": false
+    }
+  ],
+  "browserErrors": []
+}

@@ -1,0 +1,35 @@
+name: Code quality
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Windows / Python ${{ matrix.python }}
+    runs-on: windows-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.13"]
+    env:
+      RUN_REAL_AI_TESTS: "0"
+      QT_QPA_PLATFORM: offscreen
+      QT_QUICK_BACKEND: software
+      LINGUALOOP_DATA_DIR: ${{ runner.temp }}/lingualoop-tests
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.11.14"
+          python-version: ${{ matrix.python }}
+      - name: Install locked development and desktop dependencies
+        run: uv sync --locked --dev --extra desktop
+      - name: Check Python correctness
+        run: uv run --locked ruff check src tests scripts
+      - name: Run offline regressions
+        run: uv run --locked python -m pytest -q

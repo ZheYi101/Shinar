@@ -4,8 +4,23 @@ import QtQuick.Layouts
 import "../design"
 import "../components"
 
+ColumnLayout {
+    id: shell
+    property int section: 0
+    spacing: AppTheme.gapMedium
+    RowLayout {
+        visible: shell.section !== 0
+        Layout.fillWidth: true
+        MButton { objectName: "speechSettingsBack"; text: "返回设置"; variant: "text"; onClicked: shell.section = 0 }
+        MLabel { text: shell.section === 1 ? "语音模型" : "计算与加速"; role: "title" }
+    }
+    StackLayout {
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+        currentIndex: shell.section
 ScrollView {
     id: page
+    objectName: "settingsOverview"
     clip: true
     contentWidth: availableWidth
     ColumnLayout {
@@ -37,7 +52,9 @@ ScrollView {
             MLabel { text: "语音连接"; role: "title" }
             MLabel { text: "文本服务：" + learningViewModel.providerLabel; role: "supporting" }
             MLabel { text: learningViewModel.speechStatus; role: "supporting" }
-            MLabel { text: "识别和合成分别从本地环境配置读取。修改配置后请重新启动；密钥不会写入学习数据库。"; role: "supporting" }
+            MLabel { text: "语音模型按语言选择；计算与加速设置 CPU/GPU、运行环境与资源预算。远程连接从本地环境配置读取。"; role: "supporting" }
+            MButton { objectName: "openSpeechCompute"; text: "计算与加速"; variant: "outlined"; onClicked: shell.section = 2 }
+            MButton { objectName: "openLocalSpeechLibrary"; text: "语音模型"; variant: "outlined"; onClicked: shell.section = 1 }
         }
         MCard {
             MLabel { text: "本地数据"; role: "title" }
@@ -45,5 +62,10 @@ ScrollView {
             MButton { text: "重置当前选择"; variant: "outlined"; enabled: !learningViewModel.busy; onClicked: learningViewModel.resetSession() }
         }
         Item { Layout.preferredHeight: 16 }
+    }
+}
+
+        LocalSpeechLibrary { onOpenCompute: shell.section = 2 }
+        SpeechComputePage { }
     }
 }

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import io
 import os
 from pathlib import Path
@@ -243,10 +244,10 @@ def load_and_start(vm, window):
     vm.loadMaterial("放課後の約束", "放課後、二人は喫茶店で話した。離れても友達でいようと約束した。",
                     "japanese", "japanese", "chinese", "B1")
     until(lambda: not vm.busy)
-    assert len(vm.topics) >= 8
-    QTest.qWait(30)
-    click(window, "selectTopic1", scroll="materialScroll")
-    assert vm.selectedTopicId == vm.topics[1]["id"]
+    assert not vm.topics and not vm.readingScopeConfirmed
+    click(window, "readWholeMaterialButton", scroll="materialScroll")
+    until(lambda: vm.readingScopeConfirmed and not vm.busy)
+    until(lambda: vm.materialPrepared)
     click(window, "startDiscussionButton", scroll="materialScroll")
     until(lambda: vm.sessionActive and not vm.busy)
 
@@ -257,8 +258,18 @@ def test_service_balance_error_is_actionable_and_saved_material_survives(desktop
         status_code = 402
     async def fail(**kwargs):
         raise BalanceError('PRIVATE_PROVIDER_BODY_MUST_NOT_BE_SHOWN')
-    provider.analyze_material = fail
+    async def fail_stream(**kwargs):
+        await fail(**kwargs)
+        yield ''
+    provider.stream_reply = fail_stream
     vm.loadMaterial('Book', 'Two friends met at the station.', 'english', 'english', 'chinese', 'B1')
+    until(lambda: not vm.busy)
+    assert not vm.errorMessage  # Import is local, including with an empty AI balance.
+    vm.confirmReadingPercent(100)
+    until(lambda: not vm.busy)
+    vm.startPractice()
+    until(lambda: not vm.busy)
+    vm.sendMessage('I liked the friends meeting again.')
     until(lambda: not vm.busy)
     assert '402' in vm.errorMessage and '余额不足' in vm.errorMessage
     assert 'PRIVATE_PROVIDER' not in vm.errorMessage
@@ -274,6 +285,10 @@ def test_long_novel_summary_can_expand_without_hiding_status_by_default(desktop)
         return result.model_copy(update={'summary': '段落摘要，包含已经读过的故事和人物。' * 200})
     provider.analyze_material = long_summary
     vm.loadMaterial('Novel', 'Two friends met at the station.', 'english', 'english', 'chinese', 'B1')
+    until(lambda: not vm.busy)
+    vm.confirmReadingPercent(100)
+    until(lambda: not vm.busy)
+    vm.reanalyze()  # A legacy prepared library still has expandable summaries.
     until(lambda: not vm.busy)
     QTest.qWait(300)
     summary = item(window, 'materialSummaryText')
@@ -322,7 +337,6 @@ def test_history_dialog_switches_actual_threads_and_preserves_drafts(desktop):
     click(window, 'finishDiscussionButton')
     until(lambda: not vm.busy)
     click(window, 'nav0')
-    click(window, 'selectTopic2', scroll='materialScroll')
     click(window, 'startDiscussionButton', scroll='materialScroll')
     until(lambda: not vm.busy and vm.sessionActive)
     item(window, 'messageInput').setProperty('text', 'Second reader view.')
@@ -337,12 +351,21 @@ def test_history_dialog_switches_actual_threads_and_preserves_drafts(desktop):
     assert vm._workbench.session.id == first_id and not vm.sessionActive
     assert any(message['content'] == 'First reader view.' for message in vm.messages)
     assert not item(window, 'sendMessageButton').isEnabled()
+    assert not item(window, 'conversationComposer').isVisible()
+    window.setWidth(360)
+    window.setHeight(780)
+    until(lambda: scaffold.width() == 360)
+    assert item(window, 'practiceScroll').height() > 350
+    window.setWidth(1180)
+    window.setHeight(900)
+    until(lambda: scaffold.width() == 1180)
     vm.draft = 'Unsent first thought.'
     click(window, 'openHistoryButton')
     QTest.qWait(200)
     click(window, 'openSession0', scroll='historyScroll')
     until(lambda: not window.findChild(QObject, 'sessionHistoryDialog').property('visible'))
     assert vm._workbench.session.id == second_id and vm.sessionActive
+    assert item(window, 'conversationComposer').isVisible()
     assert vm.draft == 'Unsent second thought.' and len(vm.sessionHistory) == 2
 
 
@@ -393,7 +416,8 @@ def test_qml_three_voice_turns_retries_and_restart(desktop):
     restored = LearningWorkbench(MockLearningLLMProvider(), event_store=SQLiteStore(database))
     assert restored.session.status.value == "completed"
     assert len(restored.session.messages) == 7
-    assert restored.session.topic.id == vm.selectedTopicId
+    assert restored.session.topic is None and vm.selectedTopicId == ""
+    assert restored.session.options.read_through == len(restored.material.content)
     assert "audio" not in restored.session.model_dump_json()
 
 
@@ -482,7 +506,7 @@ def test_audio_controller_temporary_files_and_timer(qt_app):
     assert not directory.exists() and not audio._timer.isActive()
 
 
-def test_text_streaming_categories_custom_topic_and_shortcut(desktop):
+def test_free_text_streaming_initial_draft_and_shortcut(desktop):
     vm, window, scaffold, provider, speech, audio, database = desktop
     # Text development does not need audio configuration.
     vm._stt = vm._tts = None
@@ -490,14 +514,9 @@ def test_text_streaming_categories_custom_topic_and_shortcut(desktop):
     vm.loadMaterial("放課後の約束", "放課後、二人は喫茶店で話した。離れても友達でいようと約束した。",
                     "japanese", "japanese", "chinese", "B1")
     until(lambda: not vm.busy)
-    assert len(vm.topics) >= 8 and vm.materialPrepared
-    click(window, "topicCategory1", scroll="materialScroll")
-    assert len(vm.filteredTopics) < len(vm.topics)
-    click(window, "topicReference0", scroll="materialScroll")
-    assert item(window, "topicReference0").property("text") == "收起"
-    vm.topicSearch = "不存在的标题"
-    assert vm.filteredTopics == []
-    vm.topicSearch = ""
+    assert not vm.topics and not vm.materialPrepared
+    click(window, "readWholeMaterialButton", scroll="materialScroll")
+    until(lambda: vm.readingScopeConfirmed and not vm.busy)
     click(window, "discussionOptionsButton", scroll="materialScroll")
     custom = item(window, "customTopicInput")
     custom.forceActiveFocus()
@@ -505,18 +524,11 @@ def test_text_streaming_categories_custom_topic_and_shortcut(desktop):
         QTest.keyClick(window, Qt.Key(ord(character.upper())))
     assert vm.customTopic == "friendship choices"
     custom_title = vm.customTopic
-    original_prepare = provider.prepare_custom_topic
-    async def delayed_prepare(**kwargs):
-        await asyncio.sleep(0.6)
-        return await original_prepare(**kwargs)
-    provider.prepare_custom_topic = delayed_prepare
     click(window, "startDiscussionButton", scroll="materialScroll")
-    until(lambda: vm.busy)
-    assert scaffold.property('currentPage') == 0
     until(lambda: vm.sessionActive and not vm.busy)
-    assert scaffold.property('currentPage') == 1
-    assert vm.topicTitle == custom_title
-    assert any(topic["title"] == custom_title for topic in vm.topics)
+    assert scaffold.property("currentPage") == 1
+    assert vm._workbench.session.topic is None and vm.draft == custom_title
+    assert not vm.topics
     assert not item(window, "recordButton").isVisible()
     vm.draft = "私なら友達の選択を応援します。"
     editor = item(window, "messageInput")
@@ -529,7 +541,7 @@ def test_text_streaming_categories_custom_topic_and_shortcut(desktop):
     until(lambda: not vm.busy)
     assert len(vm.messages) == 3 and not vm.streamingText and not vm.pendingUserText
     assert "首字" in vm.responseTiming and "完整回复" in vm.responseTiming
-    until(lambda: "已准备" in vm.preparationStatus)
+    assert not vm.preparationStatus  # No reasoning call after just one turn.
     QTest.keyClick(window, Qt.Key.Key_1, Qt.KeyboardModifier.ControlModifier)
     until(lambda: scaffold.property("currentPage") == 0)
     QTest.keyClick(window, Qt.Key.Key_2, Qt.KeyboardModifier.ControlModifier)
@@ -568,14 +580,14 @@ def test_frameless_controls_and_window_geometry(desktop):
     assert not window.isVisible()
 
 
-def test_material_poll_does_not_destroy_pressed_category(desktop):
+def test_material_poll_does_not_destroy_pressed_reading_confirmation(desktop):
     """The first post-import polling tick may arrive between press and release."""
     vm, window, scaffold, provider, speech, audio, database = desktop
     vm._preparation_timer.stop()
     vm.loadMaterial("Polling race", "放課後、二人は喫茶店で話した。離れても友達でいようと約束した。",
                     "japanese", "japanese", "chinese", "B1")
     until(lambda: not vm.busy)
-    target = item(window, "topicCategory1")
+    target = item(window, "readWholeMaterialButton")
     view = item(window, "materialScroll")
     flick = view.property("contentItem")
     y = target.mapToItem(flick, QPointF()).y() + flick.property("contentY")
@@ -588,8 +600,8 @@ def test_material_poll_does_not_destroy_pressed_category(desktop):
     QTest.qWait(20)
     QTest.mouseRelease(window, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, point)
     QTest.qWait(30)
-    assert vm.topicFilter == vm.topicCategories[1]
-    assert len(vm.filteredTopics) < len(vm.topics)
+    until(lambda: vm.readingScopeConfirmed and not vm.busy)
+    until(lambda: vm.materialPrepared)
 
 
 def test_background_preparation_does_not_move_composer_actions(desktop):
@@ -637,3 +649,43 @@ def test_window_restore_clamps_removed_monitor_and_forwards_native_actions(qt_ap
     native.state = Qt.WindowState.WindowMaximized
     assert not controller.startResize(Qt.Edge.RightEdge.value)
     window.close()
+
+
+def test_partial_reading_is_explicit_and_optional_direction_only_fills_draft(desktop):
+    vm, window, scaffold, provider, speech, audio, database = desktop
+    vm._stt = vm._tts = None
+    text = "友達が駅に戻ってきた。二人は再会を喜んだ。\n未読の結末には別れがある。"
+    vm.loadMaterial("途中までの本", text, "japanese", "japanese", "chinese", "B1")
+    until(lambda: not vm.busy)
+    assert not item(window, "startDiscussionButton").isEnabled()
+    click(window, "partialReadingButton", scroll="materialScroll")
+    assert not item(window, "readingPreviewText").isVisible()
+    passage = "友達が駅に戻ってきた。二人は再会を喜んだ。"
+    item(window, "readingPassageInput").setProperty("text", passage)
+    click(window, "confirmReadingPassageButton", scroll="materialScroll")
+    until(lambda: vm.readingScopeConfirmed and not vm.busy)
+    assert vm.materialNormalizedContent == passage
+    assert "未読の結末" not in vm.analysisSummary
+    assert not vm.suggestedDirections
+    async def prepare(request):
+        prepared = await MockLearningLLMProvider().prepare_focus(request)
+        data = json.loads(prepared.content)
+        data["directions"] = ["友達が戻った理由について話したい。"]
+        return prepared.model_copy(update={"content": json.dumps(data, ensure_ascii=False)})
+    provider.prepare_focus = prepare
+    click(window, "startDiscussionButton", scroll="materialScroll")
+    until(lambda: vm.sessionActive and not vm.busy)
+    QTest.qWait(80)  # Wait for navigation and the first layout polish.
+    send_position = item(window, "sendMessageButton").mapToScene(QPointF())
+    for reply in ("友達が戻ってきてうれしいです。", "その説明は違う気がします。友達はなぜ駅に戻ったのでしょうか。"):
+        item(window, "messageInput").setProperty("text", reply)
+        click(window, "sendMessageButton")
+        until(lambda: not vm.busy)
+    until(lambda: bool(vm.suggestedDirections))
+    until(lambda: vm._preparation_state == "ready")
+    QTest.qWait(50)
+    assert item(window, "sendMessageButton").mapToScene(QPointF()) == send_position
+    confirmed = len(vm.messages)
+    click(window, "suggestedDirection0", scroll="practiceScroll")
+    assert vm.draft == "友達が戻った理由について話したい。"
+    assert len(vm.messages) == confirmed  # Suggestion is never an automatic sent answer.

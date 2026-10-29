@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -17,6 +18,7 @@ from lingualoop.core.domain import (
     SessionEvent,
 )
 from lingualoop.core.ports import EventStore
+from lingualoop.core.knowledge import ModelBudgetExceeded
 
 
 def default_database_path() -> Path:
@@ -76,6 +78,42 @@ class SQLiteStore(EventStore):
                     payload TEXT NOT NULL
                 );
                 CREATE INDEX IF NOT EXISTS idx_preparation_source ON preparation_cache(source_hash);
+                CREATE TABLE IF NOT EXISTS knowledge_artifacts (
+                    cache_key TEXT PRIMARY KEY,
+                    source_hash TEXT NOT NULL,
+                    kind TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    payload TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_knowledge_source ON knowledge_artifacts(source_hash, kind);
+                CREATE TABLE IF NOT EXISTS knowledge_cache_hits (
+                    cache_key TEXT PRIMARY KEY,
+                    source_hash TEXT NOT NULL,
+                    workload TEXT NOT NULL,
+                    hit_count INTEGER NOT NULL,
+                    last_hit TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS model_budgets (
+                    owner TEXT PRIMARY KEY,
+                    input_limit INTEGER NOT NULL,
+                    output_limit INTEGER NOT NULL,
+                    request_limit INTEGER NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS model_calls (
+                    id TEXT PRIMARY KEY,
+                    owner TEXT NOT NULL,
+                    workload TEXT NOT NULL,
+                    fingerprint TEXT NOT NULL,
+                    reserved_input INTEGER NOT NULL,
+                    reserved_output INTEGER NOT NULL,
+                    actual_input INTEGER,
+                    actual_output INTEGER,
+                    status TEXT NOT NULL,
+                    lease_until REAL NOT NULL,
+                    created_at TEXT NOT NULL,
+                    metadata TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_model_call_owner ON model_calls(owner);
                 CREATE TABLE IF NOT EXISTS sessions (
                     id TEXT PRIMARY KEY,
                     material_id TEXT NOT NULL,
@@ -206,6 +244,92 @@ class SQLiteStore(EventStore):
             connection.execute('INSERT INTO preparation_cache(cache_key,source_hash,updated_at,payload) VALUES(?,?,?,?) '
                 'ON CONFLICT(cache_key) DO UPDATE SET source_hash=excluded.source_hash, updated_at=excluded.updated_at, payload=excluded.payload',
                 (cache_key, source_hash, datetime.now(timezone.utc).isoformat(), _dump(analysis)))
+
+    def get_knowledge_artifact(self, cache_key: str) -> dict[str, Any] | None:
+        with self._connect() as connection:
+            row = connection.execute("SELECT payload FROM knowledge_artifacts WHERE cache_key = ?", (cache_key,)).fetchone()
+            if row is None:
+                return None
+            try:
+                return json.loads(row["payload"])
+            except (TypeError, ValueError):
+                return None
+
+    def save_knowledge_artifact(self, cache_key: str, source_hash: str, kind: str, payload: dict[str, Any]) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                "INSERT INTO knowledge_artifacts(cache_key,source_hash,kind,updated_at,payload) VALUES(?,?,?,?,?) "
+                "ON CONFLICT(cache_key) DO UPDATE SET updated_at=excluded.updated_at,payload=excluded.payload",
+                (cache_key, source_hash, kind, datetime.now(timezone.utc).isoformat(), json.dumps(payload, ensure_ascii=False)),
+            )
+
+    def ensure_model_budget(self, owner: str, *, input_limit: int, output_limit: int, request_limit: int) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                "INSERT INTO model_budgets(owner,input_limit,output_limit,request_limit) VALUES(?,?,?,?) "
+                "ON CONFLICT(owner) DO UPDATE SET input_limit=max(input_limit,excluded.input_limit),"
+                "output_limit=max(output_limit,excluded.output_limit),request_limit=max(request_limit,excluded.request_limit)",
+                (owner, input_limit, output_limit, request_limit),
+            )
+
+    def record_knowledge_cache_hit(self, cache_key: str, source_hash: str, workload: str) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                "INSERT INTO knowledge_cache_hits VALUES(?,?,?,1,?) ON CONFLICT(cache_key) DO UPDATE SET "
+                "hit_count=hit_count+1,last_hit=excluded.last_hit",
+                (cache_key, source_hash, workload, datetime.now(timezone.utc).isoformat()),
+            )
+
+    def list_knowledge_cache_hits(self) -> list[dict[str, Any]]:
+        with self._connect() as connection:
+            return [dict(row) for row in connection.execute("SELECT * FROM knowledge_cache_hits")]
+
+    def reserve_model_call(self, call_id: str, owner: str, workload: str, fingerprint: str,
+                           input_tokens: int, output_tokens: int, *, lease_seconds: float = 150,
+                           metadata: dict[str, Any] | None = None) -> None:
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            budget = connection.execute("SELECT * FROM model_budgets WHERE owner=?", (owner,)).fetchone()
+            totals = connection.execute(
+                "SELECT count(*) AS requests,coalesce(sum(coalesce(actual_input,reserved_input)),0) AS inputs,"
+                "coalesce(sum(coalesce(actual_output,reserved_output)),0) AS outputs FROM model_calls WHERE owner=?",
+                (owner,),
+            ).fetchone()
+            if budget is None or totals["requests"] >= budget["request_limit"] or totals["inputs"] + input_tokens > budget["input_limit"] or totals["outputs"] + output_tokens > budget["output_limit"]:
+                raise ModelBudgetExceeded("模型调用预算不足；已完成资料保留，可继续使用现有依据。")
+            duplicate = connection.execute(
+                "SELECT id FROM model_calls WHERE owner=? AND workload=? AND fingerprint=? AND status='reserved' AND lease_until>?",
+                (owner, workload, fingerprint, time.time()),
+            ).fetchone()
+            if duplicate:
+                raise ModelBudgetExceeded("相同资料仍在准备，请等待现有任务完成。")
+            connection.execute(
+                "INSERT INTO model_calls(id,owner,workload,fingerprint,reserved_input,reserved_output,status,lease_until,created_at,metadata) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (call_id, owner, workload, fingerprint, input_tokens, output_tokens, "reserved", time.time() + lease_seconds,
+                 datetime.now(timezone.utc).isoformat(), json.dumps(metadata or {})),
+            )
+
+    def settle_model_call(self, call_id: str, usage: dict[str, Any], status: str, *, elapsed_ms: float = 0) -> None:
+        safe = {key: usage[key] for key in ("input_tokens", "output_tokens", "total_tokens", "reasoning_tokens", "finish_reason") if key in usage}
+        safe["elapsed_ms"] = round(elapsed_ms, 2)
+        with self._connect() as connection:
+            row = connection.execute("SELECT metadata FROM model_calls WHERE id=?", (call_id,)).fetchone()
+            safe = {**(json.loads(row["metadata"]) if row else {}), **safe}
+            connection.execute(
+                "UPDATE model_calls SET actual_input=?,actual_output=?,status=?,metadata=?,lease_until=0 WHERE id=?",
+                (safe.get("input_tokens"), safe.get("output_tokens"), status, json.dumps(safe), call_id),
+            )
+
+    def list_model_calls(self, owner: str | None = None) -> list[dict[str, Any]]:
+        with self._connect() as connection:
+            rows = connection.execute("SELECT * FROM model_calls" + (" WHERE owner=?" if owner else "") + " ORDER BY created_at", (owner,) if owner else ()).fetchall()
+            return [dict(row) for row in rows]
+
+    def latest_model_call(self, owner: str, workload: str, fingerprint: str) -> dict[str, Any] | None:
+        with self._connect() as connection:
+            row = connection.execute("SELECT * FROM model_calls WHERE owner=? AND workload=? AND fingerprint IN (?,?) ORDER BY created_at DESC LIMIT 1",
+                (owner, workload, fingerprint + ":0", fingerprint + ":1")).fetchone()
+            return dict(row) if row else None
 
     def save_review_item(self, item: ReviewItem, *, commit: bool = True) -> None:
         with self._connect() as connection:
