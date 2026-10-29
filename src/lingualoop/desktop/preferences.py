@@ -4,6 +4,7 @@ from PySide6.QtCore import QObject, Property, QSettings, Signal, Slot
 class DesktopPreferences(QObject):
     changed = Signal()
     CHOICES = {
+        "displayLanguage": ("zh_CN", "system"),
         "themeMode": ("system", "light", "dark"),
         "targetLanguage": ("japanese", "english", "chinese", "french", "germany", "spanish"),
         "nativeLanguage": ("chinese", "english", "japanese", "french", "germany", "spanish"),
@@ -22,19 +23,36 @@ class DesktopPreferences(QObject):
         return value if value in self.CHOICES.get(key, ()) else self.DEFAULTS[key]
 
     @Property(str, notify=changed)
-    def themeMode(self): return self._get("themeMode")
+    def displayLanguage(self):
+        return self._get("displayLanguage")
+
+    @Property(str, notify=changed)
+    def themeMode(self):
+        return self._get("themeMode")
+
     @Property(bool, notify=changed)
-    def reducedMotion(self): return str(self._settings.value("reducedMotion", "false")).lower() in {"true", "1"}
+    def reducedMotion(self):
+        return str(self._settings.value("reducedMotion", "false")).lower() in {"true", "1"}
+
     @Property(str, notify=changed)
-    def targetLanguage(self): return self._get("targetLanguage")
+    def targetLanguage(self):
+        return self._get("targetLanguage")
+
     @Property(str, notify=changed)
-    def nativeLanguage(self): return self._get("nativeLanguage")
+    def nativeLanguage(self):
+        return self._get("nativeLanguage")
+
     @Property(str, notify=changed)
-    def difficulty(self): return self._get("difficulty")
+    def difficulty(self):
+        return self._get("difficulty")
+
     @Property(str, notify=changed)
-    def feedbackTiming(self): return self._get("feedbackTiming")
+    def feedbackTiming(self):
+        return self._get("feedbackTiming")
+
     @Property(str, notify=changed)
-    def correctionIntensity(self): return self._get("correctionIntensity")
+    def correctionIntensity(self):
+        return self._get("correctionIntensity")
 
     @Slot(str, "QVariant")
     def setValue(self, key, value):

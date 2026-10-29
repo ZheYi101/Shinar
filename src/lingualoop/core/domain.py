@@ -428,6 +428,36 @@ class PracticeSession(DomainModel):
         return self.plan.instructions[-1]  # return the latest instruction
 
 
+class SessionSummary(DomainModel):
+    """Read-only navigation projection; never carries full messages or preparation."""
+
+    id: str
+    material_id: str
+    title: str
+    preview: str = ""
+    turns: int = 0
+    status: SessionStatus
+    updated_at: datetime
+
+    @classmethod
+    def from_session(cls, session: PracticeSession) -> SessionSummary:
+        return cls(
+            id=session.id,
+            material_id=session.material_id,
+            title=session.topic.title if session.topic else next(
+                (message.content for message in session.messages if message.role is MessageRole.USER),
+                "",
+            ),
+            preview=next(
+                (message.content[:140] for message in reversed(session.messages)
+                 if message.role is MessageRole.ASSISTANT), "",
+            ),
+            turns=sum(message.role is MessageRole.USER for message in session.messages),
+            status=session.status,
+            updated_at=session.updated_at,
+        )
+
+
 class SessionEvent(DomainModel):
     id: str = Field(default_factory=lambda: new_id("event"))
     session_id: str

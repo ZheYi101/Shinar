@@ -61,8 +61,8 @@ def test_qml_review_answers_are_hidden_until_submission() -> None:
     assert "答案：" not in qml
     assert "参考答案 " in qml
     assert "answerSubmitted" in qml
-    assert "learningViewModel.materials" in qml
-    assert "selectMaterial" in qml
+    assert "workspace.materials" in qml
+    assert "workspace.browseMaterial" in qml
 
 
 @pytest.mark.skipif(

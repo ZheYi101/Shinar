@@ -3,7 +3,7 @@ from __future__ import annotations
 import threading
 from pathlib import Path
 
-from PySide6.QtCore import QObject, Property, QTimer, QUrl, Signal, Slot
+from PySide6.QtCore import QCoreApplication, QObject, Property, QTimer, QUrl, Signal, Slot
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 
 from lingualoop.local_speech import RUNTIME_VERSION, adapter_revision
@@ -45,7 +45,11 @@ class SpeechLibraryViewModel(QObject):
         self.catalog = load_catalog()
         self._language, self._scenario = "ja", "conversation"
         self._rows, self._hardware = [], {}
-        self._busy, self._status, self._operation = False, "点击刷新，检测当前可用资源。", ""
+        self._busy, self._status, self._operation = (
+            False,
+            QCoreApplication.translate("Desktop", "点击刷新，检测当前可用资源。"),
+            "",
+        )
         self._thread, self._cancel = None, threading.Event()
         self._closing = False
         self._progress, self._progress_lock = 0.0, threading.Lock()
@@ -78,16 +82,33 @@ class SpeechLibraryViewModel(QObject):
     def resourceSummary(self):
         value = self._resources
         lines = [
-            f"GPU {g['index']} · {g['name']} · 整卡显存 {g['used_mb']} / {g['total_mb']} MiB · 整卡使用率 {g['utilization']:.0f}%"
+            QCoreApplication.translate(
+                "Desktop",
+                "GPU {value0} · {value1} · 整卡显存 {value2} / {value3} MiB · 整卡使用率 {value4:.0f}%",
+            ).format(
+                value0=g["index"],
+                value1=g["name"],
+                value2=g["used_mb"],
+                value3=g["total_mb"],
+                value4=g["utilization"],
+            )
             for g in value.get("gpus", [])
         ]
         used = value.get("speech_process_mb")
         if value:
             lines.append(
-                f"本软件语音进程 {value['process_count']} 个 · 显存 "
-                + (f"{used} MiB" if used is not None else "驱动未提供进程级读数")
+                QCoreApplication.translate("Desktop", "本软件语音进程 {value0} 个 · 显存 ").format(
+                    value0=value["process_count"]
+                )
+                + (
+                    f"{used} MiB"
+                    if used is not None
+                    else QCoreApplication.translate("Desktop", "驱动未提供进程级读数")
+                )
             )
-        return "\n".join(lines) or "正在读取资源；当前仅支持 NVIDIA CUDA GPU。"
+        return "\n".join(lines) or QCoreApplication.translate(
+            "Desktop", "正在读取资源；当前仅支持 NVIDIA CUDA GPU。"
+        )
 
     @Slot(object)
     def _set_resources(self, value):
@@ -127,7 +148,7 @@ class SpeechLibraryViewModel(QObject):
             settings = load_compute(self.store.root)
             updated = type(settings).model_validate({**settings.model_dump(), name: value})
         except ValueError:
-            self._status = "计算设置的数值无效。"
+            self._status = QCoreApplication.translate("Desktop", "计算设置的数值无效。")
             self.changed.emit()
             return
         save_compute(self.store.root, updated)
@@ -149,7 +170,12 @@ class SpeechLibraryViewModel(QObject):
             )
             return self._snapshot()
 
-        self._start("准备独立运行环境与必要运行库（GPU 下载可能较大）…", operation)
+        self._start(
+            QCoreApplication.translate(
+                "Desktop", "准备独立运行环境与必要运行库（GPU 下载可能较大）…"
+            ),
+            operation,
+        )
 
     @Slot(str)
     def checkRuntime(self, device):
@@ -168,12 +194,16 @@ class SpeechLibraryViewModel(QObject):
             )
             return self._snapshot()
 
-        self._start("检查运行环境并执行真实计算探针…", operation)
+        self._start(
+            QCoreApplication.translate("Desktop", "检查运行环境并执行真实计算探针…"), operation
+        )
 
     @Slot()
     def releaseModels(self):
         self.local_service.request_release()
-        self._status = "正在释放空闲模型；运行中的推理会先完成。"
+        self._status = QCoreApplication.translate(
+            "Desktop", "正在释放空闲模型；运行中的推理会先完成。"
+        )
         self.changed.emit()
 
     @Property("QVariantList", notify=modelsChanged)
@@ -212,14 +242,30 @@ class SpeechLibraryViewModel(QObject):
     def hardwareSummary(self):
         h = self._hardware
         if not h:
-            return "尚未检测硬件"
+            return QCoreApplication.translate("Desktop", "尚未检测硬件")
         free = h.get("available_ram_bytes")
-        ram = f"{free / 1024**3:.1f} GiB 可用内存" if free else "可用内存未知"
-        gpu = "；".join(g["name"] + f"（可用 {g['available_mb']} MiB）" for g in h["gpus"])
-        return (
-            f"{h.get('cpu_name', h['cpu'])} · {h['logical_cpus']} 逻辑核心 · {ram} · 磁盘剩余 {h['disk_free_bytes'] / 1024**3:.1f} GiB"
-            + ("\n" + gpu if gpu else "")
+        ram = (
+            QCoreApplication.translate("Desktop", "{value0:.1f} GiB 可用内存").format(
+                value0=free / 1024**3
+            )
+            if free
+            else QCoreApplication.translate("Desktop", "可用内存未知")
         )
+        gpu = "；".join(
+            g["name"]
+            + QCoreApplication.translate("Desktop", "（可用 {value0} MiB）").format(
+                value0=g["available_mb"]
+            )
+            for g in h["gpus"]
+        )
+        return QCoreApplication.translate(
+            "Desktop", "{value0} · {value1} 逻辑核心 · {value2} · 磁盘剩余 {value3:.1f} GiB"
+        ).format(
+            value0=h.get("cpu_name", h["cpu"]),
+            value1=h["logical_cpus"],
+            value2=ram,
+            value3=h["disk_free_bytes"] / 1024**3,
+        ) + ("\n" + gpu if gpu else "")
 
     def _start(self, title, operation):
         if self._busy or self._closing:
@@ -241,7 +287,9 @@ class SpeechLibraryViewModel(QObject):
                     (
                         str(exc)
                         if isinstance(exc, (ValueError, RuntimeError))
-                        else "操作未完成，请检查网络、磁盘与本地运行依赖后重试。"
+                        else QCoreApplication.translate(
+                            "Desktop", "操作未完成，请检查网络、磁盘与本地运行依赖后重试。"
+                        )
                     ),
                 )
             if not self._closing:
@@ -263,7 +311,9 @@ class SpeechLibraryViewModel(QObject):
             self._hardware = result["hardware"]
             self._rows = result["rows"]
             self.modelsChanged.emit()
-        self._status = error or "完成。测速仅含本地计算；尚未验证真人语音与完整对话延迟。"
+        self._status = error or QCoreApplication.translate(
+            "Desktop", "完成。测速仅含本地计算；尚未验证真人语音与完整对话延迟。"
+        )
         self.changed.emit()
 
     def _snapshot(self):
@@ -290,7 +340,7 @@ class SpeechLibraryViewModel(QObject):
 
     @Slot()
     def refresh(self):
-        self._start("检测硬件与本地模型…", self._snapshot)
+        self._start(QCoreApplication.translate("Desktop", "检测硬件与本地模型…"), self._snapshot)
 
     @Slot(str, str)
     def setFilter(self, language, scenario):
@@ -321,7 +371,7 @@ class SpeechLibraryViewModel(QObject):
             self.store.install(package, cancel=self._cancel, progress=progress)
             return self._snapshot()
 
-        self._start("下载并校验模型…", operation)
+        self._start(QCoreApplication.translate("Desktop", "下载并校验模型…"), operation)
 
     @Slot(str)
     def uninstall(self, id):
@@ -334,7 +384,7 @@ class SpeechLibraryViewModel(QObject):
             )
             return self._snapshot()
 
-        self._start("卸载模型…", operation)
+        self._start(QCoreApplication.translate("Desktop", "卸载模型…"), operation)
 
     @Slot(str)
     def verify(self, id):
@@ -342,7 +392,7 @@ class SpeechLibraryViewModel(QObject):
             self.store.verify(self._package(id), cancel=self._cancel)
             return self._snapshot()
 
-        self._start("校验本地文件…", operation)
+        self._start(QCoreApplication.translate("Desktop", "校验本地文件…"), operation)
 
     @Slot(str, str)
     def runBenchmark(self, id, wav):
@@ -353,7 +403,11 @@ class SpeechLibraryViewModel(QObject):
             python = runtime_python(self.store.root, device)
             if not runtime_status(self.store.root, device).get("prepared"):
                 if device == "cuda" or package.adapter == "sensevoice-ort":
-                    raise ValueError("请先在计算与加速中准备对应运行环境。")
+                    raise ValueError(
+                        QCoreApplication.translate(
+                            "Desktop", "请先在计算与加速中准备对应运行环境。"
+                        )
+                    )
                 python = None
             benchmark(
                 self.store,
@@ -368,7 +422,9 @@ class SpeechLibraryViewModel(QObject):
             )
             return self._snapshot()
 
-        self._start("独立进程测速（含预热与 5 次热态）…", operation)
+        self._start(
+            QCoreApplication.translate("Desktop", "独立进程测速（含预热与 5 次热态）…"), operation
+        )
 
     @Slot(str)
     def runPairBenchmark(self, wav):
@@ -378,14 +434,26 @@ class SpeechLibraryViewModel(QObject):
             for task in ("stt", "tts"):
                 selected = selections.get(f"{self._language}:{self._scenario}:{task}")
                 if not selected:
-                    raise ValueError("请先测速并保存本语言的 STT 与 TTS 候选。")
+                    raise ValueError(
+                        QCoreApplication.translate(
+                            "Desktop", "请先测速并保存本语言的 STT 与 TTS 候选。"
+                        )
+                    )
                 package = self._package(selected["id"])
                 if selected.get("fingerprint") != package.fingerprint:
-                    raise ValueError("模型已更新，请重新测速选择。")
+                    raise ValueError(
+                        QCoreApplication.translate("Desktop", "模型已更新，请重新测速选择。")
+                    )
                 if selected.get("runtime_version") != runtime_version(package):
-                    raise ValueError("运行时已更新，请重新测速选择。")
+                    raise ValueError(
+                        QCoreApplication.translate("Desktop", "运行时已更新，请重新测速选择。")
+                    )
                 if selected.get("adapter_revision", 1) != adapter_revision(package.adapter):
-                    raise ValueError("模型加载配置已更新，请重新测速选择。")
+                    raise ValueError(
+                        QCoreApplication.translate(
+                            "Desktop", "模型加载配置已更新，请重新测速选择。"
+                        )
+                    )
                 packages.append(package)
             settings = load_compute(self.store.root)
             hardware = detect_hardware(self.store.root)
@@ -393,7 +461,9 @@ class SpeechLibraryViewModel(QObject):
             device = "cuda" if "cuda" in devices.values() else "cpu"
             python = runtime_python(self.store.root, device)
             if not runtime_status(self.store.root, device).get("prepared"):
-                raise ValueError("请先准备所选计算设备的运行环境。")
+                raise ValueError(
+                    QCoreApplication.translate("Desktop", "请先准备所选计算设备的运行环境。")
+                )
             benchmark(
                 self.store,
                 packages,
@@ -407,7 +477,7 @@ class SpeechLibraryViewModel(QObject):
             )
             return self._snapshot()
 
-        self._start("STT + TTS 同时运行测速…", operation)
+        self._start(QCoreApplication.translate("Desktop", "STT + TTS 同时运行测速…"), operation)
 
     @Slot(str)
     def select(self, id):
@@ -418,7 +488,9 @@ class SpeechLibraryViewModel(QObject):
         if not row.get("measured") or not row.get("installed"):
             return
         if row.get("excluded"):
-            self._status = "此配置已在严格评测与试听中排除，请选择其他模型。"
+            self._status = QCoreApplication.translate(
+                "Desktop", "此配置已在严格评测与试听中排除，请选择其他模型。"
+            )
             self.changed.emit()
             return
         if (
@@ -426,7 +498,9 @@ class SpeechLibraryViewModel(QObject):
             and self._scenario == "conversation"
             and not row.get("withinRealtimeBudget")
         ):
-            self._status = "此模型在当前设备上平均超过 500 ms，请改用 GPU 测速或选择其他识别模型。"
+            self._status = QCoreApplication.translate(
+                "Desktop", "此模型在当前设备上平均超过 500 ms，请改用 GPU 测速或选择其他识别模型。"
+            )
             self.changed.emit()
             return
         selected = read_json(self.store.root / "selections.json", {})
@@ -448,8 +522,9 @@ class SpeechLibraryViewModel(QObject):
             if item["task"].lower() == package.task:
                 item["selected"] = item["id"] == id
         self.modelsChanged.emit()
-        self._status = (
-            "已保存本语言的模型；实时对话选择会用于桌面分轮语音，下次推理按计算设置运行。"
+        self._status = QCoreApplication.translate(
+            "Desktop",
+            "已保存本语言的模型；实时对话选择会用于桌面分轮语音，下次推理按计算设置运行。",
         )
         self.changed.emit()
 
@@ -464,7 +539,9 @@ class SpeechLibraryViewModel(QObject):
             self._player.play()
 
     def _playback_error(self):
-        self._status = "试听播放失败，可重新测速生成音频并检查输出设备。"
+        self._status = QCoreApplication.translate(
+            "Desktop", "试听播放失败，可重新测速生成音频并检查输出设备。"
+        )
         self.changed.emit()
 
     @Slot()

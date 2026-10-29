@@ -8,15 +8,17 @@ Item {
     property bool scopeMode: false
     property bool programmatic: false
     signal back()
+    Rectangle { anchors.fill: parent; color: AppTheme.dark ? AppTheme.surfaceContainerLow : "#F0EBDF"; Rectangle { anchors.right: parent.right; width: 1; height: parent.height; color: AppTheme.outlineVariant } }
     ColumnLayout {
         anchors.fill: parent; spacing: 0
         RowLayout {
             Layout.fillWidth: true; Layout.preferredHeight: 36; spacing: 0
-            MIconButton { symbol: "arrow_back"; label: reader.scopeMode ? "返回材料" : "返回对话"; onClicked: reader.back() }
-            MIconButton { symbol: "menu"; label: "目录"; enabled: !workspace.sourceStale; onClicked: contents.open() }
+            MIconButton { visible: reader.scopeMode; symbol: "arrow_back"; label: qsTr("返回材料"); onClicked: reader.back() }
+            MIconButton { symbol: "menu"; label: qsTr("目录"); enabled: !workspace.sourceStale; onClicked: contents.open() }
+            MIconButton { symbol: "search"; label: qsTr("查找原文"); enabled: !workspace.sourceStale; onClicked: { findPopup.open(); searchInput.forceActiveFocus() } }
             Item { Layout.fillWidth: true }
-            MButton { visible: workspace.historicalSource; text: "返回当前指向"; variant: "text"; onClicked: workspace.closePreview() }
-            MIconButton { symbol: "search"; label: "查找原文"; enabled: !workspace.sourceStale; onClicked: { findPopup.open(); searchInput.forceActiveFocus() } }
+            MButton { visible: workspace.historicalSource; text: qsTr("返回当前指向"); variant: "text"; onClicked: workspace.closePreview() }
+            MIconButton { visible: !reader.scopeMode; symbol: "close"; label: qsTr("返回对话"); onClicked: reader.back() }
         }
         ScrollView {
             id: sourceScroll
@@ -34,19 +36,28 @@ Item {
                     enabled: workspace.documentReady || workspace.sourceStale
                     textFormat: TextEdit.PlainText; wrapMode: TextEdit.Wrap
                     font.family: workspace.sourceLanguage === "japanese" ? AppTheme.japaneseReadingFont : AppTheme.readingFont
-                    font.pixelSize: 17
+                    font.pixelSize: reader.width < 600 ? 18 : 20
                     color: AppTheme.colorOnSurface
                     selectionColor: Qt.alpha(AppTheme.primary, 0.22); selectedTextColor: AppTheme.colorOnSurface
-                    Accessible.name: "原文"
+                    Accessible.name: qsTr("原文")
+                    Rectangle {
+                        objectName: "readingBoundaryMarker"
+                        visible: reader.scopeMode && workspace.scopeEndPosition >= 0
+                        x: Math.max(20, document.width-width-20)
+                        y: document.positionToRectangle(Math.max(0,workspace.scopeEndPosition)).y + document.positionToRectangle(Math.max(0,workspace.scopeEndPosition)).height
+                        width: 84; height: 22; radius: 3
+                        color: AppTheme.primaryContainer
+                        Text { anchors.centerIn: parent; text: qsTr("已读至此"); font.family: AppTheme.uiFont; font.pixelSize: 12; color: AppTheme.colorOnPrimaryContainer }
+                    }
                     PointHandler {
                         acceptedButtons: Qt.LeftButton
-                        onActiveChanged: if (!active && !reader.programmatic) workspace.selectSource(document.selectionStart, document.selectionEnd)
+                        onActiveChanged: if (!active && reader.visible && !reader.programmatic) workspace.selectSource(document.selectionStart, document.selectionEnd)
                     }
                     Keys.onReleased: function(event) {
                         if (!reader.programmatic && (event.key === Qt.Key_Shift || (event.modifiers & Qt.ShiftModifier))) workspace.selectSource(selectionStart, selectionEnd)
                     }
                 }
-                MButton { visible: workspace.sourceHasMore; text: "继续加载"; variant: "text"; anchors.horizontalCenter: parent.horizontalCenter; onClicked: workspace.loadMoreSource() }
+                MButton { visible: workspace.sourceHasMore; text: qsTr("继续加载"); variant: "text"; anchors.horizontalCenter: parent.horizontalCenter; onClicked: workspace.loadMoreSource() }
             }
         }
     }
@@ -58,7 +69,7 @@ Item {
             contentWidth: availableWidth
             ColumnLayout {
                 width: parent.width
-                MLabel { visible: workspace.sections.length === 0; text: "无章节目录"; role: "supporting" }
+                MLabel { visible: workspace.sections.length === 0; text: qsTr("无章节目录"); role: "supporting" }
                 Repeater { model: workspace.sections
                     MButton { required property var modelData; Layout.fillWidth: true; text: modelData.label; variant: "text"; onClicked: { workspace.selectSection(modelData.id); contents.close() } contentItem: Text { text: parent.text; font: parent.font; color: AppTheme.colorOnSurface; wrapMode: Text.Wrap } }
                 }
@@ -72,13 +83,13 @@ Item {
         background: Rectangle { color: AppTheme.surface; border.color: AppTheme.outlineVariant; radius: 5 }
         contentItem: ColumnLayout {
             RowLayout {
-                MTextField { id: searchInput; Layout.fillWidth: true; placeholderText: "查找原文"; onTextEdited: searchTimer.restart() }
-                MIconButton { symbol: "close"; label: "关闭查找"; onClicked: findPopup.close() }
+                MTextField { id: searchInput; Layout.fillWidth: true; placeholderText: qsTr("查找原文"); onTextEdited: searchTimer.restart() }
+                MIconButton { symbol: "close"; label: qsTr("关闭查找"); onClicked: findPopup.close() }
             }
             ScrollView {
                 Layout.fillWidth: true; Layout.fillHeight: true; contentWidth: availableWidth
                 ColumnLayout { width: parent.width
-                    MLabel { visible: searchInput.text.length > 0 && workspace.searchResults.length === 0; text: "未找到"; role: "supporting" }
+                    MLabel { visible: searchInput.text.length > 0 && workspace.searchResults.length === 0; text: qsTr("未找到"); role: "supporting" }
                     Repeater { model: workspace.searchResults
                         MButton { required property var modelData; Layout.fillWidth: true; text: modelData.text; variant: "text"; implicitHeight: Math.max(40, contentItem.implicitHeight+16); contentItem: Text { text: parent.text; font: parent.font; color: AppTheme.colorOnSurface; wrapMode: Text.Wrap } onClicked: { workspace.showSearchResult(modelData.start, modelData.end); findPopup.close() } }
                     }

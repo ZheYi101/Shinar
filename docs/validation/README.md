@@ -27,6 +27,8 @@
 
 ## 工程
 
+- [浅色 QML 视觉复核](./engineering/UI_VISUAL_REVIEW_2026-10-29.md)：修订 3 与实际界面的差距、Qt 官方方案、叶控件与页面修正、三组对照图和缩放复查。
+- [桌面 UI 实施与国际化入口](./engineering/UI_IMPLEMENTATION_2026-10-29.md)：工作树基线、阶段映射、线程／原文／草稿边界、中文翻译入口、可见 QML 合成音频及缩放检查，真实服务与连续语音分开记录。
 - [语音与桌面工作区合并检查](./engineering/WORKSPACE_INTEGRATION_2026-10-29.md)：两批提交边界、353 项普通回归、原文真实 QML 交互和 67 项 wheel 资源检查；保留视觉/真人语音未验收限制。
 
 - [代码审查](./engineering/CODE_AUDIT_2026-10-24.md)：对应候选的缺陷、修复及独立复核。

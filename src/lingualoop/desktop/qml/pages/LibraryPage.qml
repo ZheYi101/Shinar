@@ -9,18 +9,18 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true
         Item { Layout.fillWidth: true }
-        MTextField { id: search; Layout.preferredWidth: 220; Layout.minimumWidth: 100; Layout.fillWidth: true; Layout.maximumWidth: 220; placeholderText: "查找材料" }
-        MButton { text: "+ 导入材料"; onClicked: workspace.navigate("import") }
+        MTextField { id: search; Layout.preferredWidth: 220; Layout.minimumWidth: 100; Layout.fillWidth: true; Layout.maximumWidth: 220; placeholderText: qsTr("查找材料") }
+        MButton { text: qsTr("+ 导入材料"); onClicked: workspace.navigate("import") }
     }
     ScrollView {
         Layout.fillWidth: true; Layout.fillHeight: true; clip: true; contentWidth: availableWidth
         ColumnLayout {
             width: parent.width; spacing: 0
             RowLayout { Layout.fillWidth: true; Layout.preferredHeight: 32
-                MLabel { text: "材料"; role: "supporting"; Layout.fillWidth: true }
-                MLabel { visible: parent.width > 540; text: "语言与类型"; role: "supporting"; Layout.preferredWidth: 150; Layout.fillWidth: false }
-                MLabel { text: "已读范围"; role: "supporting"; Layout.preferredWidth: 100; Layout.fillWidth: false }
-                MLabel { visible: parent.width > 420; text: "对话"; role: "supporting"; Layout.preferredWidth: 60; Layout.fillWidth: false }
+                MLabel { text: qsTr("材料"); role: "supporting"; Layout.fillWidth: true }
+                MLabel { visible: parent.width > 540; text: qsTr("语言与类型"); role: "supporting"; Layout.preferredWidth: 150; Layout.fillWidth: false }
+                MLabel { text: qsTr("已读范围"); role: "supporting"; Layout.preferredWidth: 100; Layout.fillWidth: false }
+                MLabel { visible: parent.width > 420; text: qsTr("对话"); role: "supporting"; Layout.preferredWidth: 60; Layout.fillWidth: false }
             }
             Repeater {
                 model: workspace.materials
@@ -39,7 +39,7 @@ ColumnLayout {
                     onClicked: workspace.browseMaterial(modelData.id)
                 }
             }
-            MLabel { visible: workspace.materials.length === 0; text: "还没有材料"; role: "supporting"; Layout.topMargin: 36 }
+            MLabel { visible: workspace.materials.length === 0; text: qsTr("还没有材料"); role: "supporting"; Layout.topMargin: 36 }
         }
     }
 }

@@ -6,13 +6,13 @@ AbstractButton {
     id: control
     property string glyph: "minimize"
     property string label: ""
-    implicitWidth: 48; implicitHeight: 48
+    implicitWidth: 48; implicitHeight: AppTheme.topBarHeight
     hoverEnabled: true
     Accessible.name: label
     ToolTip.visible: hovered
     ToolTip.text: label
     background: Rectangle {
-        radius: 12
+        radius: AppTheme.cardRadius
         color: control.down ? AppTheme.surfaceContainerHigh : control.hovered || control.visualFocus ? AppTheme.surfaceContainer : "transparent"
         border.width: control.visualFocus ? 2 : 0
         border.color: AppTheme.primary

@@ -7,28 +7,23 @@ import "../components"
 Item {
     id: page
     signal openMaterials()
-    property bool splitSource: width + (workspace.collapsed ? 56 : 208) >= 1200
+    property real workspaceWidth: width
+    readonly property bool splitSource: workspaceWidth >= 1200
     RowLayout {
         anchors.fill: parent; spacing: 0
         SourceReader {
             visible: workspace.sourceOpen
             Layout.fillHeight: true; Layout.fillWidth: !page.splitSource
-            Layout.preferredWidth: page.splitSource ? Math.max(360,page.width*0.46) : -1
+            Layout.preferredWidth: page.splitSource ? Math.max(360,page.width*0.49) : -1
             onBack: workspace.toggleSource()
         }
         ColumnLayout {
             visible: !workspace.sourceOpen || page.splitSource
             Layout.fillWidth: true; Layout.fillHeight: true
             Layout.leftMargin: page.width < 600 ? 12 : 24; Layout.rightMargin: page.width < 600 ? 12 : 24
+            Layout.topMargin: 20
             spacing: 8
-            RowLayout {
-                Layout.fillWidth: true; Layout.preferredHeight: 36
-                Item { Layout.fillWidth: true }
-                MButton { objectName: "openHistoryButton"; text: "对话列表"; variant: "text"; onClicked: workspace.browseMaterial(learningViewModel.selectedMaterialId) }
-                MButton { text: "原文"; variant: "text"; enabled: learningViewModel.hasSession; onClicked: workspace.toggleSource() }
-                MIconButton { objectName: "conversationMenuButton"; symbol: "more_horiz"; label: "对话操作"; onClicked: actions.open() }
-            }
-            MButton { visible: !learningViewModel.hasSession; text: "选择材料"; variant: "outlined"; onClicked: page.openMaterials() }
+            MButton { visible: !learningViewModel.hasSession; text: qsTr("选择材料"); variant: "outlined"; onClicked: page.openMaterials() }
             ScrollView {
                 id: conversation
                 objectName: "practiceScroll"
@@ -45,10 +40,11 @@ Item {
                             MCard {
                                 Layout.fillWidth: true
                                 color: modelData.role === "user" ? AppTheme.surfaceContainerLow : "transparent"
-                                padding: modelData.role === "user" ? 14 : 0
-                                MLabel { text: modelData.content; font.family: learningViewModel.preferences.targetLanguage === "japanese" ? AppTheme.japaneseReadingFont : AppTheme.readingFont; font.pixelSize: 18; lineHeight: 1.6 }
+                                padding: modelData.role === "user" ? 18 : 0
+                                MLabel { text: modelData.role === "user" ? qsTr("我") : qsTr("伙伴"); role: "supporting"; font.pixelSize: 12 }
+                                MLabel { text: modelData.content; font.family: learningViewModel.preferences.targetLanguage === "japanese" ? AppTheme.japaneseReadingFont : AppTheme.readingFont; font.pixelSize: page.width < 600 ? 18 : 20; lineHeightMode: Text.FixedHeight; lineHeight: font.pixelSize * 1.6 }
                             }
-                            MButton { visible: !!modelData.source; text: modelData.source ? modelData.source.label || "原文来源" : ""; variant: "text"; implicitHeight: 28; font.pixelSize: 12; Layout.maximumWidth: conversation.availableWidth; onClicked: workspace.previewMessage(modelData.id); contentItem: Text { text: parent.text; color: AppTheme.primary; font: parent.font; elide: Text.ElideRight } }
+                            MButton { visible: !!modelData.source; text: modelData.source ? modelData.source.label || qsTr("原文来源") : ""; variant: "text"; implicitHeight: 28; font.pixelSize: 12; Layout.maximumWidth: conversation.availableWidth; onClicked: workspace.previewMessage(modelData.id); contentItem: Text { text: parent.text; color: AppTheme.primary; font: parent.font; elide: Text.ElideRight } }
                         }
                     }
                     MCard { visible: learningViewModel.pendingUserText.length > 0; color: AppTheme.surfaceContainerLow; padding: 14; MLabel { text: learningViewModel.pendingUserText; font.family: AppTheme.readingFont; font.pixelSize: 18 } }
@@ -65,11 +61,16 @@ Item {
                 visible: learningViewModel.sessionActive || learningViewModel.canSpeak
                 Layout.fillWidth: true; Layout.maximumWidth: 760; Layout.alignment: Qt.AlignHCenter
                 spacing: 6
-                RowLayout {
+                Rectangle {
                     visible: workspace.hasSource
                     Layout.fillWidth: true
-                    MLabel { text: workspace.sourceLabel; maximumLineCount: 1; elide: Text.ElideRight; role: "supporting" }
-                    MIconButton { symbol: "close"; label: "清除指向"; onClicked: workspace.clearSource() }
+                    implicitHeight: 48
+                    color: AppTheme.primaryContainer; radius: 4
+                    RowLayout {
+                        anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 4
+                        MLabel { text: workspace.sourceLabel; maximumLineCount: 2; elide: Text.ElideRight; role: "supporting"; color: AppTheme.colorOnPrimaryContainer; font.pixelSize: 12 }
+                        MIconButton { symbol: "close"; label: qsTr("清除指向"); onClicked: workspace.clearSource() }
+                    }
                 }
                 Rectangle {
                     Layout.fillWidth: true
@@ -84,13 +85,13 @@ Item {
                                 id: messageField; objectName: "messageInput"
                                 width: parent.width; implicitHeight: Math.max(48,contentHeight+12)
                                 background: null; padding: 6
-                                placeholderText: "说说你的想法…"
+                                placeholderText: qsTr("说说你的想法…")
                                 text: learningViewModel.draft
                                 enabled: learningViewModel.voiceState !== "recording"
                                 onTextChanged: if (text !== learningViewModel.draft) learningViewModel.draft = text
                                 onCursorPositionChanged: workspace.saveEditor(cursorPosition,conversation.contentItem.contentY)
                                 Keys.onPressed: function(event) {
-                                    if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && (event.modifiers & Qt.ControlModifier)) {
+                                    if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && (event.modifiers & Qt.ControlModifier) && !messageField.inputMethodComposing) {
                                         if (learningViewModel.sessionActive && !learningViewModel.busy && text.trim()) learningViewModel.sendMessage(text)
                                         event.accepted = true
                                     }
@@ -99,34 +100,23 @@ Item {
                         }
                         RowLayout {
                             Layout.fillWidth: true; spacing: 4
-                            MButton { objectName: "recordButton"; visible: learningViewModel.voiceReady && learningViewModel.sessionActive; text: learningViewModel.voiceState === "recording" ? "结束录音" : "开始语音"; icon.source: "../assets/illustrated/mic.png"; enabled: !learningViewModel.busy; variant: "text"; onClicked: learningViewModel.voiceState === "recording" ? learningViewModel.stopRecording() : learningViewModel.startRecording() }
-                            MButton { visible: learningViewModel.voiceState === "recording"; text: "取消"; variant: "text"; onClicked: learningViewModel.cancelRecording() }
-                            MButton { visible: learningViewModel.canRetryTranscription; text: "重试识别"; variant: "text"; enabled: !learningViewModel.busy; onClicked: learningViewModel.retryTranscription() }
-                            MIconButton { visible: learningViewModel.canSpeak && learningViewModel.voiceState !== "playing"; symbol: "play_arrow"; label: "朗读回复"; enabled: !learningViewModel.busy; onClicked: learningViewModel.speakReply() }
-                            MIconButton { visible: learningViewModel.voiceState === "playing"; symbol: "stop"; label: "停止播放"; onClicked: learningViewModel.stopPlayback() }
-                            MLabel { text: learningViewModel.voiceState === "recording" ? learningViewModel.recordingSeconds + " 秒" : ""; role: "supporting"; maximumLineCount: 1 }
-                            MButton { objectName: "sendMessageButton"; text: "发送 ↑"; enabled: learningViewModel.sessionActive && !learningViewModel.busy && learningViewModel.draft.trim().length > 0 && learningViewModel.voiceState !== "recording"; onClicked: learningViewModel.sendMessage(learningViewModel.draft) }
+                            MButton { objectName: "recordButton"; visible: learningViewModel.voiceReady && learningViewModel.sessionActive; text: learningViewModel.voiceState === "recording" ? qsTr("结束录音") : learningViewModel.canRetryTranscription && learningViewModel.draft.length ? qsTr("重新录音") : qsTr("开始语音"); icon.source: "../assets/illustrated/mic.png"; enabled: !learningViewModel.busy; variant: "text"; onClicked: { if (learningViewModel.voiceState === "recording") learningViewModel.stopRecording(); else if (learningViewModel.canRetryTranscription && learningViewModel.draft.length) learningViewModel.rerecord(); else learningViewModel.startRecording() } }
+                            MButton { visible: learningViewModel.voiceState === "recording"; text: qsTr("取消"); variant: "text"; onClicked: learningViewModel.cancelRecording() }
+                            MButton { visible: learningViewModel.canRetryTranscription; text: qsTr("重试识别"); variant: "text"; enabled: !learningViewModel.busy; onClicked: learningViewModel.retryTranscription() }
+                            MIconButton { visible: learningViewModel.canSpeak && learningViewModel.voiceState !== "playing"; symbol: "play_arrow"; label: qsTr("朗读回复"); enabled: !learningViewModel.busy; onClicked: learningViewModel.speakReply() }
+                            MIconButton { visible: learningViewModel.voiceState === "playing"; symbol: "stop"; label: qsTr("停止播放"); onClicked: learningViewModel.stopPlayback() }
+                            MLabel { text: learningViewModel.voiceState === "recording" ? qsTr("%1 秒").arg(learningViewModel.recordingSeconds) : ""; role: "supporting"; maximumLineCount: 1 }
+                            MButton { objectName: "sendMessageButton"; text: qsTr("发送 ↑"); enabled: learningViewModel.sessionActive && !learningViewModel.busy && learningViewModel.draft.trim().length > 0 && learningViewModel.voiceState !== "recording"; onClicked: learningViewModel.sendMessage(learningViewModel.draft) }
                         }
                     }
                 }
             }
             RowLayout { visible: !learningViewModel.sessionActive && learningViewModel.hasSession; Layout.fillWidth: true
-                MButton { text: "复盘"; variant: "text"; onClicked: workspace.navigate("review") }
-                MButton { text: "+ 新对话"; variant: "text"; enabled: !workspace.threadLocked; onClicked: { workspace.browseMaterial(learningViewModel.selectedMaterialId); workspace.newThreadPage() } }
+                MButton { text: qsTr("复盘"); variant: "text"; onClicked: workspace.navigate("review") }
+                MButton { text: qsTr("+ 新对话"); variant: "text"; enabled: !workspace.threadLocked; onClicked: { workspace.browseMaterial(learningViewModel.selectedMaterialId); workspace.newThreadPage() } }
             }
             Item { Layout.preferredHeight: 10 }
         }
-    }
-    Menu {
-        id: actions; x: Math.max(0,page.width-width-16); y: 36
-        MenuItem { objectName: "finishDiscussionButton"; text: "结束并复盘"; enabled: learningViewModel.sessionActive && !workspace.threadLocked; onTriggered: learningViewModel.finishPractice() }
-        MenuItem { text: "复盘"; enabled: learningViewModel.hasSession && !learningViewModel.sessionActive; onTriggered: workspace.navigate("review") }
-        MenuItem { text: "本轮信息"; onTriggered: info.open() }
-    }
-    Popup {
-        id: info; x: Math.max(0,page.width-width-16); y: 36; width: Math.min(380,page.width-24)
-        background: Rectangle { color: AppTheme.surface; border.color: AppTheme.outlineVariant; radius: 5 }
-        contentItem: ColumnLayout { MLabel { text: learningViewModel.responseTiming; role: "supporting" } MLabel { text: learningViewModel.preparationStatus; role: "supporting" } MLabel { text: learningViewModel.speechStatus; role: "supporting" } }
     }
     Connections {
         target: workspace

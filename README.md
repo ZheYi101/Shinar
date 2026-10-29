@@ -104,6 +104,25 @@ uv run --locked ruff check src tests scripts
 
 截图保存在 `build/ui-preview/`，使用临时演示数据，不读取个人学习数据库或 `.env`。
 
+新工作区的页面交互与截图使用独立临时库和 Mock，通过实际 QML 控件导入、保存范围和发送：
+
+```powershell
+.venv\Scripts\python.exe scripts\validate_ui_workspace.py
+.venv\Scripts\python.exe scripts\validate_ui_workspace.py --visible --output build/ui-workspace-visible
+```
+
+默认离屏渲染；`--visible` 在可见窗口中执行。可用进程级 `QT_SCALE_FACTOR=1.25` 或 `1.5` 核对缩放，不更改 Windows 全局设置。
+
+与修订 3 页面稿做视觉复核时，可用 `--review-fixture --height 960` 通过真实 QML 建立三份合成材料与多线程，然后运行 `scripts/compare_ui_screens.py` 生成设计稿／修正前／修正后的图组。脚本默认读取 `build/ui-plan-audit/visible-100-final/` 和 `build/ui-visual-review/final/`；也可用 `--before`、`--after` 指定已有截图。明确设定 `QT_SCALE_FACTOR=1` 后采集 100% 基线，避免不同显示器的系统 DPR 混入对比。
+
+这一版界面默认中文，设置中的“显示语言”与学习偏好的“母语”分别保存。国际化采用 Qt 翻译目录，新增界面文案使用 `qsTr()`，桌面 Python 文案使用 `QCoreApplication.translate()`；动态内容使用占位符。更新中文目录：
+
+```powershell
+.venv\Scripts\python.exe scripts\update_translations.py
+```
+
+系统语言解析、翻译资源加载与首次母语建议入口已预留；未来增加语言包后再启用首次启动的系统语言默认策略，不能覆盖用户已保存的母语。完整约定见[国际化说明](./docs/desktop/I18N.md)。
+
 ## 下一步
 
 围绕当前主旨，优先补齐以下能力（详细范围见 MVP 和路线图）：

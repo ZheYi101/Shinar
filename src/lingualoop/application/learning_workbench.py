@@ -25,6 +25,7 @@ from lingualoop.core.domain import (
     ReviewStatus,
     SessionUserProfile,
     SessionStatus,
+    SessionSummary,
     DiscussionTopic,
     PracticeOptions,
     SubtitleCue,
@@ -49,7 +50,7 @@ from lingualoop.core.material_context import dialogue_knowledge
 from lingualoop.application.source_index import build_source_index
 from lingualoop.application.semantic_preparation import SemanticPreparation, analysis_with_knowledge
 from lingualoop.core.knowledge_context import assemble_turn_context, digest, estimate_tokens, prime_turn_index
-from lingualoop.core.knowledge import TurnSourceSnapshot
+from lingualoop.core.knowledge import SourceSection, TurnSourceSnapshot
 from lingualoop.core.source_reference import freeze_source_context
 
 
@@ -155,7 +156,7 @@ class LearningWorkbench:
         track: MaterialTrack = MaterialTrack.ARTICLE_READING,
         subtitle_cues: list[SubtitleCue] | None = None,
         auto_prepare: bool = True,
-        source_sections: list | None = None,
+        source_sections: list[SourceSection] | None = None,
     ) -> LearningMaterial:
         self._require_idle_conversation()
         draft = LearningMaterial(
@@ -282,6 +283,15 @@ class LearningWorkbench:
         return [self._session] if self._session and (
             material_id is None or self._session.material_id == material_id) else []
 
+    def list_session_summaries(self, material_id: str | None = None) -> list[SessionSummary]:
+        summaries = self._event_store.list_session_summaries(material_id) if isinstance(
+            self._event_store, SQLiteStore) else []
+        current = self._session
+        if current and (material_id is None or current.material_id == material_id):
+            summaries = [SessionSummary.from_session(current),
+                         *(item for item in summaries if item.id != current.id)]
+        return summaries
+
     async def store_imported_material(self, imported: ImportedMaterial, **kwargs: Any) -> LearningMaterial:
         """Save an import without replacing the foreground conversation."""
         previous = self._material, self._session, self._profile
@@ -367,6 +377,22 @@ class LearningWorkbench:
                     # Synchronous callers can explicitly await prepare_current_material.
                     pass
         return self._material
+
+    async def prepare_material_reference(self, material_id: str, *, reanalyze: bool = False) -> LearningMaterial:
+        """Explicit preparation for a browsed material, preserving the foreground thread."""
+        self._require_idle_conversation()
+        material = self.get_material(material_id)
+        if material is None:
+            raise ValueError("找不到材料。")
+        previous = self._material, self._session, self._profile
+        try:
+            self._material, self._session, self._profile = material, None, material.profile
+            if reanalyze:
+                return await self.analyze_current_material(profile=material.profile)
+            return await self.prepare_current_material()
+        finally:
+            prior, self._session, self._profile = previous
+            self._material = self.get_material(prior.id) if prior else None
 
     def _begin_material_preparation(self, material: LearningMaterial) -> asyncio.Task:
         loop = asyncio.get_running_loop()

@@ -163,6 +163,9 @@ def create_engine(viewmodel: Any, *, window_settings=None, initial_visible: bool
     if use_kirigami:
         _configure_kirigami_dll_path()
     engine = qt["QQmlApplicationEngine"]()
+    from lingualoop.desktop.i18n import DesktopLanguageController
+    engine.language_controller = DesktopLanguageController(viewmodel.preferences, engine, engine)
+    engine.rootContext().setContextProperty("desktopLanguage", engine.language_controller)
     from lingualoop.desktop.speech_library import SpeechLibraryViewModel
     if speech_library is None and "Mock" in viewmodel.providerLabel:
         from tempfile import TemporaryDirectory

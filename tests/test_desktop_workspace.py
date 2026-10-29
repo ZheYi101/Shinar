@@ -1,9 +1,15 @@
 """Real QML source and workspace interaction, with independent local stores."""
+
 from PySide6.QtCore import QPointF, Qt, QMetaObject, Q_ARG, Q_RETURN_ARG, QRectF
 from PySide6.QtTest import QTest
 
 from test_desktop_workflow import (  # noqa: F401
-    desktop, qt_app, item, until, load_and_start, workspace_of,
+    desktop,
+    qt_app,
+    item,
+    until,
+    load_and_start,
+    workspace_of,
 )
 from lingualoop.application.source_document import python_to_utf16
 
@@ -32,17 +38,27 @@ def test_native_source_selection_copy_and_history_are_separate(desktop):
     ws.toggleSource()
     source_ready(ws)
     editor = visible_item(window, "sourceDocument")
+
     def position(offset):
-        rect = QMetaObject.invokeMethod(editor, "positionToRectangle", Q_RETURN_ARG(QRectF), Q_ARG(int, offset))
-        return editor.mapToScene(QPointF(rect.x(), rect.y()+rect.height()/2)).toPoint()
+        rect = QMetaObject.invokeMethod(
+            editor, "positionToRectangle", Q_RETURN_ARG(QRectF), Q_ARG(int, offset)
+        )
+        return editor.mapToScene(QPointF(rect.x(), rect.y() + rect.height() / 2)).toPoint()
+
     for start, stop in ((1, 8), (8, 1)):
-        QTest.mousePress(window, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, position(start))
+        QTest.mousePress(
+            window, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, position(start)
+        )
         QTest.mouseMove(window, position(stop), 80)
-        QTest.mouseRelease(window, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, position(stop))
+        QTest.mouseRelease(
+            window, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, position(stop)
+        )
         QTest.qWait(30)
         assert ws.snapshot().focus_kind == "text"
         assert ws.snapshot().quote == ws.sourceText[1:8]
-    QTest.mouseClick(window, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, position(12))
+    QTest.mouseClick(
+        window, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, position(12)
+    )
     assert ws.snapshot().focus_kind == "paragraph"
     editor.forceActiveFocus()
     editor.setProperty("cursorPosition", 0)
@@ -52,6 +68,7 @@ def test_native_source_selection_copy_and_history_are_separate(desktop):
     QTest.keyClick(window, Qt.Key.Key_C, Qt.KeyboardModifier.ControlModifier)
     # Verify native clipboard through the existing QApplication instance.
     from PySide6.QtGui import QGuiApplication
+
     assert QGuiApplication.clipboard().text() == ws.sourceText[:5]
     first = ws.snapshot()
     vm.draft = "I want to discuss this passage."
@@ -66,6 +83,11 @@ def test_native_source_selection_copy_and_history_are_separate(desktop):
     ws.closePreview()
     source_ready(ws)
     assert not ws.historicalSource and ws.snapshot() == current
+    ws.previewMessage(vm.messages[1]["id"])
+    source_ready(ws)
+    ws.selectSource(0, 3)
+    assert not ws.historicalSource and ws.snapshot().quote == ws.sourceText[:3]
+    assert vm.messages[1]["source"]["quote"] == first.quote
     ws.toggleSource()
     assert vm.sessionActive and vm.draft == ""
 
@@ -172,3 +194,136 @@ def test_chapter_selection_search_clear_and_large_document(desktop):
     until(lambda: len(ws.searchResults) == 1)
     assert ws.searchResults[0]["start"] == text.index("終わり")
     assert calls is vm._workbench._provider
+
+
+def test_opening_remains_unsent_and_navigation_models_stay_stable(desktop, monkeypatch):
+    vm, window, _, provider, *_ = desktop
+    vm._stt = vm._tts = None
+    load_and_start(vm, window)
+    ws = workspace_of(window)
+    original_id = vm._workbench.session.id
+    vm.draft = "Old thread draft 😀."
+    ws.saveEditor(python_to_utf16(vm.draft, len(vm.draft)), 0)
+    ws.browseMaterial(vm.selectedMaterialId)
+    ws.newThreadPage()
+    opening = "My unsent opening. " * 40
+    ws.openingDraft = opening
+
+    async def forbidden_preparation(**kwargs):
+        raise AssertionError("an unsent opening must not prepare a custom topic")
+
+    monkeypatch.setattr(provider, "prepare_custom_topic", forbidden_preparation)
+    ws.startThread()
+    until(lambda: not vm.busy)
+    assert vm.sessionActive and vm._workbench.session.id != original_id
+    assert ws._source_section == "" and ws.sourceScroll == 0
+    assert vm.draft == opening
+    assert not any(message["role"] == "user" for message in vm.messages)
+    changes = []
+    ws.modelsChanged.connect(lambda: changes.append(True))
+    ws.refresh()
+    ws.refresh()
+    assert changes == []
+    ws.openThread(original_id)
+    assert vm.draft == "Old thread draft 😀."
+    QTest.qWait(30)
+    assert ws.editorCursor == python_to_utf16(vm.draft, len(vm.draft))
+
+
+def test_retyped_identical_draft_survives_reply_completion(desktop):
+    vm, window, *_ = desktop
+    vm._stt = vm._tts = None
+    load_and_start(vm, window)
+    text = "I would like to ask this again."
+    vm.draft = text
+    vm.sendMessage(text)
+    vm.draft = "A different thought."
+    vm.draft = text
+    until(lambda: not vm.busy)
+    assert vm.draft == text and len(vm.messages) == 3
+
+
+def test_import_cancel_keeps_form_and_failed_replacement_cannot_import_old_file(desktop, tmp_path):
+    vm, window, *_ = desktop
+    ws = workspace_of(window)
+    ws.navigate("import")
+    ws.setImportMode("paste")
+    ws.importText = "First paragraph.\n\n第二段😀。"
+    ws.importTitle = "Kept title"
+    ws.commitImport()
+    until(lambda: not vm.busy)
+    source_ready(ws)
+    ws.markAllRead()
+    pending = ws.pendingEnd
+    assert ws.scopeEndPosition == python_to_utf16(ws.sourceText, len(ws.sourceText))
+    ws.cancelScope()
+    assert ws.route == "import" and not ws.material["confirmed"]
+    assert ws.importText.endswith("第二段😀。") and ws.importTitle == "Kept title"
+    ws.commitImport()
+    until(lambda: not vm.busy)
+    source_ready(ws)
+    assert len(ws.materials) == 1 and ws.pendingEnd == pending
+    ws.cancelScope()
+    path = tmp_path / "valid.txt"
+    path.write_text("A valid file.", encoding="utf-8")
+    ws.setImportMode("file")
+    ws.inspectFile(str(path))
+    until(lambda: not ws.inspecting)
+    assert ws.importTitle == "Kept title"
+    ws.inspectFile(str(tmp_path / "missing.txt"))
+    until(lambda: not ws.inspecting)
+    assert ws.error and ws.importFile == ""
+    ws.commitImport()
+    assert ws.error == "请选择文件。" and len(ws.materials) == 1
+
+
+def test_stale_history_preview_rejects_pending_document_result(desktop, monkeypatch):
+    import asyncio
+
+    vm, window, *_ = desktop
+    vm._stt = vm._tts = None
+    load_and_start(vm, window)
+    ws = workspace_of(window)
+    ws.toggleSource()
+    source_ready(ws)
+    ws.selectSource(0, 5)
+    sent = ws.snapshot()
+    vm.draft = "This passage matters."
+    vm.sendMessage(vm.draft)
+    until(lambda: not vm.busy)
+    jobs = []
+    monkeypatch.setattr(ws._worker, "submit", jobs.append)
+    ws.loadSource("")
+    material = vm._workbench.material
+    vm._workbench._materials = [
+        m.model_copy(update={"content": m.content + "Changed."}) if m.id == material.id else m
+        for m in vm._workbench.materials
+    ]
+    ws.previewMessage(vm.messages[1]["id"])
+    assert ws.historicalSource and ws.sourceStale and ws.sourceText == sent.quote
+    result = asyncio.run(jobs.pop()())
+    ws._completed(result, "")
+    assert ws.sourceStale and ws.sourceText == sent.quote and not ws.documentReady
+
+
+def test_source_resizing_and_recording_keep_business_thread(desktop):
+    vm, window, _, _, _, audio, _ = desktop
+    load_and_start(vm, window)
+    vm.stopPlayback()
+    ws = workspace_of(window)
+    thread_id = vm._workbench.session.id
+    audio.cleared = False
+    vm.startRecording()
+    assert ws.threadLocked
+    ws.toggleSource()
+    source_ready(ws)
+    ws.startThread()
+    ws.openThread("another-thread")
+    for width in (1199, 1200, 360, 1440):
+        window.setWidth(width)
+        QTest.qWait(30)
+        assert vm.voiceState == "recording" and not audio.cleared
+        assert vm._workbench.session.id == thread_id
+    ws.toggleSource()
+    assert vm.voiceState == "recording" and not audio.cleared
+    vm.cancelRecording()

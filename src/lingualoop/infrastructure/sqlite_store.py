@@ -16,6 +16,7 @@ from lingualoop.core.domain import (
     ReviewItem,
     ReviewStatus,
     SessionEvent,
+    SessionSummary,
 )
 from lingualoop.core.ports import EventStore
 from lingualoop.core.knowledge import ModelBudgetExceeded
@@ -223,6 +224,31 @@ class SQLiteStore(EventStore):
                 params += (limit,)
             rows = connection.execute(query, params).fetchall()
             return [PracticeSession.model_validate(json.loads(row["payload"])) for row in rows]
+
+    def list_session_summaries(self, material_id: str | None = None) -> list[SessionSummary]:
+        """Project navigation fields in SQLite without deserializing learning history."""
+        query = """
+            SELECT id, material_id, status, updated_at,
+                COALESCE(json_extract(payload, '$.topic.title'),
+                    (SELECT json_extract(value, '$.content') FROM json_each(payload, '$.messages')
+                     WHERE json_extract(value, '$.role') = 'user' ORDER BY key LIMIT 1),
+                    '') AS title,
+                COALESCE((SELECT substr(json_extract(value, '$.content'), 1, 140)
+                    FROM json_each(payload, '$.messages')
+                    WHERE json_extract(value, '$.role') = 'assistant'
+                    ORDER BY key DESC LIMIT 1), '') AS preview,
+                (SELECT count(*) FROM json_each(payload, '$.messages')
+                 WHERE json_extract(value, '$.role') = 'user') AS turns
+            FROM sessions
+        """
+        params = ()
+        if material_id is not None:
+            query += " WHERE material_id = ?"
+            params = (material_id,)
+        query += " ORDER BY updated_at DESC"
+        with self._connect() as connection:
+            return [SessionSummary.model_validate(dict(row))
+                    for row in connection.execute(query, params).fetchall()]
 
     def get_session(self, session_id: str) -> PracticeSession | None:
         with self._connect() as connection:

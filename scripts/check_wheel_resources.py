@@ -1,4 +1,5 @@
 """Check wheel resources and launch QML from an isolated temporary install."""
+
 from __future__ import annotations
 
 import os
@@ -14,16 +15,38 @@ def main():
         raise SystemExit("Usage: python scripts/check_wheel_resources.py path/to/package.whl")
     wheel = Path(sys.argv[1]).resolve()
     source = Path(__file__).resolve().parents[1] / "src/lingualoop/desktop/qml"
-    expected = {"lingualoop/desktop/qml/" + path.relative_to(source).as_posix()
-                for path in source.rglob("*") if path.is_file()}
+    expected = {
+        "lingualoop/desktop/qml/" + path.relative_to(source).as_posix()
+        for path in source.rglob("*")
+        if path.is_file()
+    }
     expected.add("lingualoop/local_speech/catalog.json")
+    expected.update(
+        "lingualoop/desktop/translations/" + path.name
+        for path in (source.parent / "translations").glob("*")
+        if path.is_file()
+    )
     with ZipFile(wheel) as archive, TemporaryDirectory(prefix="lingualoop-wheel-") as directory:
         missing = expected.difference(archive.namelist())
         if missing:
             raise SystemExit("Missing resources: " + ", ".join(sorted(missing)))
+        obsolete = {
+            name
+            for name in archive.namelist()
+            if name.startswith("lingualoop/desktop/qml/") and name.endswith(".qml")
+        }.difference(expected)
+        if obsolete:
+            raise SystemExit(
+                "Obsolete QML resources (clean build/lib first): " + ", ".join(sorted(obsolete))
+            )
         archive.extractall(directory)
-        environment = dict(os.environ, QT_QPA_PLATFORM="offscreen", QT_QUICK_BACKEND="software",
-                           LINGUALOOP_KIRIGAMI_MODE="off", LINGUALOOP_DATA_DIR=directory)
+        environment = dict(
+            os.environ,
+            QT_QPA_PLATFORM="offscreen",
+            QT_QUICK_BACKEND="software",
+            LINGUALOOP_KIRIGAMI_MODE="off",
+            LINGUALOOP_DATA_DIR=directory,
+        )
         code = """
 import sys
 from pathlib import Path
@@ -69,8 +92,13 @@ vm.close()
 window.close()
 print('Installed-wheel QML, WindowController and frameless controls smoke passed')
 """
-        subprocess.run([sys.executable, "-I", "-c", code, directory], cwd=directory,
-                       env=environment, check=True, timeout=30)
+        subprocess.run(
+            [sys.executable, "-I", "-c", code, directory],
+            cwd=directory,
+            env=environment,
+            check=True,
+            timeout=30,
+        )
         print(f"Verified {len(expected)} QML/icon/license resources in {wheel.name}")
 
 

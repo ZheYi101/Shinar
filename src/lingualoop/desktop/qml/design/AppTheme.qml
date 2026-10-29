@@ -16,8 +16,8 @@ QtObject {
     readonly property color surfaceContainer: dark ? "#211F26" : "#EFEADE"
     readonly property color surfaceContainerHigh: dark ? "#2B2930" : "#E8E1D4"
     readonly property color colorOnSurface: dark ? "#E6E0E9" : "#3F382F"
-    readonly property color colorOnSurfaceVariant: dark ? "#CAC4D0" : "#766D5E"
-    readonly property color outline: dark ? "#938F99" : "#A89A84"
+    readonly property color colorOnSurfaceVariant: dark ? "#CAC4D0" : "#6B6257"
+    readonly property color outline: dark ? "#938F99" : "#887A67"
     readonly property color outlineVariant: dark ? "#49454F" : "#D9CEBD"
     readonly property color error: dark ? "#F2B8B5" : "#B3261E"
     readonly property color errorContainer: dark ? "#8C1D18" : "#F9DEDC"
@@ -32,7 +32,7 @@ QtObject {
     readonly property int compactPageMargin: 16
     readonly property int railWidth: 208
     readonly property int contextWidth: 320
-    readonly property int topBarHeight: 30
+    readonly property int topBarHeight: 36
     readonly property int navigationBarHeight: 80
     readonly property int touchTarget: 36
     readonly property int compactBreakpoint: 600

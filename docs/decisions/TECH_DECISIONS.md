@@ -1,5 +1,29 @@
 # Technical Decisions
 
+<a id="decision-0028"></a>
+
+## Decision 0028: 纸墨叶控件采用 Qt Basic 定制，根窗口保留 Material
+
+- Status: Accepted（浅色视觉复核实现）
+- Date: 2026-10-29
+
+与修订 3 页面稿逐页比对后，发现 Material 默认按钮内缩令 36px 热区只呈现约 24px 背景，输入提示浮在边框上，默认开关／下拉框与纸墨方向不一致。按 Qt 官方控件定制方式，保留现有 Material 根窗口、PySide6 6.11.1 和 QML，在 `MButton/MTextField/MTextArea/MComboBox/MSwitch/MSpinBox` 内采用 Qt 自带 Basic 控件并显式控制表面、内容和指示器。没有新增前端栈、StyleKit、服务或运行时依赖。
+
+设置行、主题预览和材料页头抽为可复用组件；聊天操作并入标题栏，原文使用独立浅纸分区，表单顶部排布。翻译标记、原生文本编辑／输入法与选区、键盘交互、旧业务／语音边界继续保留。深色保持基础兼容，视觉定稿仍另做。方案依据与实际检查见[视觉复核记录](../validation/engineering/UI_VISUAL_REVIEW_2026-10-29.md)。
+
+<a id="decision-0027"></a>
+
+## Decision 0027: 中文先行的 Qt 国际化入口与独立学习母语
+
+- Status: Accepted（中文资源与国际化入口已实现，其他语言包后续）
+- Date: 2026-10-29
+
+依据用户追加要求，界面文案通过 `qsTr`／`QCoreApplication.translate` 标记，动态提示使用占位符，使用 TS/QM 标准资源机制，不引入前端框架。`displayLanguage` 与学习领域的 `nativeLanguage` 分开保存。本版本默认中文，系统语言无已交付资源时回退中文；`QLocale.system().uiLanguages()`、语言包加载和首次母语建议已经预留。未来增加语言包后再将首次默认改为跟随系统，并只给尚无显式偏好的学习母语提供建议，不覆盖历史 profile。
+
+影响：翻译资源随 wheel 分发，翻译提取可离线复现；切换界面语言不重开线程、不改原文／草稿／消息、不清理语音。应用层与 core 不导入 Qt，既有业务异常与语音目录说明的完整多语言迁移须通过边界代码和参数完成。具体接口、当前覆盖与扩展步骤见[国际化说明](../desktop/I18N.md)。
+
+本轮同时完成工作区的摘要投影、开场草稿零自定义题调用、范围返回保留输入、请求过期隔离、IME 保护与浅色 QML 验证，见[UI 实施记录](../validation/engineering/UI_IMPLEMENTATION_2026-10-29.md)。深色视觉定稿、其他语言翻译与连续真人语音仍为后续范围。
+
 <a id="decision-0026"></a>
 
 ## Decision 0026: 暖纸 QML 工作区与独立桌面状态

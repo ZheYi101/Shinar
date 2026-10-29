@@ -1,13 +1,19 @@
 """Main-thread Qt audio capture/playback with session-scoped temporary files."""
+
 from __future__ import annotations
 
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from PySide6.QtCore import QObject, QTimer, QUrl, Signal
+from PySide6.QtCore import QCoreApplication, QObject, QTimer, QUrl, Signal
 from PySide6.QtMultimedia import (
-    QAudioInput, QAudioOutput, QMediaCaptureSession, QMediaDevices,
-    QMediaFormat, QMediaPlayer, QMediaRecorder,
+    QAudioInput,
+    QAudioOutput,
+    QMediaCaptureSession,
+    QMediaDevices,
+    QMediaFormat,
+    QMediaPlayer,
+    QMediaRecorder,
 )
 
 
@@ -33,11 +39,21 @@ class AudioController(QObject):
         self._recorder.setAudioSampleRate(16000)
         self._recorder.recorderStateChanged.connect(self._recording_state)
         self._recorder.durationChanged.connect(self._duration)
-        self._recorder.errorOccurred.connect(lambda *_: self._fail("录音失败，请检查麦克风权限和音频设备。"))
+        self._recorder.errorOccurred.connect(
+            lambda *_: self._fail(
+                QCoreApplication.translate("Desktop", "录音失败，请检查麦克风权限和音频设备。")
+            )
+        )
         self._player = QMediaPlayer(self)
         self._output = QAudioOutput(self)
         self._player.setAudioOutput(self._output)
-        self._player.errorOccurred.connect(lambda *_: self._fail("播放失败，文字回复已保留，可以重播或继续输入。"))
+        self._player.errorOccurred.connect(
+            lambda *_: self._fail(
+                QCoreApplication.translate(
+                    "Desktop", "播放失败，文字回复已保留，可以重播或继续输入。"
+                )
+            )
+        )
         self._player.playbackStateChanged.connect(self._playback_state)
         self._devices = QMediaDevices(self)
         self._devices.audioInputsChanged.connect(self.devicesChanged)
@@ -50,11 +66,17 @@ class AudioController(QObject):
 
     @property
     def input_devices(self):
-        return [{"id": bytes(device.id()).hex(), "name": device.description()} for device in QMediaDevices.audioInputs()]
+        return [
+            {"id": bytes(device.id()).hex(), "name": device.description()}
+            for device in QMediaDevices.audioInputs()
+        ]
 
     @property
     def output_devices(self):
-        return [{"id": bytes(device.id()).hex(), "name": device.description()} for device in QMediaDevices.audioOutputs()]
+        return [
+            {"id": bytes(device.id()).hex(), "name": device.description()}
+            for device in QMediaDevices.audioOutputs()
+        ]
 
     def select_device(self, device_id, *, output=False):
         devices = QMediaDevices.audioOutputs() if output else QMediaDevices.audioInputs()
@@ -71,7 +93,11 @@ class AudioController(QObject):
         if self._pending_recording:
             return
         if not QMediaDevices.audioInputs():
-            self._fail("没有可用麦克风，请连接设备后重试，或使用文字输入。")
+            self._fail(
+                QCoreApplication.translate(
+                    "Desktop", "没有可用麦克风，请连接设备后重试，或使用文字输入。"
+                )
+            )
             return
         self._player.stop()
         self._pending_recording = True
@@ -101,7 +127,7 @@ class AudioController(QObject):
             try:
                 audio = (self._dir() / "recording.wav").read_bytes()
             except OSError:
-                self._fail("未能读取录音，请重录。")
+                self._fail(QCoreApplication.translate("Desktop", "未能读取录音，请重录。"))
             else:
                 self._recorder.setOutputLocation(QUrl())
                 self._remove_recording()
@@ -123,7 +149,7 @@ class AudioController(QObject):
 
     def play(self, audio):
         if not QMediaDevices.audioOutputs():
-            self._fail("没有可用播放设备，文字回复已保留。")
+            self._fail(QCoreApplication.translate("Desktop", "没有可用播放设备，文字回复已保留。"))
             return
         self._player.stop()
         self._player.setSource(QUrl())
@@ -131,7 +157,9 @@ class AudioController(QObject):
         try:
             path.write_bytes(audio)
         except OSError:
-            self._fail("无法保存临时播放文件，请停止播放后重试。")
+            self._fail(
+                QCoreApplication.translate("Desktop", "无法保存临时播放文件，请停止播放后重试。")
+            )
             return
         self._player.setSource(QUrl.fromLocalFile(str(path)))
         self._player.play()
@@ -140,7 +168,9 @@ class AudioController(QObject):
         self._player.stop()
 
     def _playback_state(self, state):
-        self.stateChanged.emit("playing" if state == QMediaPlayer.PlaybackState.PlayingState else "idle")
+        self.stateChanged.emit(
+            "playing" if state == QMediaPlayer.PlaybackState.PlayingState else "idle"
+        )
 
     def _fail(self, message):
         self._pending_recording = False
