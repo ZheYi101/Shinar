@@ -43,14 +43,21 @@ class LiveKitTransport:
         self._closing = False
         self.metrics: dict[str, float | int] = {"audio_frames_received": 0, "invalid_events": 0,
                                                "task_errors": 0, "cleanup_errors": 0}
-        self.room.on("data_received", self._on_data)
-        self.room.on("track_subscribed", self._on_track)
+        self._register_room(self.room)
+
+    def _register_room(self, room: Any) -> None:
+        room.on("data_received", lambda packet: self._on_data(packet) if self.room is room else None)
+        room.on("track_subscribed", lambda *args: self._on_track(*args) if self.room is room else None)
 
     async def connect(self, url: str, token: str) -> None:
         # [] inherits SFU defaults, while [IceServer(urls=[])] is invalid in
         # libwebrtc. Require explicit, nonempty URLs from the integration layer.
         if not self.ice_server_urls or any(not item for item in self.ice_server_urls):
             raise ValueError("explicit_ice_server_urls_required")
+        if self._closing:
+            # Re-entry needs a fresh native Room and must reject old-room callbacks.
+            self.room = self.rtc.Room()
+            self._register_room(self.room)
         self._closing = False
         started = time.perf_counter()
         options = self.rtc.RoomOptions(rtc_config=self.rtc.RtcConfiguration(
@@ -63,6 +70,17 @@ class LiveKitTransport:
             raise
         self._connected = True
         self.metrics["transport_connected_ms"] = (time.perf_counter() - started) * 1000
+
+    async def wait_for_peer(self, timeout: float = 10) -> None:
+        # Room.connect completes before every remote participant is data-ready.
+        async with asyncio.timeout(timeout):
+            while True:
+                peer = self.room.remote_participants.get(self.peer_identity)
+                if peer is not None and getattr(peer, "state", 2) == 2:
+                    return
+                if not self._connected or self._closing:
+                    raise RuntimeError("realtime_not_connected")
+                await asyncio.sleep(.01)
 
     def _spawn(self, coro: Any) -> None:
         if self._closing:
@@ -80,11 +98,14 @@ class LiveKitTransport:
         if self._closing:
             return
         if packet.participant is None or packet.participant.identity != self.peer_identity:
+            self.metrics["unattributed_or_foreign_data"] = self.metrics.get("unattributed_or_foreign_data", 0) + 1
             return
         if packet.topic not in {TOPIC, CONTROL_TOPIC}:
             return
         try:
             event = TurnEvent.decode(packet.data)
+            key = "received_" + event.kind
+            self.metrics[key] = self.metrics.get(key, 0) + 1
             if packet.topic == CONTROL_TOPIC:
                 if event.kind == "cancel" and event.ref == self.outgoing:
                     # Set synchronously before scheduling queue cleanup/ack.
@@ -185,6 +206,13 @@ class LiveKitTransport:
         # No await before the receive presentation gate closes.
         self.receiver.cancel(ref)
         await self._publish(TurnEvent(ref, "cancel", 0), control=True)
+
+    async def drain_audio(self, ref: TurnRef, timeout: float = 10) -> None:
+        if not self._active(ref):
+            raise RuntimeError("realtime_audio_not_active")
+        if self._source:
+            async with asyncio.timeout(timeout):
+                await self._source.wait_for_playout()
 
     async def _ack_cancel(self, ref: TurnRef) -> None:
         async with self._lock:

@@ -108,6 +108,8 @@ def test_benchmark_timeout_kills_child_and_releases_lock(tmp_path, monkeypatch):
     original, children = subprocess.Popen, []
 
     def child(*args, **kwargs):
+        if args and args[0][0] == "taskkill":
+            return original(*args, **kwargs)
         process = original(
             [sys.executable, "-c", "import sys,time;sys.stdin.readline();time.sleep(30)"], **kwargs
         )

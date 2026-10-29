@@ -18,15 +18,25 @@ def matching_reports(store, package, language, hardware, device="cpu", gpu_index
         if (
             report.get("schema") == 1
             and report.get("language") == language
-            and report.get("metrics", {}).get("runtime_versions", {}).get(package.id, report.get("metrics", {}).get("runtime_version")) == runtime_version(package)
-            and report.get("metrics", {}).get("devices", {}).get(package.id, report.get("metrics", {}).get("provider")) == device
+            and report.get("metrics", {})
+            .get("runtime_versions", {})
+            .get(package.id, report.get("metrics", {}).get("runtime_version"))
+            == runtime_version(package)
+            and report.get("metrics", {})
+            .get("devices", {})
+            .get(package.id, report.get("metrics", {}).get("provider"))
+            == device
             and report.get("metrics", {}).get("threads_per_model") == 2
             and report.get("model_fingerprints", {}).get(package.id) == package.fingerprint
             and all(
                 report.get("adapter_revisions", {}).get(model_id, 1) == revisions.get(model_id, 1)
                 for model_id in report.get("model_fingerprints", {})
             )
-            and (device == "cpu" or [g["name"] for g in measured.get("gpus", [])] == [g["name"] for g in hardware.get("gpus", [])])
+            and (
+                device == "cpu"
+                or [g["name"] for g in measured.get("gpus", [])]
+                == [g["name"] for g in hardware.get("gpus", [])]
+            )
             and (device == "cpu" or report.get("metrics", {}).get("gpu_index") == gpu_index)
             and all(
                 measured.get(key) == hardware.get(key)
@@ -46,8 +56,14 @@ def model_rows(store, packages, language, scenario, hardware, devices=None, gpu_
         permitted, reason = admission(package, hardware)
         installed = store.installed(package)
         device = (devices or {}).get(package.id, "cpu")
-        excluded = package.id.startswith(("qwen3-", "kokoro-")) or (package.id == "sensevoice-int8-20250909" and language == "ja")
-        reports = matching_reports(store, package, language, hardware, device, gpu_index) if installed else []
+        excluded = package.id.startswith(("qwen3-", "kokoro-")) or (
+            package.id == "sensevoice-int8-20250909" and language == "ja"
+        )
+        reports = (
+            matching_reports(store, package, language, hardware, device, gpu_index)
+            if installed
+            else []
+        )
         report = reports[0] if reports else None
         metrics = report.get("metrics", {}) if report else {}
         values = metrics.get("sequential", {}).get(package.task, [])
@@ -120,7 +136,8 @@ def model_rows(store, packages, language, scenario, hardware, devices=None, gpu_
                 "budgetStatus": (
                     "本机计算在初步实时预算内，仍需完整语音验收"
                     if within_budget
-                    else "识别平均超过 500 ms，实时对话不推荐" if package.task == "stt" and ready
+                    else "识别平均超过 500 ms，实时对话不推荐"
+                    if package.task == "stt" and ready
                     else "超出初步实时预算，优先考虑朗读/离线处理"
                     if ready
                     else "需先测速；识别准确率与音质另行验收"
@@ -144,4 +161,8 @@ def model_rows(store, packages, language, scenario, hardware, devices=None, gpu_
         ]
         if eligible:
             min(eligible, key=lambda row: row["latencyScore"])["recommended"] = True
+    priority = {"sensevoice-fp32-20240717": 0, "reazonspeech-k2-v2-int8": 1,
+                "sensevoice-int8-20240717": 2, "piper-lessac-medium": 0, "melo-zhen-onnx": 1}
+    rows.sort(key=lambda r: (r["task"] != "STT", not r["selected"], not r["recommended"],
+                             priority.get(r["id"], 10)))
     return rows

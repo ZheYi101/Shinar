@@ -15,6 +15,7 @@
 
 ## 语音
 
+- [Python 基础语音与真实 RTC](./speech/VOICE_PYTHON_INTEGRATION_2026-10-29.md)：确认事务、双角色复用、分句合成、五组真实本地后端和三语 RTC WAV/PCM；未接 QML/持续设备，保留全库 UI 回归失败。
 - [本地语音模型库阶段验收](./speech/LOCAL_SPEECH_ACCEPTANCE_2026-10-28.md)：目录、下载、固定包和本机计算验证；不代替真人音质或连续对话。
 - [本地模型严格评测](./speech/LOCAL_SPEECH_STRICT_EVALUATION_2026-10-28.md)：34 个模型/语言配置、真人 CER/WER、首字/首 PCM 和双裁判回识；人工听感未评分，完整设备链路未验收。
 - [逐模型资源与效果清单](./speech/LOCAL_SPEECH_MODEL_CATALOG_2026-10-29.md)：19 个模型/配置的语言、权重/目录/下载大小、RAM/CUDA 显存与逐语言计时，附离线试听包和识别对照；CPU/GPU 利用率未采集。

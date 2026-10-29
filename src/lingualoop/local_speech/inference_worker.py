@@ -13,6 +13,15 @@ import wave
 from runtime_worker import load_model, recognize, synthesize
 
 
+def load_key(spec):
+    result = dict(spec)
+    for name in ("speaker_id", "style_id", "voice"):
+        result.pop(name, None)
+    if spec["adapter"] in {"sensevoice-ort", "voicevox", "melo_english"}:
+        result.pop("language", None)
+    return result
+
+
 def audio_samples(encoded: str):
     import numpy as np
 
@@ -47,19 +56,23 @@ def serve() -> None:
             request = json.loads(raw)
             spec = request["model"]
             start = time.perf_counter()
-            cold = spec != loaded_spec
+            cold = load_key(spec) != loaded_spec
             if cold:
                 model = None  # release a previous language/model before allocating the next
                 model = load_model(spec, 2)
-                loaded_spec = spec
+                loaded_spec = load_key(spec)
             loaded_ms = (time.perf_counter() - start) * 1000
             if spec["task"] == "stt":
+                if spec["adapter"] == "sensevoice-ort":
+                    model.spec = spec
                 result = recognize(
                     model, spec["adapter"], audio_samples(request["audio"]), include_text=True
                 )
                 if not result["nonempty"]:
                     raise ValueError("没有识别到发言，请重录或使用文字补充。")
             else:
+                if spec["adapter"] in {"voicevox", "melo_english"}:
+                    model.speaker_id = spec.get("style_id", spec.get("speaker_id", 0))
                 text = request["text"]
                 if not isinstance(text, str) or not 0 < len(text.strip()) <= 4096:
                     raise ValueError("朗读文本须为 1–4096 字。")

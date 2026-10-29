@@ -846,7 +846,12 @@ class LearningViewModel(QObject):
     def configure_local_speech(self, library):
         self._local_speech = library.local_service
         library.inferenceStatus.connect(self._local_speech_status)
-        library.configurationChanged.connect(self.uiChanged)
+        library.configurationChanged.connect(self._local_speech_configuration)
+
+    @Slot()
+    def _local_speech_configuration(self):
+        self._reply_audio = b""
+        self.uiChanged.emit()
 
     @Slot(str)
     def _local_speech_status(self, value):

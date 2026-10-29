@@ -20,6 +20,7 @@ from lingualoop.core.knowledge import (
     SourceUnit,
     TurnContext,
     TurnEvidence,
+    TurnSourceSnapshot,
 )
 
 VERSION = "semantic-v1"
@@ -249,6 +250,7 @@ def assemble_turn_context(
     query: str,
     *,
     include_auxiliary: bool = False,
+    source_context: TurnSourceSnapshot | None = None,
 ) -> TurnContext:
     from lingualoop.core.material_context import _terms
 
@@ -276,7 +278,10 @@ def assemble_turn_context(
         if any(unit.source_kind == "body" for unit in units)
         else set()
     )
-    allowed = {unit.id for unit in units if include_auxiliary or unit.id not in excluded}
+    pointed = (source_context.focus or source_context.base) if source_context else None
+    allowed = {unit.id for unit in units if include_auxiliary or unit.id not in excluded or (
+        pointed and unit.start_char < pointed.end_char and unit.end_char > pointed.start_char
+    )}
     notes = [note for note in (knowledge.notes if knowledge else []) if note.unit_id in allowed]
     recent = session.messages[-4:]
     previous = " ".join(message.content for message in recent)[-1800:]
@@ -331,6 +336,9 @@ def assemble_turn_context(
         excerpt = text[span.start_char : span.end_char]
         found = cached_terms(excerpt)
         score = relevance(found)
+        pointed = (source_context.focus or source_context.base) if source_context else None
+        if pointed and span.start_char < pointed.end_char and span.end_char > pointed.start_char:
+            score += 1000
         exact = re.findall(r'["“]([^"”]{6,160})["”]', query)
         if any(phrase.casefold() in excerpt.casefold() for phrase in exact):
             score += 150
@@ -361,6 +369,12 @@ def assemble_turn_context(
         if len(evidence) >= 4:
             break
         excerpt = text[span.start_char : span.end_char]
+        pointed = (source_context.focus or source_context.base) if source_context else None
+        if pointed and source_context.focus and span.start_char < pointed.end_char and span.end_char > pointed.start_char:
+            start = max(span.start_char, pointed.start_char)
+            stop = min(span.end_char, pointed.end_char)
+            span = span.model_copy(update={"start_char": start, "end_char": stop})
+            excerpt = text[start:stop]
         # Preserve short paragraphs whole. Center long paragraphs on actual query
         # words, rather than always taking a detached opening sentence.
         offset = 0
@@ -372,6 +386,8 @@ def assemble_turn_context(
             offset = max(0, excerpt.rfind(" ", 0, offset) + 1) if offset else 0
         if not preserve_paragraph:
             excerpt = excerpt[offset : offset + 4000]
+        while estimate_tokens(excerpt) > 1800:
+            excerpt = excerpt[:max(1, len(excerpt) * 3 // 4)]
         if total + estimate_tokens(excerpt) > 2200 and evidence:
             continue
         total += estimate_tokens(excerpt)
@@ -411,6 +427,8 @@ def assemble_turn_context(
     ):
         gaps.append("memory")
     key = digest("|".join(sorted({note.unit_id for note in selected} or selected_ids)))[:24]
+    if source_context:
+        key = digest(key + source_context.model_dump_json(exclude={"quote"}))[:24]
     memory = session.conversation_memory.items[-8:] if session.conversation_memory else []
     earlier = sorted(
         session.messages[:-10],
@@ -459,4 +477,5 @@ def assemble_turn_context(
         focus_key=key,
         gaps=gaps,
         retrieval_ms=(perf_counter() - started) * 1000,
+        source_context=source_context.model_copy(update={"quote": ""}) if source_context else None,
     )

@@ -390,6 +390,7 @@ class OpenAICompatibleLLMProvider(LearningLLMProvider):
                 "historical_memory": [{"speaker": item.speaker, "kind": item.kind, "text": item.text} for item in context.memory],
                 "interpretation_candidates": [point.model_dump() for point in context.focus_points],
                 "information_gaps": context.gaps,
+                "reader_source_focus": context.source_context.model_dump(exclude={"quote"}) if context.source_context else None,
             }
             prior = [message for message in message_history if message.id != user_message.id][-10:]
             return [SystemMessage(content=_dialogue_system_prompt(target_language) +
@@ -454,7 +455,7 @@ class OpenAICompatibleLLMProvider(LearningLLMProvider):
             if isinstance(content, str) and content:
                 yield content
             if (getattr(chunk, "response_metadata", None) or {}).get("finish_reason") == "length":
-                raise ValueError("回复达到输出预算而未完成，当前发言尚未保存，请重试。")
+                raise ValueError("回复达到输出预算而未完成，请重试回复。")
 
     @property
     def supports_streaming(self) -> bool:

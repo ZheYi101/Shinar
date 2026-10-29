@@ -22,6 +22,28 @@ class SourceSpan(KnowledgeModel):
     end_char: int = Field(ge=0)
 
 
+class SourceSection(SourceSpan):
+    label: str
+    level: int = 1
+
+
+class DiscussionScope(KnowledgeModel):
+    material_id: str
+    source_hash: str
+    index_version: str = "source-view-v1"
+    read_through: int = Field(gt=0)
+    base: SourceSpan | None = None
+    focus: SourceSpan | None = None
+    focus_kind: Literal["paragraph", "text"] | None = None
+    section_id: str | None = None
+    label: str = ""
+    quote: str = ""
+
+
+class TurnSourceSnapshot(DiscussionScope):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+
 class SourceUnit(KnowledgeModel):
     id: str
     start_char: int = Field(ge=0)
@@ -120,6 +142,7 @@ class TurnContext(KnowledgeModel):
     gaps: list[str] = Field(default_factory=list)
     retrieval_ms: float = 0
     verification_ms: float = 0
+    source_context: TurnSourceSnapshot | None = None
 
 
 class ReasoningRequest(KnowledgeModel):

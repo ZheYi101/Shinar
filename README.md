@@ -49,7 +49,7 @@ Prompt、检索与成本的最新结果见[语义准备实测](docs/validation/t
 | 本地数据 | 标准库 SQLite（WAL、按操作连接/事务）、QSettings 外观偏好 |
 | 导入 | TXT/Markdown、DOCX、SRT/VTT、EPUB、XLSX；视频读取旁挂字幕 |
 | 已有语音接口 | Qt Multimedia WAV 录制/播放、独立 STT/TTS adapter |
-| 连续语音 | LiveKit 可选 transport / 本机探针，尚未完成实机连通验收 |
+| 语音基础 | 无 UI Python 转写/确认/分句合成与真实本机 LiveKit 传输；连续设备/真人交互仍待验收 |
 
 Core 不依赖 Qt 或具体供应商 SDK。默认桌面壳是 ApplicationWindow，使用应用内标题栏；Kirigami 可选。LangGraph 保留独立实验入口，不是当前桌面编排主线。
 
@@ -285,7 +285,11 @@ uv sync --dev --extra desktop --extra realtime
 .venv\Scripts\python.exe scripts\probe_livekit.py --download-server
 ```
 
-探针只使用自写文本和合成 PCM，不读取 AI 凭据或用户学习库。server 固定版本校验后缓存于 ignored `build/livekit-probe/`，只监听 loopback HTTP/UDP，关闭 RTC TCP fallback；临时 token、隐藏子进程与资源均在结束时清理。当前 server 监听/退出已实测。历史空 ICE 列表握手超时；后续空 URL entry 为无效配置，其 ConnectError 不能证明 loopback 不可用。修为合法本机 STUN URL 后，唯一独立差异复验在首 client 连接约 44.9 秒后被总 deadline 取消，底层 RTC 创建状态未观测；仍未证明双参与者音轨和完整语音可用。版本、协议、失败记录与复验命令见 [LiveKit 指南](./docs/desktop/LIVEKIT.md)。基础安装不强制引入 LiveKit，桌面尚未接此 transport。
+探针只使用自写文本和合成 PCM，不读取 AI 凭据或用户学习库。server 固定版本校验后缓存于 ignored `build/livekit-probe/`；信令仅 loopback，媒体/STUN 可用 `--rtc-bind-ip <本机所属私网IP>` 明确绑定单个地址，关闭 RTC TCP fallback，不修改防火墙或使用公共 STUN。2026-10-29 修复真实 STUN、对端数据就绪和退出重入后，本机私网地址路径已经通过真实音轨/文本验证；纯 loopback 历史失败仍保留。临时 token、自有子进程及资源结束时清理。具体证据见 [LiveKit 指南](./docs/desktop/LIVEKIT.md)，不等于持续麦克风或真人语音通过。
+
+### 无 UI 的 Python 基础语音
+
+`VoiceSessionCoordinator` 复用 Workbench 的推理/对话角色，提供转写草稿、确认落库、回复分句合成和独立重试；新增确认事务使回复失败不丢用户发言。普通 pytest 不加载模型；真实本地模型与 RTC 分别通过 `--run-local-speech`、`--run-realtime` 开启，始终可使用 Mock LLM 避免付费请求。接口、准备 profile 和复现命令见 [Python 语音指南](./docs/desktop/VOICE_PYTHON.md)。QML 尚未接新服务。
 
 ### 现有分轮语音
 
@@ -296,6 +300,8 @@ uv sync --dev --extra desktop --extra realtime
 材料会发送给所配置的文本服务，录音会发送给 STT，AI 回复会发送给 TTS。原始录音只作临时处理，数据库保存用户确认发送的文本。正常结束、切换材料或退出时清理临时音频；异常终止的残留见语音指南。
 
 ### 可选本地语音模型库
+
+补充：独立 Melo 英文与 VOICEVOX 已有可显式注册的 Python 后端；下文 GUI 下载/选择范围仍沿用已有实现，新增后端的界面与发行安装尚未接入。
 
 “设置 → 语音模型”按语言分别下载、测速、试听和选用 STT/TTS；“计算与加速”分别设置识别/合成的自动、CPU 或 NVIDIA CUDA GPU，准备独立运行环境，并查看显存/整卡使用率、设置预算与空闲释放。自动模式对已验证明显提速的 SenseVoice 2024 FP32 优先用 GPU，轻量 CPU 模型继续用 CPU。首次准备 GPU 环境会下载固定版本 CUDA/cuDNN 运行库，通常无需完整 Toolkit，显卡驱动需由用户安装。已选对话模型接入桌面分轮录音/朗读；目前支持 SenseVoice、ReazonSpeech、Zipformer 和现有 sherpa TTS 适配，独立 Melo 英文、Kotoba、VOICEVOX 的产品适配仍待完成。LiveKit 连续语音另行验收。
 

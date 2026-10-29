@@ -37,7 +37,7 @@ class SenseVoiceOrt:
                 "CPUExecutionProvider",
             ]
         path = Path(spec["path"])
-        self.session = ort.InferenceSession(str(path / "model.onnx"), options, providers=providers)
+        self.session = ort.InferenceSession(str(spec.get("model_file", path / "model.onnx")), options, providers=providers)
         if (
             spec.get("provider") == "cuda"
             and "CUDAExecutionProvider" not in self.session.get_providers()
@@ -47,7 +47,7 @@ class SenseVoiceOrt:
         self.mean = np.fromstring(self.metadata["neg_mean"], sep=",", dtype=np.float32)
         self.scale = np.fromstring(self.metadata["inv_stddev"], sep=",", dtype=np.float32)
         self.tokens = {}
-        for line in (path / "tokens.txt").read_text(encoding="utf-8").splitlines():
+        for line in Path(spec.get("tokens_file", path / "tokens.txt")).read_text(encoding="utf-8").splitlines():
             symbol, identifier = line.rsplit(" ", 1)
             self.tokens[int(identifier)] = symbol.replace("▁", " ")
 

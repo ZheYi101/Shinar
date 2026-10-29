@@ -90,6 +90,22 @@ def test_runtime_probe_rejects_cpu_fallback(monkeypatch):
         probe_runtime(sys.executable, "cuda")
 
 
+def test_reports_do_not_cross_device_or_gpu_index(tmp_path):
+    from lingualoop.local_speech.downloads import ModelStore
+    from lingualoop.local_speech.library import matching_reports
+    package = fp32()
+    hw = {**hardware(), "platform": "Windows", "architecture": "AMD64", "cpu": "CPU", "logical_cpus": 8}
+    report = {"schema": 1, "language": "ja", "hardware": hw,
+              "model_fingerprints": {package.id: package.fingerprint},
+              "metrics": {"runtime_versions": {package.id: "1.23.2"},
+                          "devices": {package.id: "cuda"}, "gpu_index": 0, "threads_per_model": 2}}
+    atomic_json(tmp_path / "reports/gpu.json", report)
+    store = ModelStore(tmp_path)
+    assert matching_reports(store, package, "ja", hw, "cuda", 0)
+    assert not matching_reports(store, package, "ja", hw, "cpu")
+    assert not matching_reports(store, package, "ja", hw, "cuda", 1)
+
+
 @pytest.mark.parametrize("idle", [0, 120])
 def test_local_worker_reused_then_closed_and_keeps_audio_out_of_files(tmp_path, monkeypatch, idle):
     import lingualoop.local_speech.service as module
@@ -137,6 +153,12 @@ def test_local_worker_reused_then_closed_and_keeps_audio_out_of_files(tmp_path, 
         async def drain(self):
             pass
 
+        def close(self):
+            self.writer_closed = True
+
+        async def wait_closed(self):
+            pass
+
         def kill(self):
             self.returncode = -9
 
@@ -150,7 +172,11 @@ def test_local_worker_reused_then_closed_and_keeps_audio_out_of_files(tmp_path, 
         return process
 
     monkeypatch.setattr(module.asyncio, "create_subprocess_exec", spawn)
-    monkeypatch.setattr(module, "terminate_tree", lambda pid: next(p for p in reversed(created) if p.returncode is None).kill())
+    monkeypatch.setattr(
+        module,
+        "terminate_tree",
+        lambda pid: next(p for p in reversed(created) if p.returncode is None).kill(),
+    )
 
     async def run():
         assert await service.transcribe(b"private audio", "zh") == "测试"

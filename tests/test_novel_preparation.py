@@ -200,7 +200,8 @@ def test_empty_real_transport_response_does_not_save_a_blank_turn(tmp_path):
         await work.start_session()
         count = len(work.session.messages)
         with pytest.raises(ValueError, match='未返回文字'): await work.send_message('Why did she return?')
-        assert len(work.session.messages) == count
+        assert len(work.session.messages) == count + 1
+        assert work.session.messages[-1].content == 'Why did she return?'
         await work.aclose()
     asyncio.run(run())
 

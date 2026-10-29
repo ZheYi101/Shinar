@@ -7,6 +7,9 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
 from time import perf_counter
+from contextlib import contextmanager
+from contextvars import ContextVar
+from collections.abc import Iterator
 
 from lingualoop.core.domain import (
     LanguageEnum,
@@ -26,7 +29,12 @@ from lingualoop.core.domain import (
     PracticeOptions,
     SubtitleCue,
     new_id,
+    Message,
+    MessageRole,
+    utc_now,
 )
+from lingualoop.core.conversation import ConversationTurn, ConversationRepository
+from lingualoop.kernel.conversation_store import MemoryConversationRepository
 from lingualoop.core.ports import EventStore, LearningLLMProvider
 from lingualoop.kernel import (
     DirectLearningSessionRunner,
@@ -41,6 +49,8 @@ from lingualoop.core.material_context import dialogue_knowledge
 from lingualoop.application.source_index import build_source_index
 from lingualoop.application.semantic_preparation import SemanticPreparation, analysis_with_knowledge
 from lingualoop.core.knowledge_context import assemble_turn_context, digest, estimate_tokens, prime_turn_index
+from lingualoop.core.knowledge import TurnSourceSnapshot
+from lingualoop.core.source_reference import freeze_source_context
 
 
 class LearningWorkbench:
@@ -51,9 +61,17 @@ class LearningWorkbench:
         provider: LearningLLMProvider,
         *,
         event_store: EventStore | None = None,
+        conversation_repository: ConversationRepository | None = None,
     ) -> None:
         self._provider = provider
         self._event_store = event_store or SQLiteStore()
+        self._turns = conversation_repository or (
+            self._event_store if hasattr(self._event_store, "confirm_turn")
+            else MemoryConversationRepository()
+        )
+        self._reply_task: asyncio.Task | None = None
+        self._operation_owner: str | None = None
+        self._operation_context: ContextVar[str | None] = ContextVar("conversation_owner", default=None)
         self._runner = DirectLearningSessionRunner(provider, self._event_store)
         self._material: LearningMaterial | None = None
         self._profile: SessionUserProfile | None = None
@@ -138,6 +156,7 @@ class LearningWorkbench:
         subtitle_cues: list[SubtitleCue] | None = None,
         auto_prepare: bool = True,
     ) -> LearningMaterial:
+        self._require_idle_conversation()
         draft = LearningMaterial(
             title=title,
             source_language=source_language,
@@ -182,6 +201,7 @@ class LearningWorkbench:
         return await self.analyze_current_material()
 
     async def analyze_current_material(self, *, profile: SessionUserProfile | None = None) -> LearningMaterial:
+        self._require_idle_conversation()
         if getattr(self._provider, 'offline_read_only', False):
             raise RuntimeError('AI 服务尚未配置，本地整理资料会保留。请配置 .env 后重启再继续整理。')
         if profile is not None and self._material is not None:
@@ -233,6 +253,7 @@ class LearningWorkbench:
         track: MaterialTrack = MaterialTrack.ARTICLE_READING,
         auto_prepare: bool = True,
     ) -> LearningMaterial:
+        self._require_idle_conversation()
         return await self.load_material(
             title=title or imported.title,
             source_language=source_language,
@@ -250,6 +271,7 @@ class LearningWorkbench:
         )
 
     def set_reading_scope(self, end: int) -> LearningMaterial:
+        self._require_idle_conversation()
         material = self._material
         if material is None:
             raise ValueError("请先导入材料。")
@@ -374,6 +396,7 @@ class LearningWorkbench:
         return next(item for item in self._materials if item.id == material.id)
 
     def select_material(self, material_id: str) -> LearningMaterial:
+        self._require_idle_conversation()
         material = next((item for item in self._materials if item.id == material_id), None)
         if material is None:
             raise ValueError(f"Material not found: {material_id}")
@@ -394,6 +417,7 @@ class LearningWorkbench:
         return [self._session] if self._session else []
 
     def select_session(self, session_id: str) -> PracticeSession:
+        self._require_idle_conversation()
         if not isinstance(self._event_store, SQLiteStore):
             raise ValueError('本地历史记录不可用。')
         session = self._event_store.get_session(session_id)
@@ -412,6 +436,7 @@ class LearningWorkbench:
                             custom_topic: str | None = None,
                             options: PracticeOptions | None = None,
                             profile: SessionUserProfile | None = None) -> SessionStepResult:
+        self._require_idle_conversation()
         if self._material is None:
             raise RuntimeError("Load a material before starting a session.")
         if reading_end(self._material) == 0:
@@ -473,7 +498,59 @@ class LearningWorkbench:
         self._schedule_preparation()
         return result
 
-    async def send_message(self, user_content: str, *, on_delta: Callable[[str], None] | None = None) -> SessionStepResult:
+    async def send_message(self, user_content: str, *, on_delta: Callable[[str], None] | None = None,
+                           source_context: TurnSourceSnapshot | None = None,
+                           request_id: str | None = None) -> SessionStepResult:
+        # Legacy callers retry by resending the same composer text, without an ID.
+        if request_id is None and self._session and self._session.messages:
+            last = self._session.messages[-1]
+            existing_id = last.metadata.get("turn_id") if last.role is MessageRole.USER else None
+            if existing_id and last.content == user_content.strip() and last.source_context == source_context:
+                return await self.generate_reply(existing_id, on_delta=on_delta)
+        turn = self.confirm_user_input(user_content, request_id=request_id or new_id("request"),
+                                       source_context=source_context)
+        return await self.generate_reply(turn.id, on_delta=on_delta)
+
+    @contextmanager
+    def conversation_operation(self) -> Iterator[None]:
+        if self._sending or self._operation_owner is not None:
+            raise RuntimeError("conversation_busy")
+        owner = new_id("operation")
+        self._operation_owner = owner
+        token = self._operation_context.set(owner)
+        try:
+            yield
+        finally:
+            self._operation_context.reset(token)
+            self._operation_owner = None
+
+    def _ensure_conversation_access(self) -> None:
+        if self._operation_owner is not None and self._operation_context.get() != self._operation_owner:
+            raise RuntimeError("conversation_busy")
+
+    def _require_idle_conversation(self) -> None:
+        if self._sending:
+            raise RuntimeError("上一条消息仍在生成，请稍候。")
+        if self._operation_owner is not None:
+            raise RuntimeError("conversation_busy")
+
+    def get_turn(self, turn_id: str) -> ConversationTurn:
+        turn = self._turns.get_turn(turn_id)
+        if not turn or not self._session or turn.session_id != self._session.id:
+            raise ValueError("conversation_turn_missing")
+        return turn
+
+    def freeze_turn_source(self, source_context: TurnSourceSnapshot | None) -> TurnSourceSnapshot | None:
+        if source_context is None:
+            return None
+        material = self._session_material()
+        return freeze_source_context(source_context, material_id=material.id,
+            text=self._material.content, read_through=reading_end(material))
+
+    def confirm_user_input(self, user_content: str, *, request_id: str,
+                           source_context: TurnSourceSnapshot | None = None,
+                           confirmation_kind: str = "manual_text") -> ConversationTurn:
+        self._ensure_conversation_access()
         if len(user_content) > 4000:
             raise ValueError("单条发言最多 4000 字符，请拆成几次发言。")
         if self._material is None:
@@ -484,38 +561,102 @@ class LearningWorkbench:
             raise RuntimeError("Start a new session before sending more messages.")
         if self._sending:
             raise RuntimeError("上一条消息仍在生成，请稍候。")
+        if not request_id.strip() or len(request_id) > 200:
+            raise ValueError("invalid_request_id")
+        material = self._session_material()
+        source_context = self.freeze_turn_source(source_context)
+        previous = self._turns.find_turn(self._session.id, request_id)
+        if previous:
+            message = next((m for m in self._session.messages if m.id == previous.user_message_id), None)
+            if not message or message.content != user_content.strip() or message.source_context != source_context:
+                raise ValueError("request_id_content_mismatch")
+            return previous
+        context = assemble_turn_context(material, self._session, user_content,
+            source_context=source_context) if self._uses_semantic() or source_context else None
+        message = Message(role=MessageRole.USER, content=user_content, source_context=source_context,
+                          metadata={"confirmation_kind": confirmation_kind})
+        turn = ConversationTurn(session_id=self._session.id, request_id=request_id,
+            user_message_id=message.id, history_ids=[m.id for m in self._session.messages],
+            source_hash=digest(self._material.content), scope_end=reading_end(material),
+            context=context, preparation=self._session.preparation)
+        message = message.model_copy(update={"metadata": {**message.metadata, "turn_id": turn.id}})
+        confirmed = self._session.model_copy(update={"messages": [*self._session.messages, message],
+                                                      "updated_at": utc_now()})
+        from lingualoop.kernel.session_runner import message_event
+        # Confirmation is durable; generated fragments are not conversation history.
+        committed = self._turns.confirm_turn(turn, confirmed, message_event(confirmed.id, message))
+        if committed.id == turn.id:
+            self._session = confirmed
+        return committed
+
+    async def generate_reply(self, turn_id: str, *, on_delta: Callable[[str], None] | None = None) -> SessionStepResult:
+        self._ensure_conversation_access()
+        turn = self.get_turn(turn_id)
+        if turn.state == "completed":
+            message = next(m for m in self._session.messages if m.id == turn.assistant_message_id)
+            return SessionStepResult(session=self._session, assistant_message=message, turn_id=turn.id)
+        if self._sending:
+            raise RuntimeError("上一条消息仍在生成，请稍候。")
+        if self._session.status is not SessionStatus.ACTIVE:
+            raise RuntimeError("conversation_session_inactive")
+        if self._session.messages[-1].id != turn.user_message_id:
+            raise ValueError("conversation_turn_superseded")
+        if digest(self._material.content) != turn.source_hash:
+            raise ValueError("conversation_source_changed")
+        user_message = self._session.messages[-1]
+        before = self._session.model_copy(update={"messages": self._session.messages[:-1],
+                                                 "preparation": turn.preparation})
+        if [m.id for m in before.messages] != turn.history_ids:
+            raise ValueError("conversation_history_changed")
+        turn = self._turns.claim_turn(turn.id)
         self._sending = True
+        self._reply_task = asyncio.current_task()
         if not self._uses_semantic():
             self._cancel_preparation()
         try:
-            material = self._session_material()
-            context = assemble_turn_context(material, self._session, user_content) if self._uses_semantic() else None
-            if context and context.evidence and context.gaps and re.search(r"\b(check|verify|which chapter|what exactly)\b|核对|确认原文|確かめ", user_content, re.I):
-                started = perf_counter()
-                try:
-                    focus = await self._semantic.focus(material, self._session, context, query=user_content, background=False)
-                    context = context.model_copy(update={"focus_points": focus.points})
-                except Exception:
-                    pass
-                context = context.model_copy(update={"verification_ms": (perf_counter() - started) * 1000})
-            async def reply():
-                return await self._runner.handle_user_message(session=self._session, material=material,
-                    user_content=user_content, on_delta=on_delta, turn_context=context)
-            if context and hasattr(self._event_store, "ensure_model_budget"):
-                owner = f"dialogue:{self._session.id}"
-                self._event_store.ensure_model_budget(owner, input_limit=10**12, output_limit=10**12, request_limit=100000)
-                result = await self._semantic.account(owner, "dialogue", new_id("turn"),
-                    estimate_tokens(context.model_dump_json()) + estimate_tokens(" ".join(m.content for m in self._session.messages[-10:])) + 1000,
-                    getattr(self._provider, "dialogue_output_budget", 160), reply,
-                    metadata={"source_hash": context.source_hash, "scope_end": context.scope_end,
-                              "session_revision": len(self._session.messages),
-                              "evidence_ids": [item.id for item in context.evidence]})
-            else:
-                result = await reply()
-            self._session = result.session
-            self._save_session(self._session)
+            # The complete foreground attempt must end before its durable lease.
+            async with asyncio.timeout(150):
+                material = scope_material(self._material, turn.scope_end)
+                user_content = user_message.content
+                source_context = user_message.source_context
+                context = turn.context
+                if self._uses_semantic() and context and context.evidence and context.gaps and re.search(r"\b(check|verify|which chapter|what exactly)\b|核对|确认原文|確かめ", user_content, re.I):
+                    started = perf_counter()
+                    try:
+                        focus = await self._semantic.focus(material, before, context, query=user_content, background=False)
+                        context = context.model_copy(update={"focus_points": focus.points})
+                    except Exception:
+                        pass
+                    context = context.model_copy(update={"verification_ms": (perf_counter() - started) * 1000})
+                async def reply():
+                    async with asyncio.timeout(150):
+                        return await self._runner.handle_user_message(session=before, material=material,
+                            user_content=user_content, on_delta=on_delta, turn_context=context,
+                            source_context=source_context, confirmed_user=user_message, persist_events=False)
+                if context and hasattr(self._event_store, "ensure_model_budget"):
+                    owner = f"dialogue:{self._session.id}"
+                    self._event_store.ensure_model_budget(owner, input_limit=10**12, output_limit=10**12, request_limit=100000)
+                    result = await self._semantic.account(owner, "dialogue", turn.id,
+                        estimate_tokens(context.model_dump_json()) + estimate_tokens(" ".join(m.content for m in self._session.messages[-10:])) + 1000,
+                        getattr(self._provider, "dialogue_output_budget", 160), reply,
+                        metadata={"source_hash": context.source_hash, "scope_end": context.scope_end,
+                                  "session_revision": len(self._session.messages),
+                                  "evidence_ids": [item.id for item in context.evidence]})
+                else:
+                    result = await reply()
+                if self._session.id != turn.session_id:
+                    raise RuntimeError("conversation_session_changed")
+                self._turns.finish_turn(turn, result.session, result.events)
+                if self._turns is not self._event_store:
+                    await self._event_store.append_many(result.events)
+                self._session = result.session
+                result = result.model_copy(update={"turn_id": turn.id})
+        except BaseException as exc:
+            self._turns.fail_turn(turn, "cancelled" if isinstance(exc, asyncio.CancelledError) else "reply_failed")
+            raise
         finally:
             self._sending = False
+            self._reply_task = None
         self._schedule_preparation()
         return result
 
@@ -523,6 +664,7 @@ class LearningWorkbench:
         return self.review_queue
 
     async def complete_session(self) -> SessionStepResult:
+        self._require_idle_conversation()
         if self._material is None or self._session is None:
             raise RuntimeError("Start a session before completing it.")
         self._cancel_preparation()
@@ -644,6 +786,7 @@ class LearningWorkbench:
         return path
 
     def reset(self) -> None:
+        self._require_idle_conversation()
         self._cancel_preparation()
         self._material = None
         self._profile = None
@@ -756,6 +899,9 @@ class LearningWorkbench:
             self._profile = self._material.profile
 
     async def aclose(self) -> None:
+        if self._reply_task and self._reply_task is not asyncio.current_task():
+            self._reply_task.cancel()
+            await asyncio.gather(self._reply_task, return_exceptions=True)
         self._cancel_preparation()
         tasks = list(self._material_tasks.values())
         for task in tasks:

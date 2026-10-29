@@ -28,12 +28,13 @@ from lingualoop.core.domain import (
 )
 from lingualoop.core.ports import EventStore, LearningLLMProvider
 from lingualoop.core.preparation_validation import validate_dialogue_preparation
-from lingualoop.core.knowledge import TurnContext, model_call_usage
+from lingualoop.core.knowledge import TurnContext, TurnSourceSnapshot, model_call_usage
 
 DEFAULT_PATTERN_ID = "guided_roleplay"
 
 
 class SessionStepResult(BaseModel):
+    turn_id: str | None = None
     session: PracticeSession
     events: list[SessionEvent] = Field(default_factory=list)
     assistant_message: Message | None = None
@@ -116,7 +117,7 @@ class DirectLearningSessionRunner:
                     "plan_id": plan.id,
                 },
             ),
-            _message_event(session.id, assistant_message),
+            message_event(session.id, assistant_message),
         ]
         await self._event_store.append_many(events)
         return SessionStepResult(
@@ -127,12 +128,15 @@ class DirectLearningSessionRunner:
         self, *, session: PracticeSession, material: LearningMaterial, user_content: str,
         on_delta: Callable[[str], None] | None = None,
         turn_context: TurnContext | None = None,
+        source_context: TurnSourceSnapshot | None = None,
+        confirmed_user: Message | None = None,
+        persist_events: bool = True,
     ) -> SessionStepResult:
         instruction = session.current_instruction
         if instruction is None:
             raise ValueError("Practice session must have an active instruction")
 
-        user_message = Message(role=MessageRole.USER, content=user_content)
+        user_message = confirmed_user or Message(role=MessageRole.USER, content=user_content, source_context=source_context)
         corrections = []
         # New discussions keep reasoning off the foreground path. End-of-session feedback
         # remains grounded in confirmed user messages. Legacy direct integrations retain behaviour.
@@ -202,7 +206,7 @@ class DirectLearningSessionRunner:
             if on_delta and assistant_text:
                 on_delta(assistant_text)
         if not assistant_text.strip():
-            raise ValueError("对话服务未返回文字，当前发言尚未保存，请重试。")
+            raise ValueError("对话服务未返回文字或回复未完成，请重试回复。")
         usage = model_call_usage.get() or {}
         timing = ReplyTiming(ttft_ms=(first_token-started)*1000 if first_token and streamed else None,
                              total_ms=(perf_counter()-started)*1000, streamed=streamed,
@@ -229,10 +233,8 @@ class DirectLearningSessionRunner:
             }
         )
 
-        events = [
-            _message_event(updated_session.id, user_message),
-            _message_event(updated_session.id, assistant_message),
-        ]
+        events = ([] if confirmed_user else [message_event(updated_session.id, user_message)])
+        events.append(message_event(updated_session.id, assistant_message))
 
         if corrections:
             events.append(
@@ -245,7 +247,8 @@ class DirectLearningSessionRunner:
                 )
             )
 
-        await self._event_store.append_many(events)
+        if persist_events:
+            await self._event_store.append_many(events)
 
         return SessionStepResult(
             session=updated_session,
@@ -375,7 +378,7 @@ def _normalize_feedback_text(value: str) -> str:
     return " ".join(value.casefold().strip().split())
 
 
-def _message_event(session_id: str, message: Message) -> SessionEvent:
+def message_event(session_id: str, message: Message) -> SessionEvent:
     event_type = (
         SessionEventType.USER_MESSAGE_ADDED
         if message.role == MessageRole.USER

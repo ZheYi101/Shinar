@@ -40,6 +40,7 @@
 
 - [系统架构](./architecture/ARCHITECTURE.md)：当前实现、兼容路径与目标架构的边界。
 - [AI：适量材料预处理与模型协作](./architecture/ai/PREPARATION_AND_DIALOGUE.md)：资料契约、流程、预算、有效期、阅读边界和验收。
+- [TTS / STT 实际接入方案](./architecture/voice/SPEECH_INTEGRATION.md)：待实现提案；按语言路由、连续音频、分轮/分句、打断、确认事务、CPU/GPU 资源、故障恢复、代码落点和验收顺序。
 - [Agent Kernel 设计](./architecture/AGENT_CORE_ARCHITECTURE.md)：含规划中的 adapter，不代表当前桌面已经采用。
 - [扩展架构](./architecture/PLUGIN_ARCHITECTURE.md)
 - [学习 Pattern](./architecture/LEARNING_PATTERNS.md)
@@ -57,6 +58,7 @@
 
 - [QML 运行环境](./desktop/QML_RUNTIME.md)
 - [分轮语音配置](./desktop/VOICE.md)
+- [Python 基础语音服务](./desktop/VOICE_PYTHON.md)：确认事务、双角色复用、分句合成、冻结本地后端、WAV/RTC 输入输出和显式集成测试；未接 QML。
 - [LiveKit 本机探针](./desktop/LIVEKIT.md)
 - [可选本地语音模型库](./desktop/LOCAL_SPEECH.md)
 - [仓库开发约定](../AGENTS.md)

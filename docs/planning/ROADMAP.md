@@ -19,7 +19,7 @@
 | 旧整书准备路径 | 完整小说 30 段与整书汇总；3 段共 17 轮实际交流、复盘、历史切换与重启 | 丰富题库成本高，完整回复一秒未达；保留为兼容资产，不恢复为默认。见[小说报告](../validation/text/NOVEL_ACCEPTANCE_2026-10-28.md) |
 | 桌面与本地数据 | Python/Pydantic、PySide6/QML MD3、SQLite/WAL、可恢复资料和历史 | 当前代码与阶段报告共同确认，规划不能冒充交付 |
 | 分轮语音与 LiveKit | Qt 分轮录放音、可替换 STT/TTS；独立 RTC 探针及诊断 | 不代表已完成真人连续语音；探针历史和未决见[LiveKit 指南](../desktop/LIVEKIT.md) |
-| 可选本地语音库 | 目录、固定包下载、隔离计算与候选管理的阶段实现 | 准确率、音质和连续链路分开验收，见[阶段报告](../validation/speech/LOCAL_SPEECH_ACCEPTANCE_2026-10-28.md) |
+| 可选本地语音库 | 模型/计算两设置子页、固定下载、CPU/GPU 策略、驻留释放及首批本地分轮接入 | 准确率、音质和连续链路分开验收，见[阶段报告](../validation/speech/LOCAL_SPEECH_ACCEPTANCE_2026-10-28.md) |
 | 工程基础 | 离线回归、真实调用开关、架构边界和打包检查 | 测试数量与候选版本见各报告；不是实时工作区状态，见[维护性检查](../validation/engineering/MAINTAINABILITY_2026-10-28.md) |
 
 ## AI 增量状态与下一步
@@ -50,3 +50,5 @@
 - 移动端、avatar、完整课程／理论编辑器留待后续，不混入本次实现。
 
 其余早期阶段清单原样保留于[历史快照](../archive/2026-10/ROADMAP_SNAPSHOT_2026-10-28.md)。新增任务先确认是否属于 MVP，再在此归类，不重新累积逐轮工具日志和角色执行表。
+
+- 2026-10-29：首批 GPU/CPU 本地分轮接入与资源设置见[接入记录](../validation/speech/LOCAL_SPEECH_COMPUTE_SETTINGS_2026-10-29.md)。SenseVoice 2024 FP32 GPU、ReazonSpeech CPU、Lessac CPU 已加入目录；独立 Melo 英文、Kotoba、VOICEVOX 产品适配与会话前预热仍待完成，真人连续语音验收另列。

@@ -76,7 +76,9 @@ class ModelPackage(BaseModel):
     streaming: str
     license_note: str
     sources: list[str]
-    adapter: Literal["sensevoice", "sensevoice-ort", "reazon", "zipformer", "kokoro", "vits", "candidate"] = "candidate"
+    adapter: Literal[
+        "sensevoice", "sensevoice-ort", "reazon", "zipformer", "kokoro", "vits", "candidate"
+    ] = "candidate"
     files: list[Artifact] = Field(default_factory=list)
     required_files: list[str] = Field(default_factory=list)
     notes: str

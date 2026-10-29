@@ -35,8 +35,18 @@ def read_wav(path):
 
 
 def load_model(spec, threads):
+    if spec.get("cuda_dll_directory"):
+        import os
+        os.environ["LINGUALOOP_CUDA_DLL_DIR"] = spec["cuda_dll_directory"]
+    if spec.get("nltk_path"):
+        import os
+        os.environ["NLTK_DATA"] = spec["nltk_path"]
+    if spec["adapter"] in {"voicevox", "melo_english"}:
+        from native_tts import NativeTts
+        return NativeTts(spec, threads)
     if spec["adapter"] == "sensevoice-ort":
         from sensevoice import SenseVoiceOrt
+
         return SenseVoiceOrt(spec, threads)
     if spec.get("provider", "cpu") != "cpu":
         raise ValueError("此适配器尚未开放 GPU，未静默改用 CPU。")
@@ -49,7 +59,10 @@ def load_model(spec, threads):
             encoder=str(path / "encoder-epoch-99-avg-1.int8.onnx"),
             decoder=str(path / "decoder-epoch-99-avg-1.onnx"),
             joiner=str(path / "joiner-epoch-99-avg-1.int8.onnx"),
-            tokens=str(path / "tokens.txt"), num_threads=threads, provider="cpu")
+            tokens=str(path / "tokens.txt"),
+            num_threads=threads,
+            provider="cpu",
+        )
     if adapter == "sensevoice":
         return sherpa.OfflineRecognizer.from_sense_voice(
             model=str(path / "model.int8.onnx"),
@@ -170,7 +183,11 @@ def recognize(model, adapter, audio, *, include_text=False):
 
 
 TEXTS = {
-    "ja": ["物語の中で、どの人物が印象に残りましたか。", "あの結末についてどう思いますか。", "少し意外な選択でしたね。"],
+    "ja": [
+        "物語の中で、どの人物が印象に残りましたか。",
+        "あの結末についてどう思いますか。",
+        "少し意外な選択でしたね。",
+    ],
     "zh": [
         "你更喜欢故事里的哪位人物？",
         "我觉得结尾留下了很多没有说出口的话。",
@@ -225,6 +242,7 @@ def evaluate(request):
         raise ValueError("本地推理运行时版本不匹配，请安装项目固定的 local-speech extra。")
     if any(s["adapter"] == "sensevoice-ort" for s in request["models"]):
         import onnxruntime
+
         if onnxruntime.__version__ != "1.23.2":
             raise ValueError("SenseVoice GPU 适配需要 ONNX Runtime 1.23.2。")
     start = time.perf_counter()
@@ -268,10 +286,19 @@ def evaluate(request):
     return {
         "runtime_version": sherpa_onnx.__version__.split("+")[0],
         "sherpa_build": sherpa_onnx.__version__,
-        "provider": specs[0].get("provider", "cpu") if len({s.get("provider", "cpu") for s in specs}) == 1 else "mixed",
+        "provider": specs[0].get("provider", "cpu")
+        if len({s.get("provider", "cpu") for s in specs}) == 1
+        else "mixed",
         "devices": {s["id"]: s.get("provider", "cpu") for s in specs},
-        "gpu_index": next((s.get("gpu_index", 0) for s in specs if s.get("provider") == "cuda"), None),
-        "runtime_versions": {s["id"]: "1.23.2" if s["adapter"] == "sensevoice-ort" else sherpa_onnx.__version__.split("+")[0] for s in specs},
+        "gpu_index": next(
+            (s.get("gpu_index", 0) for s in specs if s.get("provider") == "cuda"), None
+        ),
+        "runtime_versions": {
+            s["id"]: "1.23.2"
+            if s["adapter"] == "sensevoice-ort"
+            else sherpa_onnx.__version__.split("+")[0]
+            for s in specs
+        },
         "threads_per_model": request["threads"],
         "cold_load_ms": cold,
         "warmup": warmup,

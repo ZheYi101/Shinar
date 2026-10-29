@@ -14,6 +14,7 @@ class FakeRoom:
         self.published = []
         self.disconnected = False
         self.local_participant = self
+        self.remote_participants = {}
 
     def on(self, name, callback):
         self.callbacks[name] = callback
@@ -77,6 +78,35 @@ def test_connect_requires_explicit_nonempty_ice_urls_and_serializes_them(transpo
         assert len(config.ice_servers) == 1
         assert config.ice_servers[0].urls == ["stun:127.0.0.1:17882"]
         assert transport.room.options.single_peer_connection is True
+        await transport.close()
+    asyncio.run(scenario())
+
+
+def test_peer_discovery_must_be_data_ready_before_output(transport):
+    async def scenario():
+        transport.room.remote_participants["trusted-worker"] = SimpleNamespace(state=1)
+        waiting = asyncio.create_task(transport.wait_for_peer(.3))
+        await asyncio.sleep(.02)
+        assert not waiting.done()
+        transport.room.remote_participants["trusted-worker"].state = 2
+        await waiting
+        await transport.close()
+    asyncio.run(scenario())
+
+
+def test_reentry_creates_fresh_room_and_rejects_old_room_callbacks(transport):
+    async def scenario():
+        old = transport.room
+        late = old.callbacks["data_received"]
+        await transport.close()
+        transport.ice_server_urls = ("stun:127.0.0.1:17883",)
+        await transport.connect("ws://127.0.0.1:17880", "fake")
+        assert transport.room is not old
+        event = TurnEvent(TurnRef("s", "new", 1), "start", 0)
+        late(packet(event))
+        assert transport.receiver.current is None
+        transport.room.callbacks["data_received"](packet(event))
+        assert transport.receiver.current == event.ref
         await transport.close()
     asyncio.run(scenario())
 

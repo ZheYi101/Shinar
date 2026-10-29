@@ -61,9 +61,11 @@ def test_new_discussion_routes_only_dialogue_despite_legacy_feedback_and_failed_
         assert work.preparation_status == "unavailable"
         with pytest.raises(RuntimeError, match="Stream disconnected"):
             await work.send_message("雨は好きです。")
-        assert len(work.session.messages) == 1
+        assert len(work.session.messages) == 2
+        confirmed_id = work.session.messages[-1].id
         deltas = []
         result = await work.send_message("雨は好きです。", on_delta=deltas.append)
+        assert result.session.messages[-2].id == confirmed_id
         assert result.assistant_message.content == "".join(deltas)
         assert result.feedback_items == []
         assert "foreground_correction" not in provider.calls

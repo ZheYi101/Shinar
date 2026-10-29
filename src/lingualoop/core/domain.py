@@ -7,7 +7,9 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from lingualoop.core.knowledge import MaterialKnowledge, ConversationMemory, FocusReference
+from lingualoop.core.knowledge import (
+    MaterialKnowledge, ConversationMemory, FocusReference, SourceSection, TurnSourceSnapshot,
+)
 
 
 def utc_now() -> datetime:
@@ -288,6 +290,7 @@ class LearningMaterial(DomainModel):
     analysis_cache_key: str | None = None
     full_analysis_cache_key: str | None = None
     source_hash: str = ""
+    source_sections: list[SourceSection] = Field(default_factory=list)
     # None preserves whole-material access for existing libraries; 0 is unconfirmed.
     read_through: int | None = Field(default=None, ge=0)
     profile: SessionUserProfile | None = None
@@ -340,6 +343,7 @@ class Message(DomainModel):
     created_at: datetime = Field(default_factory=utc_now)
     feedback_ids: list[str] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
+    source_context: TurnSourceSnapshot | None = None
 
     @field_validator("content")
     @classmethod

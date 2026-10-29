@@ -39,7 +39,9 @@ def package_lock(root: Path, package: ModelPackage):
 
                 fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except OSError as exc:
-            raise RuntimeError("模型正在被下载、测速或已加载的语音进程使用；请先释放模型。") from exc
+            raise RuntimeError(
+                "模型正在被下载、测速或已加载的语音进程使用；请先释放模型。"
+            ) from exc
         try:
             yield
         finally:

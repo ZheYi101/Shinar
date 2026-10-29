@@ -343,7 +343,7 @@
       "import"
     ],
     "streaming": "整段识别；首结果时间从录音结束后开始计算",
-    "license_note": "模型 Apache-2.0；按需从官方仓库下载。",
+    "license_note": "代码与权重许可不同：权重遵循 FunASR 模型许可，发布前须保留署名并复核当前条款。",
     "sources": [
       "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17"
     ],
@@ -457,5 +457,46 @@
     ],
     "notes": "用户已认可音质；CPU 首 PCM 约 57 ms。按声音原许可个人下载，安装包不附带权重。",
     "evaluation_budget_mb": 1536
+  },
+  {
+    "id": "sensevoice-int8-20240717",
+    "revision": "2365baeacb507f821a0c8120fcee3d484dba7a07",
+    "name": "SenseVoice 2024 INT8（CPU）",
+    "task": "stt",
+    "languages": [
+      "zh",
+      "en",
+      "ja"
+    ],
+    "scenarios": [
+      "conversation",
+      "import"
+    ],
+    "streaming": "整段识别；首结果时间从录音结束后开始计算",
+    "license_note": "代码与权重许可不同：权重遵循 FunASR 模型许可，发布前须保留署名并复核当前条款。",
+    "sources": [
+      "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17"
+    ],
+    "adapter": "sensevoice",
+    "files": [
+      {
+        "path": "model.int8.onnx",
+        "url": "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/2365baeacb507f821a0c8120fcee3d484dba7a07/model.int8.onnx",
+        "size": 239233841,
+        "sha256": "c71f0ce00bec95b07744e116345e33d8cbbe08cef896382cf907bf4b51a2cd51"
+      },
+      {
+        "path": "tokens.txt",
+        "url": "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/2365baeacb507f821a0c8120fcee3d484dba7a07/tokens.txt",
+        "size": 315894,
+        "sha256": "f449eb28dc567533d7fa59be34e2abca8784f771850c78a47fb731a31429a1dc"
+      }
+    ],
+    "required_files": [
+      "model.int8.onnx",
+      "tokens.txt"
+    ],
+    "evaluation_budget_mb": 2048,
+    "notes": "GPU 不可用时的中/英 CPU 备选；原版识别质量优于 2025 微调包的英文/日文表现，仍需本机平均 ≤500 ms。原批次日语 CPU 未通过，日语优先 Reazon 或 FP32 GPU。"
   }
 ]

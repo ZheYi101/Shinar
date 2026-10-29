@@ -159,6 +159,8 @@ class LocalServer:
         self.safe_trace: dict = {}
         self.http_status: int | None = None
         self.rtc_address = "127.0.0.1"
+        self.stun_port = http_port + 3
+        self._stun = None
 
     @property
     def expected_bindings(self) -> set[tuple[str, str, int]]:
@@ -173,6 +175,8 @@ class LocalServer:
             raise RuntimeError("local_probe_currently_windows_only")
         validate_rtc_address(self.rtc_address)
         config = server_config(self.http_port, self.tcp_port, self.udp_port, self.key, self.secret, self.rtc_address)
+        # Empty STUN lists make the SFU advertise its public defaults.
+        config["rtc"]["stun_servers"] = [f"{self.rtc_address}:{self.stun_port}"]
         if self.diagnostic:
             config["logging"]["level"] = "debug"
             config["logging"]["json"] = True
@@ -187,8 +191,10 @@ class LocalServer:
         self._config_path = Path(name)
         self._log = tempfile.TemporaryFile(mode="w+b", dir=self.cache)
         try:
+            from .local_stun import LocalStunServer
             with os.fdopen(fd, "w", encoding="utf-8") as handle:
                 json.dump(config, handle)
+            self._stun = LocalStunServer(self.rtc_address, self.stun_port).__enter__()
             self.process = subprocess.Popen(
                 [str(self.executable), "--config", name, "--bind", "127.0.0.1"],
                 stdin=subprocess.DEVNULL, stdout=self._log, stderr=self._log,
@@ -236,6 +242,8 @@ class LocalServer:
                 raise RuntimeError("livekit_server_socket_cleanup_failed")
             self.cleaned = self.process is not None and self.process.poll() is not None
         finally:
+            if self._stun is not None:
+                self._stun.__exit__(None, None, None)
             if hasattr(self, "_config_path"):
                 self._config_path.unlink(missing_ok=True)
             if hasattr(self, "_log"):

@@ -45,6 +45,8 @@ testpaths = ["tests"]
 addopts = ["--strict-markers", "--strict-config"]
 xfail_strict = true
 markers = [
+    "local_speech_integration: real offline models; requires --run-local-speech and prepared assets",
+    "realtime_integration: real local RTC; requires --run-realtime",
     "real_ai: paid integration test; requires --run-real-ai and RUN_REAL_AI_TESTS=1",
 ]
 

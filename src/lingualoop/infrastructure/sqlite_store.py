@@ -19,6 +19,7 @@ from lingualoop.core.domain import (
 )
 from lingualoop.core.ports import EventStore
 from lingualoop.core.knowledge import ModelBudgetExceeded
+from lingualoop.core.conversation import ConversationTurn
 
 
 def default_database_path() -> Path:
@@ -121,6 +122,13 @@ class SQLiteStore(EventStore):
                     updated_at TEXT NOT NULL,
                     payload TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS conversation_turns (
+                    id TEXT PRIMARY KEY,
+                    session_id TEXT NOT NULL,
+                    request_id TEXT NOT NULL,
+                    payload TEXT NOT NULL,
+                    UNIQUE(session_id, request_id)
+                );
                 CREATE TABLE IF NOT EXISTS review_items (
                     id TEXT PRIMARY KEY,
                     status TEXT NOT NULL,
@@ -134,6 +142,7 @@ class SQLiteStore(EventStore):
                     payload TEXT NOT NULL
                 );
                 INSERT OR IGNORE INTO schema_meta(key, value) VALUES ('version', '1');
+                UPDATE schema_meta SET value='2' WHERE key='version' AND CAST(value AS INTEGER)<2;
                 CREATE INDEX IF NOT EXISTS idx_sessions_material_updated ON sessions(material_id, updated_at DESC);
                 """
             )
@@ -174,6 +183,14 @@ class SQLiteStore(EventStore):
 
     def save_session(self, session: PracticeSession) -> None:
         with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute("SELECT payload FROM sessions WHERE id=?", (session.id,)).fetchone()
+            if row:
+                previous = PracticeSession.model_validate_json(row[0])
+                before = [message.id for message in previous.messages]
+                after = [message.id for message in session.messages]
+                if len(before) > len(after) and before[:len(after)] == after:
+                    raise RuntimeError("stale_session_snapshot")
             payload = _dump(session)
             connection.execute(
                 """
@@ -381,6 +398,89 @@ class SQLiteStore(EventStore):
                 (session_id,),
             ).fetchall()
             return [SessionEvent.model_validate(json.loads(row["payload"])) for row in rows]
+
+    def get_turn(self, turn_id: str) -> ConversationTurn | None:
+        with self._connect() as connection:
+            row = connection.execute("SELECT payload FROM conversation_turns WHERE id=?", (turn_id,)).fetchone()
+            return ConversationTurn.model_validate_json(row[0]) if row else None
+
+    def find_turn(self, session_id: str, request_id: str) -> ConversationTurn | None:
+        with self._connect() as connection:
+            row = connection.execute("SELECT payload FROM conversation_turns WHERE session_id=? AND request_id=?",
+                                     (session_id, request_id)).fetchone()
+            return ConversationTurn.model_validate_json(row[0]) if row else None
+
+    def confirm_turn(self, turn: ConversationTurn, session: PracticeSession,
+                     event: SessionEvent) -> ConversationTurn:
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute("SELECT payload FROM conversation_turns WHERE session_id=? AND request_id=?",
+                                     (turn.session_id, turn.request_id)).fetchone()
+            if row:
+                return ConversationTurn.model_validate_json(row[0])
+            for row in connection.execute("SELECT payload FROM conversation_turns WHERE session_id=?", (session.id,)):
+                active = ConversationTurn.model_validate_json(row[0])
+                if active.state == "generating" and active.lease_until > time.time():
+                    raise RuntimeError("conversation_busy")
+            row = connection.execute("SELECT payload FROM sessions WHERE id=?", (session.id,)).fetchone()
+            if row and [m.id for m in PracticeSession.model_validate_json(row[0]).messages] != turn.history_ids:
+                raise RuntimeError("stale_session_snapshot")
+            connection.execute("INSERT INTO conversation_turns VALUES (?,?,?,?)",
+                               (turn.id, turn.session_id, turn.request_id, _dump(turn)))
+            _commit_conversation(connection, session, [event])
+            return turn
+
+    def claim_turn(self, turn_id: str) -> ConversationTurn:
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute("SELECT payload FROM conversation_turns WHERE id=?", (turn_id,)).fetchone()
+            if not row:
+                raise ValueError("conversation_turn_missing")
+            turn = ConversationTurn.model_validate_json(row[0])
+            if turn.state == "completed" or (turn.state == "generating" and turn.lease_until > time.time()):
+                raise RuntimeError("conversation_turn_not_claimable")
+            turn = turn.model_copy(update={"state": "generating", "attempt": turn.attempt + 1,
+                                          "lease_until": time.time() + 180, "error_code": None})
+            connection.execute("UPDATE conversation_turns SET payload=? WHERE id=?", (_dump(turn), turn.id))
+            return turn
+
+    def finish_turn(self, turn: ConversationTurn, session: PracticeSession,
+                    events: list[SessionEvent]) -> None:
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute("SELECT payload FROM conversation_turns WHERE id=?", (turn.id,)).fetchone()
+            current = ConversationTurn.model_validate_json(row[0]) if row else None
+            if not current or current.state != "generating" or current.attempt != turn.attempt:
+                raise RuntimeError("conversation_attempt_expired")
+            stored = connection.execute("SELECT payload FROM sessions WHERE id=?", (session.id,)).fetchone()
+            if stored and [m.id for m in PracticeSession.model_validate_json(stored[0]).messages] != [m.id for m in session.messages[:-1]]:
+                raise RuntimeError("stale_session_snapshot")
+            completed = turn.model_copy(update={"state": "completed", "lease_until": 0,
+                                                "assistant_message_id": session.messages[-1].id})
+            connection.execute("UPDATE conversation_turns SET payload=? WHERE id=?", (_dump(completed), turn.id))
+            _commit_conversation(connection, session, events)
+
+    def fail_turn(self, turn: ConversationTurn, error_code: str) -> None:
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute("SELECT payload FROM conversation_turns WHERE id=?", (turn.id,)).fetchone()
+            if not row:
+                return
+            current = ConversationTurn.model_validate_json(row[0])
+            if current.state == "generating" and current.attempt == turn.attempt:
+                current = current.model_copy(update={"state": "failed", "lease_until": 0, "error_code": error_code})
+                connection.execute("UPDATE conversation_turns SET payload=? WHERE id=?", (_dump(current), turn.id))
+
+
+def _commit_conversation(connection: sqlite3.Connection, session: PracticeSession,
+                         events: list[SessionEvent]) -> None:
+    # Session projection and its events must commit together, including confirmation.
+    connection.execute("INSERT INTO sessions(id,material_id,status,updated_at,payload) VALUES (?,?,?,?,?) "
+                       "ON CONFLICT(id) DO UPDATE SET status=excluded.status,updated_at=excluded.updated_at,payload=excluded.payload",
+                       (session.id, session.material_id, session.status.value, session.updated_at.isoformat(), _dump(session)))
+    for event in events:
+        connection.execute("INSERT INTO events(id,session_id,occurred_at,payload) VALUES (?,?,?,?)",
+                           (event.id, event.session_id, event.occurred_at.isoformat(), _dump(event)))
 
 
 def _dump(value: Any) -> str:

@@ -9,6 +9,8 @@ import os
 from pathlib import Path
 import time
 import threading
+from contextlib import nullcontext
+from .profiles import LocalSpeechProfile, instance_key, LocalSpeechProvider
 
 from .catalog import load_catalog
 from .compute import device_profile, load_compute, resolve_device
@@ -31,23 +33,71 @@ class LocalSpeechService:
         self._release_requested = threading.Event()
         self._package_locks = {}
         self._actual_pids = {}
+        self._registered = {}
+        self._admission_lock = asyncio.Lock()
+        self.last_metrics = {}
+
+    def provider(self, task: str) -> LocalSpeechProvider:
+        if task not in {"stt", "tts"}:
+            raise ValueError("invalid_speech_task")
+        return LocalSpeechProvider(self, task)
+
+    def register_prepared(self, profile: LocalSpeechProfile) -> None:
+        profile.validate_assets()
+        self._registered[(profile.task, profile.language)] = profile
+
+    def _vram(self, spec: dict) -> int:
+        package = self.catalog.get(spec["id"])
+        return device_profile(package)["vram_mb"] if package else spec.get("vram_estimate_mb", 0)
+
+    async def _admit(self, task: str, spec: dict) -> None:
+        hardware = await asyncio.to_thread(detect_hardware, self.store.root)
+        settings = load_compute(self.store.root)
+        available_ram = hardware.get("available_ram_bytes")
+        if available_ram is not None and available_ram < (spec.get("ram_estimate_mb", 512) + 2048) * 1024**2:
+            raise ValueError("speech_ram_budget_exceeded")
+        if spec.get("provider") == "cuda":
+            needed = self._vram(spec)
+            occupied = sum(self._vram(other) for name, other in self._specs.items()
+                           if name != task and other.get("provider") == "cuda")
+            cards = hardware.get("gpus", [])
+            index = spec.get("gpu_index", 0)
+            if (needed <= 0 or index >= len(cards) or occupied + needed > settings.vram_budget_mb
+                or cards[index]["available_mb"] < needed + settings.reserve_vram_mb):
+                raise ValueError("speech_vram_budget_exceeded")
 
     def request_release(self) -> None:
-        self._release_requested.set()
         if not self.pids:
+            self._release_requested.clear()
             self._status("当前没有驻留的本地语音模型。")
+        else:
+            self._release_requested.set()
 
     @property
     def pids(self) -> list[int]:
-        return [self._actual_pids.get(task, p.pid) for task, p in list(self._processes.items()) if p.returncode is None]
+        return [
+            self._actual_pids.get(task, p.pid)
+            for task, p in list(self._processes.items())
+            if p.returncode is None
+        ]
+
+    def worker_pid(self, task: str) -> int | None:
+        """Return the actual inference PID, rather than the venv redirector."""
+        process = self._processes.get(task)
+        if process is None or process.returncode is not None:
+            return None
+        return self._actual_pids.get(task, process.pid)
 
     def enabled(self, task: str) -> bool:
         return getattr(load_compute(self.store.root), f"local_{task}")
 
     @property
     def gpu_pids(self) -> list[int]:
-        return [self._actual_pids.get(task, p.pid) for task, p in list(self._processes.items())
-                if p.returncode is None and self._specs.get(task, {}).get("provider") == "cuda"]
+        return [
+            self._actual_pids.get(task, p.pid)
+            for task, p in list(self._processes.items())
+            if p.returncode is None and self._specs.get(task, {}).get("provider") == "cuda"
+        ]
 
     async def _stop(self, task: str) -> None:
         process = self._processes.pop(task, None)
@@ -56,6 +106,16 @@ class LocalSpeechService:
         if process and process.returncode is None:
             await asyncio.to_thread(terminate_tree, process.pid)
             await process.wait()
+        if process:
+            if process.stdin:
+                process.stdin.close()
+                try:
+                    await process.stdin.wait_closed()
+                except (BrokenPipeError, ConnectionResetError):
+                    pass
+            transport = getattr(process, "_transport", None)
+            if transport:
+                transport.close()
         held = self._package_locks.pop(task, None)
         if held:
             held.__exit__(None, None, None)
@@ -64,12 +124,15 @@ class LocalSpeechService:
         for task in ("stt", "tts"):
             async with self._locks.setdefault(task, asyncio.Lock()):
                 await self._stop(task)
+        self._release_requested.clear()
         self._status("本地语音模型已释放；下次使用会重新加载。")
 
     async def close(self) -> None:
         if self._reaper:
-            self._reaper.cancel()
+            reaper = self._reaper
             self._reaper = None
+            reaper.cancel()
+            await asyncio.gather(reaper, return_exceptions=True)
         await self.release()
 
     async def _idle(self) -> None:
@@ -89,104 +152,134 @@ class LocalSpeechService:
             if not self._processes:
                 self._release_requested.clear()
 
-    async def _request(self, task: str, language: str, **payload) -> dict:
-        async with self._locks.setdefault(task, asyncio.Lock()):
-            settings = load_compute(self.store.root)
-            choice = read_json(self.store.root / "selections.json", {}).get(
-                f"{language}:conversation:{task}", {}
-            )
-            package = self.catalog.get(choice.get("id"))
+    async def resolve(self, task: str, language: str) -> LocalSpeechProfile:
+        registered = self._registered.get((task, language))
+        if registered is not None:
+            return registered
+        settings = load_compute(self.store.root)
+        choice = read_json(self.store.root / "selections.json", {}).get(
+            f"{language}:conversation:{task}", {}
+        )
+        package = self.catalog.get(choice.get("id"))
+        if (
+            not package
+            or choice.get("fingerprint") != package.fingerprint
+            or language not in package.languages
+            or not self.store.installed(package)
+            or choice.get("adapter_revision", 1) != adapter_revision(package.adapter)
+        ):
+            raise ValueError("请在语音模型设置中为当前对话语言选择已安装、已测速的模型。")
+        old = self._specs.get(task)
+        occupied = sum(
+            self._vram(s)
+            for key, s in list(self._specs.items())
+            if key != task and s["provider"] == "cuda"
+        )
+        hardware = await asyncio.to_thread(detect_hardware, self.store.root)
+        # A resident model already accounts for its memory in nvidia-smi's free value.
+        if old and old["id"] == package.id and old["provider"] == "cuda":
+            gpus = hardware.get("gpus", [])
+            if settings.gpu_index < len(gpus):
+                gpus[settings.gpu_index]["available_mb"] += device_profile(package)["vram_mb"]
+        device, reason = resolve_device(package, settings, hardware, occupied_mb=occupied)
+        python = runtime_python(self.store.root, device)
+        if not runtime_status(self.store.root, device).get("prepared"):
+            # Auto may use CPU only if there is a prepared CPU runtime; expose the reason.
             if (
-                not package
-                or choice.get("fingerprint") != package.fingerprint
-                or language not in package.languages
-                or not self.store.installed(package)
-                or choice.get("adapter_revision", 1) != adapter_revision(package.adapter)
+                device == "cuda"
+                and getattr(settings, f"{task}_device") == "auto"
+                and runtime_status(self.store.root, "cpu").get("prepared")
             ):
-                raise ValueError("请在语音模型设置中为当前对话语言选择已安装、已测速的模型。")
+                device, python, reason = (
+                    "cpu",
+                    runtime_python(self.store.root, "cpu"),
+                    "GPU 运行环境未准备，当前使用 CPU。",
+                )
+            else:
+                raise ValueError("请先在“计算与加速”中准备所选设备的运行环境。")
+        reports = matching_reports(
+            self.store, package, language, hardware, device, settings.gpu_index
+        )
+        if not reports:
+            raise ValueError("当前模型、语言与计算设备尚未完成本机测速，请在语音模型中先测速。")
+        if task == "stt":
+            rows = reports[0].get("metrics", {}).get("sequential", {}).get(task, [])
+            values = [
+                r.get("finalization_compute_ms", r.get("compute_ms", float("inf")))
+                for r in rows
+            ]
+            if (
+                not values
+                or sum(values) / len(values) > 500
+                or not all(r.get("nonempty") for r in rows)
+            ):
+                raise ValueError(
+                    "当前设备上的识别平均延迟未通过 500 ms 筛选，请选择其他模型或 GPU。"
+                )
+        spec = {
+            "id": package.id,
+            "adapter": package.adapter,
+            "task": task,
+            "path": str(self.store.model_path(package)),
+            "language": language,
+            "provider": device,
+            "gpu_index": settings.gpu_index,
+            "vram_budget_mb": max(512, settings.vram_budget_mb - occupied),
+        }
+        return LocalSpeechProfile(task, language, package.id, str(python), json.dumps(spec, sort_keys=True), settings.idle_seconds, reason)
+
+    async def execute(
+        self, profile: LocalSpeechProfile, *, audio: bytes | None = None, text: str | None = None
+    ) -> dict:
+        """Execute a frozen binding without consulting mutable model selections."""
+        if profile.task == "stt" and audio is not None and text is None:
+            if len(audio) > 24 * 1024**2:
+                raise ValueError("speech_audio_too_large")
+            payload = {"audio": base64.b64encode(audio).decode("ascii")}
+        elif profile.task == "tts" and text is not None and audio is None:
+            payload = {"text": text}
+        else:
+            raise ValueError("speech_request_task_mismatch")
+        return await self._request(profile.task, profile.language, _profile=profile, **payload)
+
+    async def _request(self, task: str, language: str, *, _profile=None, **payload) -> dict:
+        async with self._locks.setdefault(task, asyncio.Lock()):
+            profile = _profile or await self.resolve(task, language)
+            if profile.task != task or profile.language != language:
+                raise ValueError("speech_profile_mismatch")
+            spec, python, reason = profile.spec, profile.python, profile.reason
+            spec["runtime_python"] = str(Path(python).resolve())
+            package = self.catalog.get(profile.package_id)
             old = self._specs.get(task)
-            occupied = sum(
-                device_profile(self.catalog[s["id"]])["vram_mb"]
-                for key, s in list(self._specs.items())
-                if key != task and s["provider"] == "cuda"
-            )
-            hardware = await asyncio.to_thread(detect_hardware, self.store.root)
-            # A resident model already accounts for its memory in nvidia-smi's free value.
-            if old and old["id"] == package.id and old["provider"] == "cuda":
-                gpus = hardware.get("gpus", [])
-                if settings.gpu_index < len(gpus):
-                    gpus[settings.gpu_index]["available_mb"] += device_profile(package)["vram_mb"]
-            device, reason = resolve_device(package, settings, hardware, occupied_mb=occupied)
-            python = runtime_python(self.store.root, device)
-            if not runtime_status(self.store.root, device).get("prepared"):
-                # Auto may use CPU only if there is a prepared CPU runtime; expose the reason.
-                if (
-                    device == "cuda"
-                    and getattr(settings, f"{task}_device") == "auto"
-                    and runtime_status(self.store.root, "cpu").get("prepared")
-                ):
-                    device, python, reason = (
-                        "cpu",
-                        runtime_python(self.store.root, "cpu"),
-                        "GPU 运行环境未准备，当前使用 CPU。",
-                    )
-                else:
-                    raise ValueError("请先在“计算与加速”中准备所选设备的运行环境。")
-            reports = matching_reports(
-                self.store, package, language, hardware, device, settings.gpu_index
-            )
-            if not reports:
-                raise ValueError("当前模型、语言与计算设备尚未完成本机测速，请在语音模型中先测速。")
-            if task == "stt":
-                rows = reports[0].get("metrics", {}).get("sequential", {}).get(task, [])
-                values = [
-                    r.get("finalization_compute_ms", r.get("compute_ms", float("inf")))
-                    for r in rows
-                ]
-                if (
-                    not values
-                    or sum(values) / len(values) > 500
-                    or not all(r.get("nonempty") for r in rows)
-                ):
-                    raise ValueError(
-                        "当前设备上的识别平均延迟未通过 500 ms 筛选，请选择其他模型或 GPU。"
-                    )
-            spec = {
-                "id": package.id,
-                "adapter": package.adapter,
-                "task": task,
-                "path": str(self.store.model_path(package)),
-                "language": language,
-                "provider": device,
-                "gpu_index": settings.gpu_index,
-                "vram_budget_mb": max(512, settings.vram_budget_mb - occupied),
-            }
-            if old != spec:
+            if old is not None and instance_key(old) != instance_key(spec):
                 await self._stop(task)
-            if task not in self._processes or self._processes[task].returncode is not None:
-                await self._stop(task)
-                held = package_lock(self.store.root, package)
-                held.__enter__()
-                self._package_locks[task] = held
-                try:
-                    self._processes[task] = await asyncio.create_subprocess_exec(
-                        python,
-                        str(Path(__file__).with_name("inference_worker.py")),
-                        stdin=asyncio.subprocess.PIPE,
-                        stdout=asyncio.subprocess.PIPE,
-                        stderr=asyncio.subprocess.DEVNULL,
-                        env=child_environment(),
-                        limit=64 * 1024**2,
-                        creationflags=subprocess_flags(),
-                    )
-                except BaseException:
+            async with self._admission_lock:
+                if task not in self._processes or self._processes[task].returncode is not None:
+                    await self._admit(task, spec)
                     await self._stop(task)
-                    raise
-                self._specs[task] = spec
+                    held = package_lock(self.store.root, package) if package else nullcontext()
+                    held.__enter__()
+                    self._package_locks[task] = held
+                    try:
+                        self._processes[task] = await asyncio.create_subprocess_exec(
+                            python,
+                            str(Path(__file__).with_name("inference_worker.py")),
+                            stdin=asyncio.subprocess.PIPE,
+                            stdout=asyncio.subprocess.PIPE,
+                            stderr=asyncio.subprocess.DEVNULL,
+                            env=child_environment(),
+                            limit=64 * 1024**2,
+                            creationflags=subprocess_flags(),
+                        )
+                    except BaseException:
+                        await self._stop(task)
+                        raise
+                    self._specs[task] = spec
             process = self._processes[task]
+            self._specs[task] = spec
             if self._reaper is None:
                 self._reaper = asyncio.create_task(self._idle())
-            self._status(f"{task.upper()} · {package.name} · {device.upper()} · {reason}")
+            self._status(f"{task.upper()} · {profile.package_id} · {spec['provider'].upper()} · {reason}")
             try:
                 process.stdin.write((json.dumps({"model": spec, **payload}) + "\n").encode())
                 await process.stdin.drain()
@@ -207,9 +300,11 @@ class LocalSpeechService:
                     raise ValueError(response.get("error", "本地语音失败。"))
                 self._last_used[task] = time.monotonic()
                 result = response["result"]
+                self.last_metrics[task] = {key: value for key, value in result.items()
+                    if key not in {"text", "audio", "hypothesis"}}
                 ms = result.get("first_pcm_ms", result.get("compute_ms", 0))
                 self._status(
-                    f"{task.upper()} · {device.upper()} · 本轮计算 {ms:.0f} ms"
+                    f"{task.upper()} · {spec['provider'].upper()} · 本轮计算 {ms:.0f} ms"
                     + (
                         f" · 首次加载 {result['load_ms']:.0f} ms"
                         if result["cold"]
@@ -221,7 +316,7 @@ class LocalSpeechService:
                 await self._stop(task)
                 raise
             finally:
-                if settings.idle_seconds == 0:
+                if profile.idle_seconds == 0:
                     await self._stop(task)
 
     async def transcribe(self, audio: bytes, language: str) -> str:

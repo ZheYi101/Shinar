@@ -1,6 +1,25 @@
 # LiveKit 本机传输探针
 
-当前交付是独立、可选的 RTC 技术探针，尚未接入桌面语音主路径。**严格 loopback 的服务监听和退出已验证；早期空 ICE 列表握手超时，随后空 URL entry 为无效配置。合法本机 URL 的唯一独立差异复验在首 client 连接约 44.9 秒后被总 deadline 取消，native 创建状态未观测。双参与者 PCM、真实 data 流、取消及重入尚未到达，不能记 RTC 通过。** 离线协议测试不能替代这些项目。
+**2026-10-29 更新：真实本机私网地址路径已经通过。** 修正为真正的 STUN Binding responder、等待对端 active，并在退出重入时创建新 Room 后，双参与者文本/PCM、代际取消、重入与进程/socket 清理通过。另以 Mock LLM＋真实本地 STT/TTS 完成三语 WAV 上传和合成 PCM 返回。尚未接桌面语音主路径，持续麦克风、VAD/AEC 与真人设备仍未验收。
+
+此前严格 loopback/空 ICE/无效空 URL/媒体端口充作 STUN 的失败全部保留在后文历史；旧“native not_observed”只是当时的外层报告，后续诊断已实际观测到 SDP、候选和 ICE 超时。本次私网成功不能外推纯 loopback 已通过。更新证据见[基础语音验收](../validation/speech/VOICE_PYTHON_INTEGRATION_2026-10-29.md)。
+
+## 当前本机栈
+
+- SFU 信令仍只绑定 `127.0.0.1`；用户已允许媒体绑定单个本机所属 RFC1918 地址，不使用 `0.0.0.0`、公网、云账号或防火墙修改。
+- 默认 HTTP/RTC UDP/STUN 为 17880/17882/17883。STUN 是 Python 父进程内短命、显式绑定的真实 Binding responder，不把 RTC UDP mux 当 STUN。SFU 与 SDK 显式使用该端点，避免空配置继承默认公共 STUN。
+- `LocalServer` 审计 SFU 的精确 socket；STUN fixture 由独占 socket 绑定并在 finally 退出。服务端口被占用就失败，不关闭其他进程。
+- `connect()` 成功后仍需 `wait_for_peer()`，直到指定对端达到 active 才发送 start/字节流。省略会丢失早期轮次标识，音频即便到了也会被严格 gate 拒绝。
+- `close()` 后 `connect()` 创建新的 native Room；回调按 Room 身份隔离，旧 Room 晚事件不会进入新 Room。
+
+```powershell
+# 使用本机实际所属的一个私网 IPv4，不照抄其他机器的地址。
+.venv\Scripts\python.exe scripts\probe_livekit.py --rtc-bind-ip <本机私网IPv4> --output build/livekit-probe/manual-current.json
+$env:RUN_REAL_AI_TESTS='0'
+.venv\Scripts\python.exe -m pytest -q tests/integration/test_voice_pipeline.py --run-realtime -k actual_rtc_transport
+```
+
+默认纯 loopback 命令继续可用于排障，不保证本机该 SDK 的回环候选可用。以下旧版说明和日期化证据保留为历史，当前配置/能力以上述内容与 [Python 指南](./VOICE_PYTHON.md)为准。
 
 用户已决定文本功能通过后先做本机 LiveKit 探针；完整文本回复 1 秒继续作为优化目标。这不会把文本性能改记为通过，也不会把合成 PCM 到达称为首段可听语音。
 
@@ -22,7 +41,7 @@ uv sync --dev --extra desktop --extra realtime
 
 默认 HTTP 为 `127.0.0.1:17880`，RTC UDP 为 `127.0.0.1:17882`；`--port-base 18880` 可改为 18880/18882。RTC TCP fallback 关闭。已有进程占用端口时失败退出，不停止别人的进程，不改防火墙。不支持把输出写到仓库 `build/` 之外。`--download-server` 只下载下表的固定官方资产，不安装 Windows service 或全局命令。进程均隐藏运行。
 
-脚本返回 0 才表示其真实 RTC 断言全部通过；当前实测返回 1。结果仅包含版本、PID、socket 地址/端口、计数、耗时和安全错误类型，不含 token、secret、文本原文、音频或 SDK 原始日志。每次生成随机 server secret 和 5 分钟、限定房间/身份的 token；secret 只在临时配置和父子进程 stdin 中传递，配置在 `finally` 删除。探针不读取 `.env`、用户学习库或 AI 凭据，不调用 LLM/STT/TTS。
+脚本返回 0 才表示其真实 RTC 断言全部通过；初版纯 loopback 实测返回 1，当前私网成功路径见文首。结果仅包含版本、PID、socket 地址/端口、计数、耗时和安全错误类型，不含 token、secret、文本原文、音频或 SDK 原始日志。每次生成随机 server secret 和 5 分钟、限定房间/身份的 token；secret 只在临时配置和父子进程 stdin 中传递，配置在 `finally` 删除。探针不读取 `.env`、用户学习库或 AI 凭据，不调用 LLM/STT/TTS。
 
 ## 官方版本与 Windows 支持
 

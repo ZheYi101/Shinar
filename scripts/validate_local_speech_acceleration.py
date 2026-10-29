@@ -35,10 +35,16 @@ class FileStream(httpx.SyncByteStream):
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--evaluation-root", type=Path, required=True)
-    parser.add_argument("--python", type=Path, required=True, help="Already prepared fixed-version interpreter")
-    parser.add_argument("--cpu-python", type=Path, required=True, help="CPU sherpa-onnx/core 1.13.8 interpreter")
+    parser.add_argument(
+        "--python", type=Path, required=True, help="Already prepared fixed-version interpreter"
+    )
+    parser.add_argument(
+        "--cpu-python", type=Path, required=True, help="CPU sherpa-onnx/core 1.13.8 interpreter"
+    )
     parser.add_argument("--cuda-dll-dir", type=Path)
-    parser.add_argument("--output", type=Path, default=Path("build/local-speech-settings-validation"))
+    parser.add_argument(
+        "--output", type=Path, default=Path("build/local-speech-settings-validation")
+    )
     args = parser.parse_args()
     root, evaluation = args.output.resolve(), args.evaluation_root.resolve()
     root.mkdir(parents=True, exist_ok=True)
@@ -46,15 +52,23 @@ def main() -> None:
         os.environ["LINGUALOOP_CUDA_DLL_DIR"] = str(args.cuda_dll_dir.resolve())
     python = str(args.python.resolve())
     cpu_python = str(args.cpu_python.resolve())
-    probes = {"cuda": probe_runtime(python, "cuda"), "cpu": {"kind": "actual model benchmark below"}}
+    probes = {"cuda": probe_runtime(python, "cuda"), "cpu": probe_runtime(cpu_python, "cpu")}
     packages = {p.id: p for p in load_catalog()}
-    requested = [packages[k] for k in ("sensevoice-fp32-20240717", "reazonspeech-k2-v2-int8", "piper-lessac-medium")]
+    requested = [
+        packages[k]
+        for k in ("sensevoice-fp32-20240717", "reazonspeech-k2-v2-int8", "piper-lessac-medium")
+    ]
     sources = {}
     followup = evaluation / "strict/followup-2026-10-29"
     for package in requested:
         for asset in package.files:
             if package.adapter == "sensevoice-ort":
-                path = followup / "models/sv2024/model.onnx" if asset.path == "model.onnx" else evaluation / "strict/candidate_models/sensevoice-original-20240717/tokens.txt"
+                path = (
+                    followup / "models/sv2024/model.onnx"
+                    if asset.path == "model.onnx"
+                    else evaluation
+                    / "strict/candidate_models/sensevoice-original-20240717/tokens.txt"
+                )
             elif package.adapter == "reazon":
                 path = followup / "models/reazon" / asset.path
             else:
@@ -65,7 +79,9 @@ def main() -> None:
 
     def respond(request):
         path = sources[str(request.url)]
-        return httpx.Response(200, headers={"Content-Length": str(path.stat().st_size)}, stream=FileStream(path))
+        return httpx.Response(
+            200, headers={"Content-Length": str(path.stat().st_size)}, stream=FileStream(path)
+        )
 
     store = ModelStore(root / "smoke-cache")
     with httpx.Client(transport=httpx.MockTransport(respond)) as client:
@@ -75,19 +91,42 @@ def main() -> None:
             store.verify(package)
     corpus = evaluation / "strict/corpus"
     reports, selections = {}, {}
-    for package, language, device in ((requested[0], "ja", "cuda"), (requested[1], "ja", "cpu"), (requested[2], "en", "cpu")):
+    for package, language, device in (
+        (requested[0], "ja", "cuda"),
+        (requested[1], "ja", "cpu"),
+        (requested[2], "en", "cpu"),
+    ):
         wav = next((corpus / language).glob("*.wav")) if package.task == "stt" else None
-        report = benchmark(store, [package], language, wav=wav, repeats=3, python=python if device == "cuda" else cpu_python, devices={package.id: device})
+        report = benchmark(
+            store,
+            [package],
+            language,
+            wav=wav,
+            repeats=3,
+            python=python if device == "cuda" else cpu_python,
+            devices={package.id: device},
+        )
         reports[package.id] = report
-        selections[f"{language}:conversation:{package.task}"] = {"id": package.id, "fingerprint": package.fingerprint,
-            "runtime_version": runtime_version(package), "adapter_revision": adapter_revision(package.adapter)}
+        selections[f"{language}:conversation:{package.task}"] = {
+            "id": package.id,
+            "fingerprint": package.fingerprint,
+            "runtime_version": runtime_version(package),
+            "adapter_revision": adapter_revision(package.adapter),
+        }
     atomic_json(store.root / "selections.json", selections)
-    selections["ja:conversation:stt"] = {"id": requested[0].id, "fingerprint": requested[0].fingerprint,
-        "runtime_version": runtime_version(requested[0]), "adapter_revision": adapter_revision(requested[0].adapter)}
+    selections["ja:conversation:stt"] = {
+        "id": requested[0].id,
+        "fingerprint": requested[0].fingerprint,
+        "runtime_version": runtime_version(requested[0]),
+        "adapter_revision": adapter_revision(requested[0].adapter),
+    }
     atomic_json(store.root / "selections.json", selections)
     import lingualoop.local_speech.service as service_module
+
     service_module.runtime_python = lambda root, device: python if device == "cuda" else cpu_python
-    service_module.runtime_status = lambda *args: {"prepared": True}  # explicitly probed runtimes above
+    service_module.runtime_status = lambda *args: {
+        "prepared": True
+    }  # explicitly probed runtimes above
     messages = []
     service = LocalSpeechService(store.root, status=messages.append)
 
@@ -110,16 +149,34 @@ def main() -> None:
         await service.synthesize("The model is released after this sentence.", "en")
         assert not service.pids
         await service.close()
-        return {"gpu_first": {k: v for k, v in first.items() if k != "text"},
-                "gpu_warm": {k: v for k, v in warm.items() if k != "text"}, "pids_during": pids,
-                "resources_before": before, "resources_resident": resident, "resources_released": released,
-                "manual_and_immediate_release_verified": True}
+        return {
+            "gpu_first": {k: v for k, v in first.items() if k != "text"},
+            "gpu_warm": {k: v for k, v in warm.items() if k != "text"},
+            "pids_during": pids,
+            "resources_before": before,
+            "resources_resident": resident,
+            "resources_released": released,
+            "manual_and_immediate_release_verified": True,
+        }
 
-    result = {"runtime_probes": probes, "reports": reports, "service": asyncio.run(run()),
-              "messages": messages, "fresh_dependency_download_verified": False,
-              "scope": "Existing runtimes and evaluation assets; not live mic/RTC/audible validation"}
+    result = {
+        "runtime_probes": probes,
+        "reports": reports,
+        "service": asyncio.run(run()),
+        "messages": messages,
+        "fresh_gpu_dependency_download_verified": False,
+        "cpu_python": cpu_python,
+        "scope": "Existing runtimes and evaluation assets; not live mic/RTC/audible validation",
+    }
     atomic_json(root / "runtime-report.json", result)
-    print(json.dumps({"report": str(root / "runtime-report.json"), "gpu_warm_compute_ms": result["service"]["gpu_warm"]["compute_ms"]}))
+    print(
+        json.dumps(
+            {
+                "report": str(root / "runtime-report.json"),
+                "gpu_warm_compute_ms": result["service"]["gpu_warm"]["compute_ms"],
+            }
+        )
+    )
 
 
 if __name__ == "__main__":

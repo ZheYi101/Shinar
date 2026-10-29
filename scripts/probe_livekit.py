@@ -60,6 +60,7 @@ async def exercise(server: LocalServer, result: dict) -> None:
     received: list = []
     audio_counts: dict[int, int] = {}
     audio_nonzero: dict[int, int] = {}
+    reverse_audio = {"frames": 0, "nonzero": 0}
     event_times: dict[str, float] = {}
 
     def on_event(event):
@@ -76,18 +77,23 @@ async def exercise(server: LocalServer, result: dict) -> None:
             audio_nonzero[ref.generation] = audio_nonzero.get(ref.generation, 0) + 1
         event_times.setdefault(f"audio_first_frame_g{ref.generation}", now_ms())
 
+    def on_reverse_audio(ref, frame):
+        reverse_audio["frames"] += 1
+        reverse_audio["nonzero"] += bool(any(frame.data))
+
     result["phase"] = ProbePhase.CONFIGURATION.value
-    stun_url = validate_probe_stun_url(server.stun_url, server.udp_port, server.rtc_address)
+    stun_url = validate_probe_stun_url(server.stun_url, server.stun_port, server.rtc_address)
     client = LiveKitTransport(session, "worker", ice_server_urls=(stun_url,),
                               single_peer_connection=server.single_peer_connection,
                               on_event=on_event, on_audio=on_audio)
     worker = LiveKitTransport(session, "client", ice_server_urls=(stun_url,),
-                              single_peer_connection=server.single_peer_connection)
+                              single_peer_connection=server.single_peer_connection, on_audio=on_reverse_audio)
     result["room_loop_is_current"] = {
         "client": client.room._loop is asyncio.get_running_loop(),
         "worker": worker.room._loop is asyncio.get_running_loop()}
 
     async def connect_peer(transport, identity: str, phase: ProbePhase):
+        print(json.dumps({"probe_stage": phase.value}), flush=True)
         result["phase"] = phase.value
         attempt_started = time.perf_counter()
         record = {"identity": identity, "phase": phase.value}
@@ -116,6 +122,7 @@ async def exercise(server: LocalServer, result: dict) -> None:
             "worker": round(worker.metrics["transport_connected_ms"], 3)}
         await wait_until(lambda: len(client.room.remote_participants) == 1
                          and len(worker.room.remote_participants) == 1)
+        await asyncio.gather(client.wait_for_peer(), worker.wait_for_peer())
         result["phase"] = ProbePhase.TEXT_AUDIO.value
         first = TurnRef(session, "turn-1", 1)
         event_times["turn1_start"] = now_ms()
@@ -132,6 +139,16 @@ async def exercise(server: LocalServer, result: dict) -> None:
         assert [event.seq for event in first_events] == list(range(len(first_events))), "text_sequence_mismatch"
         assert sum(event.kind == "text_done" for event in first_events) == 1, "completion_count_mismatch"
         result["text_order_and_completion"] = True
+
+        uplink = TurnRef(session, "input-probe", 1)
+        await client.start_turn(uplink)
+        await client.send_delta(uplink, "uplink")
+        await client.complete_text(uplink)
+        for index in range(50):
+            await client.send_audio(uplink, synthetic_pcm(index))
+            await asyncio.sleep(.02)
+        await wait_until(lambda: reverse_audio["nonzero"] >= 20 and worker.receiver.completed_text == "uplink")
+        result["bidirectional_pcm"] = dict(reverse_audio)
 
         second = TurnRef(session, "turn-2", 2)
         await worker.start_turn(second)
@@ -242,6 +259,7 @@ async def diagnostic_exercise(server, result):
 def rtc_child() -> int:
     """Ephemeral secrets arrive over stdin, never command arguments/files/logs."""
     payload = json.load(sys.stdin)
+    print(json.dumps({"probe_stage": "child_started"}), flush=True)
     logger = logging.getLogger("livekit")
     trace = NativeTrace(payload.get("candidate_address")) if payload.get("diagnostic") else None
     logger.disabled = trace is None
@@ -275,22 +293,33 @@ def run_rtc_child(server: LocalServer, result: dict, *, timeout_seconds: float =
     if server.diagnostic:
         child_env.update(LIVEKIT_RTC_DEBUG="1", RUST_LOG="livekit=debug,livekit_api=debug,livekit_signaling=debug,libwebrtc=debug")
     child = subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "--rtc-child"],
-                             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                              text=True, creationflags=hidden_flags(), env=child_env)
     result["rtc_child_pid"] = child.pid
     try:
         payload = {"url": server.url, "key": server.key, "secret": server.secret, "pid": server.pid,
-                   "udp_port": server.udp_port,
+                   "udp_port": server.udp_port, "stun_port": server.stun_port,
                    "http_port": server.http_port,
                    "rtc_address": server.rtc_address,
                    "timeout_seconds": timeout_seconds,
                    "candidate_address": candidate_address,
                    "diagnostic": server.diagnostic,
                    "single_peer_connection": single_peer_connection,
-                   "stun_url": validate_probe_stun_url(f"stun:{server.rtc_address}:{server.udp_port}", server.udp_port,
+                   "stun_url": validate_probe_stun_url(f"stun:{server.rtc_address}:{server.stun_port}", server.stun_port,
                                                        server.rtc_address)}
-        stdout, _ = child.communicate(input=json.dumps(payload), timeout=timeout_seconds + 15)
-        result.update(json.loads(stdout))
+        stdout, stderr = child.communicate(input=json.dumps(payload), timeout=timeout_seconds + 15)
+        # Native libraries may print before Python's final JSON record.
+        records = [json.loads(line) for line in stdout.splitlines() if line.startswith('{"')]
+        completed = [record for record in records if "rtc_exercise_passed" in record]
+        result["child_stages"] = [r["probe_stage"] for r in records if "probe_stage" in r]
+        if completed:
+            result.update(completed[-1])
+        else:
+            result.update(rtc_exercise_passed=False, error_code="native_child_no_result",
+                          child_stdout_bytes=len(stdout.encode()))
+        trace = NativeTrace()
+        trace.observe(stderr)
+        result["child_stderr_trace"] = trace.snapshot()
     except subprocess.TimeoutExpired:
         result.update(rtc_exercise_passed=False, error_code="operation_deadline")
     finally:
@@ -332,7 +361,7 @@ def main() -> int:
                          "no_vad_aec_or_natural_voice_interrupt", "no_involuntary_network_recovery",
                          "rtc_tcp_fallback_disabled"],
               "rtc_options": {"single_peer_connection": not args.dual_peer_connection,
-                              "ice_servers": [{"urls": [f"stun:{args.rtc_bind_ip}:{args.port_base + 2}"]}],
+                              "ice_servers": [{"urls": [f"stun:{args.rtc_bind_ip}:{args.port_base + 3}"]}],
                               "public_ice_server_fallback_blocked": True},
               "phase": ProbePhase.CONFIGURATION.value}
     server = None
@@ -341,7 +370,7 @@ def main() -> int:
         validate_rtc_address(args.rtc_bind_ip)
         if args.candidate_address:
             validate_rtc_address(args.candidate_address)
-        validate_probe_stun_url(f"stun:{args.rtc_bind_ip}:{args.port_base + 2}", args.port_base + 2, args.rtc_bind_ip)
+        validate_probe_stun_url(f"stun:{args.rtc_bind_ip}:{args.port_base + 3}", args.port_base + 3, args.rtc_bind_ip)
         executable = ensure_server(cache, download=args.download_server)
         server = LocalServer(executable, cache, http_port=args.port_base,
                              tcp_port=args.port_base + 1, udp_port=args.port_base + 2,
@@ -356,6 +385,7 @@ def main() -> int:
                           candidate_address=args.candidate_address or args.rtc_bind_ip,
                           single_peer_connection=not args.dual_peer_connection)
         result["server_cleanup"] = server.cleaned
+        result["stun_binding_responses"] = server._stun.requests
         if args.diagnostic:
             result["server_trace"] = server.safe_trace
         result["passed"] = (result["rtc_exercise_passed"] and result["server_cleanup"]

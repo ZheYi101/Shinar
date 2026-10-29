@@ -158,7 +158,9 @@ def test_duplicate_send_and_failed_stream_do_not_save_partial_messages(tmp_path)
             await work.send_message("duplicate")
         provider.resume.set()
         with pytest.raises(RuntimeError): await first
-        assert len(work.session.messages) == 1
+        assert len(work.session.messages) == 2
+        assert work.session.messages[-1].content == "こんにちは"
+        assert all(message.content != "partial" for message in work.session.messages)
         assert work._sending is False
         await work.aclose()
     asyncio.run(run())
