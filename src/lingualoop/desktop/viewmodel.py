@@ -56,7 +56,6 @@ class LearningViewModel(QObject):
     historyChanged = Signal()
     reviewReady = Signal()
     practiceStarted = Signal()
-    _replyDelta = Signal(str)
 
     def __init__(
         self,
@@ -84,18 +83,14 @@ class LearningViewModel(QObject):
         )
         self._on_success = None
         self._retry_operation = None
-        self._retry_audio = None
-        self._audio_action = ""
         self._closed = False
         self._streaming_text = ""
         self._pending_user_text = ""
-        self._retry_user_text = ""
         self._response_timing = ""
         self._topic_filter = QCoreApplication.translate("Desktop", "全部")
         self._topic_search = ""
         self._preparation_state = "idle"
         self._analysis_identity = None
-        self._replyDelta.connect(self._append_reply_delta, Qt.ConnectionType.QueuedConnection)
         self._preparation_timer = QTimer(self)
         self._preparation_timer.setInterval(250)
         self._preparation_timer.timeout.connect(self._poll_preparation)
@@ -113,17 +108,12 @@ class LearningViewModel(QObject):
         self._draft = ""
         self._session_drafts = {}
         self.source_context_provider = lambda: None
-        self._sent_draft = ""
         self._draft_revision = 0
-        self._sent_draft_revision = 0
         self._selected_topic = ""
         self._custom_topic = ""
         self._practice_mode = "discussion"
         self._role_description = ""
-        self._voice_state = "idle"
         self._recording_seconds = 0
-        self._recording = b""
-        self._reply_audio = b""
         self._last_reply = ""
         self._stt = stt_provider
         self._tts = tts_provider
@@ -153,12 +143,9 @@ class LearningViewModel(QObject):
             from lingualoop.desktop.audio import AudioController
 
             self._audio = AudioController(self)
-        if self._audio is not None:
-            self._audio.recorded.connect(self._on_recorded)
-            self._audio.errorOccurred.connect(self._voice_error)
-            self._audio.stateChanged.connect(self._audio_state_changed)
-            self._audio.durationChanged.connect(self._duration_changed)
-            self._audio.devicesChanged.connect(self.uiChanged)
+        from lingualoop.desktop.voice import DesktopVoiceController
+
+        self.voice = DesktopVoiceController(self)
         if workbench.session and workbench.session.topic:
             self._selected_topic = workbench.session.topic.id
         self._refresh_session_state()
@@ -210,7 +197,7 @@ class LearningViewModel(QObject):
 
     @Slot(str)
     def selectSession(self, session_id):
-        if self._busy or self._voice_state in {"recording", "playing", "synthesizing"}:
+        if self.busy:
             return
         if self._workbench.session:
             self._session_drafts[self._workbench.session.id] = self._draft
@@ -236,7 +223,11 @@ class LearningViewModel(QObject):
 
     @Property(bool, notify=busyChanged)
     def busy(self) -> bool:
-        return self._busy
+        return self._busy or self.voice.active
+
+    @Property(QObject, constant=True)
+    def voiceController(self):
+        return self.voice
 
     @Property(str, notify=statusChanged)
     def status(self) -> str:
@@ -471,7 +462,7 @@ class LearningViewModel(QObject):
                 value0=len(chunks)
             ) + (
                 QCoreApplication.translate("Desktop", "，正在继续…")
-                if self._busy
+                if self.busy
                 else QCoreApplication.translate("Desktop", "，继续分析后可开聊")
             )
         if material.read_through == 0:
@@ -508,7 +499,7 @@ class LearningViewModel(QObject):
         native_language: str,
         learner_level: str,
     ) -> None:
-        if self._busy:
+        if self.busy:
             return
         if not title.strip() or not content.strip():
             self.errorOccurred.emit(
@@ -548,7 +539,7 @@ class LearningViewModel(QObject):
         learner_level: str,
         track: str,
     ) -> None:
-        if self._busy:
+        if self.busy:
             return
         try:
             imported = import_material_file(_local_path(path_text) or Path(path_text))
@@ -581,7 +572,7 @@ class LearningViewModel(QObject):
 
     @Slot()
     def startPractice(self) -> None:
-        if self._busy or self._voice_state == "recording":
+        if self.busy:
             return
         options = PracticeOptions(
             mode=PracticeMode(self._practice_mode),
@@ -601,33 +592,11 @@ class LearningViewModel(QObject):
 
     @Slot(str)
     def sendMessage(self, content: str) -> None:
-        if self._busy or self._voice_state == "recording":
-            return
-        if not content.strip():
-            self.errorOccurred.emit(QCoreApplication.translate("Desktop", "请输入练习回答。"))
-            return
-
-        self.stopPlayback()
-        self._voice_state = "generating"
-        self._streaming_text = ""
-        self._sent_draft = self._draft
-        self._sent_draft_revision = self._draft_revision
-        source_context = self.source_context_provider()
-        self._pending_user_text = content.strip()
-        self._retry_user_text = content.strip()
-        self._response_timing = ""
-        self.uiChanged.emit()
-        self._run_operation(
-            QCoreApplication.translate("Desktop", "正在获取 AI 回复..."),
-            lambda: self._workbench.send_message(
-                content, on_delta=self._replyDelta.emit, source_context=source_context
-            ),
-            self._after_message_sent,
-        )
+        self.voice.send_text(content)
 
     @Slot()
     def finishPractice(self) -> None:
-        if self._busy or self._voice_state == "recording":
+        if self.busy:
             return
         self._clear_audio()
         self._run_operation(
@@ -664,7 +633,7 @@ class LearningViewModel(QObject):
 
     @Slot(str)
     def selectMaterial(self, material_id: str) -> None:
-        if self._busy:
+        if self.busy:
             self._on_operation_failed(QCoreApplication.translate("Desktop", "请等待当前操作完成。"))
             return
         self._clear_audio()
@@ -708,7 +677,7 @@ class LearningViewModel(QObject):
 
     @Slot()
     def resetSession(self) -> None:
-        if self._busy:
+        if self.busy:
             self.errorOccurred.emit(QCoreApplication.translate("Desktop", "当前还有操作正在运行。"))
             return
         self._clear_audio()
@@ -739,20 +708,15 @@ class LearningViewModel(QObject):
         operation: AsyncOperation,
         on_success: Callable[[Any], None],
     ) -> None:
-        if self._busy:
+        if self.busy:
             self.errorOccurred.emit(QCoreApplication.translate("Desktop", "当前还有操作正在运行。"))
             return
         self._busy = True
-        if on_success == self._after_message_sent:
-            self._voice_state = "generating"
-            self._streaming_text = ""
-            self._pending_user_text = self._retry_user_text
         self.busyChanged.emit()
         self._set_status(status)
 
         self._on_success = on_success
         self._retry_operation = (status, operation, on_success)
-        self._retry_audio = None
         self._error = ""
         self.uiChanged.emit()
         try:
@@ -774,7 +738,6 @@ class LearningViewModel(QObject):
         if error:
             self._streaming_text = ""
             self._pending_user_text = ""
-            self._voice_state = "error" if self._voice_state != "idle" else "idle"
             self._on_operation_failed(error)
             self._refresh_session_state()
             self.materialChanged.emit()
@@ -843,41 +806,6 @@ class LearningViewModel(QObject):
         self.historyChanged.emit()
         self._set_status(QCoreApplication.translate("Desktop", "练习已更新。"))
 
-    def _after_message_sent(self, result: SessionStepResult) -> None:
-        self._streaming_text = ""
-        self._pending_user_text = ""
-        timing = getattr(result, "timing", None)
-        if timing:
-            values = timing if isinstance(timing, dict) else timing.model_dump()
-            ttft = values.get("ttft_ms")
-            total = values.get("total_ms")
-            parts = []
-            if ttft is not None:
-                parts.append(
-                    QCoreApplication.translate("Desktop", "首字 {value0:.2f} 秒").format(
-                        value0=ttft / 1000
-                    )
-                )
-            if total is not None:
-                parts.append(
-                    QCoreApplication.translate("Desktop", "完整回复 {value0:.2f} 秒").format(
-                        value0=total / 1000
-                    )
-                )
-            self._response_timing = " · ".join(parts)
-        self._after_session_changed(result)
-        if self._draft_revision == self._sent_draft_revision and self._draft == self._sent_draft:
-            self._draft = ""
-        self._recording = b""
-        self._voice_state = "idle"
-        self.messageSent.emit()
-        self.uiChanged.emit()
-        if result.assistant_message:
-            self._last_reply = result.assistant_message.content
-            self._reply_audio = b""
-            if self._tts:
-                self.speakReply()
-
     def _after_review_changed(self) -> None:
         self._refresh_review_items()
         self.reviewItemsChanged.emit()
@@ -893,17 +821,21 @@ class LearningViewModel(QObject):
             self._messages = []
             self._feedback_items = []
             return
-        self._messages = [
-            {
+        turn_id = ""
+        messages = []
+        for message in session.messages:
+            if message.role.value == "user":
+                turn_id = message.metadata.get("turn_id", "")
+            messages.append({
+                **self.voice.turn_details(message, turn_id),
                 "id": message.id,
                 "role": message.role.value,
                 "content": message.content,
                 "source": message.source_context.model_dump(mode="json")
                 if message.source_context
                 else None,
-            }
-            for message in session.messages
-        ]
+            })
+        self._messages = messages
         self._feedback_items = [
             {
                 "original": item.original,
@@ -951,7 +883,7 @@ class LearningViewModel(QObject):
 
     @Property(bool, notify=uiChanged)
     def canRetryOperation(self):
-        return bool(self._retry_audio or self._retry_operation)
+        return bool(self._retry_operation)
 
     @Property(str, notify=uiChanged)
     def draft(self):
@@ -1075,12 +1007,6 @@ class LearningViewModel(QObject):
             "unavailable": QCoreApplication.translate("Desktop", "后台准备暂不可用，对话仍可继续"),
         }.get(self._preparation_state, "")
 
-    @Slot(str)
-    def _append_reply_delta(self, delta):
-        if not self._closed and self._voice_state == "generating":
-            self._streaming_text += delta
-            self.uiChanged.emit()
-
     @Slot()
     def _poll_preparation(self):
         state = getattr(self._workbench, "preparation_status", "idle")
@@ -1113,7 +1039,6 @@ class LearningViewModel(QObject):
     def voiceReady(self):
         return bool(
             self._speech_available("stt")
-            and self._speech_available("tts")
             and self._audio is not None
         )
 
@@ -1123,7 +1048,7 @@ class LearningViewModel(QObject):
 
     @Property(str, notify=uiChanged)
     def voiceState(self):
-        return self._voice_state
+        return self.voice.legacy_state
 
     @Property(int, notify=uiChanged)
     def recordingSeconds(self):
@@ -1139,7 +1064,7 @@ class LearningViewModel(QObject):
 
     @Property(bool, notify=uiChanged)
     def canRetryTranscription(self):
-        return bool(self._recording and self._speech_available("stt"))
+        return self.voice.canRetryTranscription
 
     @Property(bool, notify=uiChanged)
     def canSpeak(self):
@@ -1152,7 +1077,7 @@ class LearningViewModel(QObject):
 
     @Slot()
     def _local_speech_configuration(self):
-        self._reply_audio = b""
+        self.voice.invalidate_cache()
         self.uiChanged.emit()
 
     @Slot(str)
@@ -1229,14 +1154,14 @@ class LearningViewModel(QObject):
 
     @Slot(int)
     def confirmReadingPercent(self, percent):
-        if self._busy or not self._workbench.material:
+        if self.busy or not self._workbench.material:
             return
         end = paragraph_boundary(self._workbench.material.content, percent)
         self._confirm_scope(end)
 
     @Slot(str)
     def confirmReadingPassage(self, passage):
-        if self._busy or not self._workbench.material:
+        if self.busy or not self._workbench.material:
             return
         text = self._workbench.material.content
         passage = passage.strip()
@@ -1304,7 +1229,7 @@ class LearningViewModel(QObject):
 
     @Slot(str)
     def selectTopic(self, topic_id):
-        if self._busy:
+        if self.busy:
             return
         self._selected_topic = topic_id
         self._custom_topic = ""
@@ -1328,11 +1253,9 @@ class LearningViewModel(QObject):
 
     @Slot()
     def retryOperation(self):
-        if self._busy:
+        if self.busy:
             return
-        if self._retry_audio:
-            self._retry_audio()
-        elif self._retry_operation:
+        if self._retry_operation:
             if self._workbench.material and self._workbench.material.analysis is None:
                 self.reanalyze()
             else:
@@ -1353,156 +1276,57 @@ class LearningViewModel(QObject):
         self.uiChanged.emit()
         self._after_session_changed(result)
         self._last_reply = result.assistant_message.content if result.assistant_message else ""
-        self._reply_audio = b""
         self.practiceStarted.emit()
-        if self._speech_available("tts"):
+        if self.preferences.autoReadReplies and self._speech_available("tts"):
             self.speakReply()
 
     @Slot()
     def startRecording(self):
-        if self._busy or self._voice_state == "recording" or not self.sessionActive:
-            return
-        if self._draft.strip():
-            self._voice_error(
-                QCoreApplication.translate("Desktop", "请先发送或清空当前草稿，再开始录音。")
-            )
-            return
-        if not self._speech_available("stt") or self._audio is None:
-            self._voice_error(
-                QCoreApplication.translate(
-                    "Desktop", "语音识别尚未配置，请查看设置；文字输入仍可使用。"
-                )
-            )
-            return
-        self._error = ""
-        self._recording = b""
-        self._recording_seconds = 0
-        self._audio_action = "record"
-        self._audio.start_recording()
-        self.uiChanged.emit()
+        self.voice.startRecording()
 
     @Slot()
     def stopRecording(self):
-        if self._audio:
-            self._audio.stop_recording()
+        self.voice.stopRecording()
 
     @Slot()
     def cancelRecording(self):
-        if self._audio:
-            self._audio.cancel_recording()
-        self._recording = b""
-        self._voice_state = "idle"
-        self.uiChanged.emit()
+        self.voice.cancelRecording()
 
     @Slot()
     def rerecord(self):
-        if not self._busy:
-            self._draft = ""
-            self.startRecording()
-
-    @Slot(bytes)
-    def _on_recorded(self, audio):
-        self._recording = audio
-        self.retryTranscription()
+        self.voice.discardRecording()
+        self.voice.startRecording()
 
     @Slot()
     def retryTranscription(self):
-        if self._busy or not self._recording or not self._speech_available("stt"):
-            return
-        self._voice_state = "transcribing"
-        self._run_operation(
-            QCoreApplication.translate("Desktop", "正在识别发言..."),
-            self._speech_operation("stt", self._recording),
-            self._after_transcription,
-        )
-
-    def _after_transcription(self, text):
-        self._draft = text
-        self._voice_state = "idle"
-        self._set_status(QCoreApplication.translate("Desktop", "识别完成，可修改后发送。"))
-        self.uiChanged.emit()
+        self.voice.retryTranscription()
 
     @Slot()
     def speakReply(self):
-        if (
-            self._busy
-            or self._voice_state == "recording"
-            or not self._speech_available("tts")
-            or not self._last_reply
-            or self._audio is None
-        ):
-            return
-        self._audio_action = "play"
-        if self._reply_audio:
-            self.dismissError()
-            self._audio.play(self._reply_audio)
-            return
-        self._voice_state = "synthesizing"
-        self._run_operation(
-            QCoreApplication.translate("Desktop", "正在生成 AI 语音..."),
-            self._speech_operation("tts", self._last_reply),
-            self._after_speech,
-        )
-
-    def _after_speech(self, audio):
-        self._reply_audio = audio
-        self._audio.play(audio)
+        self.voice.speak_latest()
 
     @Slot()
     def stopPlayback(self):
-        if self._audio:
-            self._audio.stop_playback()
+        self.voice.stopPlayback()
 
     @Slot(str, bool)
     def selectAudioDevice(self, device_id, output):
-        if self._audio and not self._busy and self._voice_state != "recording":
+        if self._audio and not self.busy:
             self._audio.select_device(device_id, output=output)
 
-    @Slot(str)
-    def _audio_state_changed(self, state):
-        if state != "idle" or self._voice_state not in {
-            "transcribing",
-            "synthesizing",
-            "generating",
-        }:
-            self._voice_state = state
-            self.uiChanged.emit()
-
-    @Slot(int)
-    def _duration_changed(self, seconds):
-        self._recording_seconds = seconds
-        self.uiChanged.emit()
-
-    @Slot(str)
-    def _voice_error(self, message):
-        self._retry_operation = None
-        self._retry_audio = (
-            self.speakReply
-            if self._audio_action == "play"
-            else self.startRecording
-            if self._audio_action == "record"
-            else None
-        )
-        self._voice_state = "error"
-        self._on_operation_failed(message)
-        self.uiChanged.emit()
-
     def _clear_audio(self):
+        self.voice.reset()
         if self._audio:
             self._audio.clear()
-        self._recording = b""
-        self._reply_audio = b""
         self._last_reply = ""
-        self._voice_state = "idle"
-        self._retry_audio = None
         self._retry_operation = None
-        self._audio_action = ""
         self.uiChanged.emit()
 
     @Slot()
     def close(self):
         if not self._closed:
             self._closed = True
+            self.voice.close()
             self._preparation_timer.stop()
 
             async def cleanup():

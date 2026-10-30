@@ -14,6 +14,8 @@ from lingualoop.core.voice import (
     VoiceTurnResult,
 )
 from lingualoop.core.knowledge import TurnSourceSnapshot
+from lingualoop.core.conversation import ConversationTurn
+from lingualoop.kernel import SessionStepResult
 from .learning_workbench import LearningWorkbench
 from .speech_text import SpeechTextBuffer, SpokenTextProjection
 
@@ -30,15 +32,29 @@ class VoiceSessionCoordinator:
         tts: TextToSpeechProvider,
         on_audio: AudioConsumer | None = None,
         on_text_delta: Callable[[str], None] | None = None,
+        on_turn_confirmed: Callable[[ConversationTurn], None] | None = None,
+        on_text_completed: Callable[[SessionStepResult], None] | None = None,
         own_backends: bool = False,
     ) -> None:
         self.workbench = workbench
         self.stt, self.tts = stt, tts
         self.on_audio, self.on_text_delta = on_audio, on_text_delta
+        self.on_turn_confirmed = on_turn_confirmed
+        self.on_text_completed = on_text_completed
         self.own_backends = own_backends
         self._drafts: dict[str, TranscriptDraft] = {}
         self._tasks: set[asyncio.Task] = set()
         self._closed = False
+        self._speech_tasks: dict[str, asyncio.Task] = {}
+        self._stopped_speech: set[str] = set()
+
+    async def stop_speech(self, turn_id: str) -> None:
+        """Stop this turn's speech without cancelling its dialogue producer."""
+        self._stopped_speech.add(turn_id)
+        task = self._speech_tasks.get(turn_id)
+        if task:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
 
     def _language(self) -> str:
         if self._closed:
@@ -89,7 +105,13 @@ class VoiceSessionCoordinator:
             self._tasks.discard(task)
 
     async def submit_confirmed(
-        self, draft: TranscriptDraft, edited_text: str | None = None, request_id: str | None = None
+        self,
+        draft: TranscriptDraft,
+        edited_text: str | None = None,
+        request_id: str | None = None,
+        *,
+        speak: bool = True,
+        confirmation_kind: str = "manual_transcript",
     ) -> VoiceTurnResult:
         language = self._language()
         if (
@@ -102,7 +124,8 @@ class VoiceSessionCoordinator:
             edited_text if edited_text is not None else draft.text,
             request_id=request_id or draft.id,
             source_context=draft.source_context,
-            confirmation_kind="manual_transcript",
+            confirmation_kind=confirmation_kind,
+            speak=speak,
         )
 
     async def submit_text(
@@ -112,6 +135,7 @@ class VoiceSessionCoordinator:
         request_id: str,
         source_context: TurnSourceSnapshot | None = None,
         confirmation_kind: str = "manual_text",
+        speak: bool = True,
     ) -> VoiceTurnResult:
         language = self._language()
         with self.workbench.conversation_operation():
@@ -121,6 +145,8 @@ class VoiceSessionCoordinator:
                 source_context=source_context,
                 confirmation_kind=confirmation_kind,
             )
+            if self.on_turn_confirmed:
+                self.on_turn_confirmed(turn)
             if turn.state == "completed":
                 result = await self.workbench.generate_reply(turn.id)
                 return VoiceTurnResult(turn.id, result.assistant_message, "completed", "skipped")
@@ -133,16 +159,16 @@ class VoiceSessionCoordinator:
                     error_stage="dialogue",
                     error_code="reply_retry_required",
                 )
-            return await self._generate(turn.id, language)
+            return await self._generate(turn.id, language, speak=speak)
 
-    async def retry_reply(self, turn_id: str) -> VoiceTurnResult:
+    async def retry_reply(self, turn_id: str, *, speak: bool = True) -> VoiceTurnResult:
         language = self._language()
         with self.workbench.conversation_operation():
             turn = self.workbench.get_turn(turn_id)
             if turn.state == "completed":
                 result = await self.workbench.generate_reply(turn.id)
                 return VoiceTurnResult(turn.id, result.assistant_message, "completed", "skipped")
-            return await self._generate(turn_id, language)
+            return await self._generate(turn_id, language, speak=speak)
 
     async def retry_speech(self, turn_id: str) -> VoiceTurnResult:
         language = self._language()
@@ -153,7 +179,10 @@ class VoiceSessionCoordinator:
             result = await self.workbench.generate_reply(turn_id)
             return await self._generate(turn_id, language, replay=result.assistant_message)
 
-    async def _generate(self, turn_id: str, language: str, *, replay=None) -> VoiceTurnResult:
+    async def _generate(
+        self, turn_id: str, language: str, *, replay=None, speak: bool = True
+    ) -> VoiceTurnResult:
+        self._stopped_speech.discard(turn_id)
         started = perf_counter()
         buffer, projection, changed = SpeechTextBuffer(), SpokenTextProjection(), asyncio.Event()
         failed: tuple[str, str] | None = None
@@ -171,7 +200,8 @@ class VoiceSessionCoordinator:
                     self.on_text_delta(text)
                 except Exception:
                     failed = ("output", "text_consumer_failed")
-            if failed:
+            timings.setdefault("text_first_delta", (perf_counter() - started) * 1000)
+            if failed or not speak or turn_id in self._stopped_speech:
                 return
             try:
                 buffer.append(text)
@@ -221,7 +251,9 @@ class VoiceSessionCoordinator:
                 failed = ("tts", "speech_synthesis_failed")
 
         try:
-            consumer = asyncio.create_task(synthesize(), name=f"tts-{turn_id}")
+            if speak:
+                consumer = asyncio.create_task(synthesize(), name=f"tts-{turn_id}")
+                self._speech_tasks[turn_id] = consumer
             # Keep speech synthesis off the LLM stream reader.
             if replay is None:
                 producer = asyncio.create_task(
@@ -230,32 +262,55 @@ class VoiceSessionCoordinator:
                 try:
                     step = await producer
                     assistant = step.assistant_message
-                except Exception:
-                    consumer.cancel()
-                    await asyncio.gather(consumer, return_exceptions=True)
+                    timing = getattr(step, "timing", None)
+                    if timing:
+                        values = timing if isinstance(timing, dict) else timing.model_dump()
+                        for key in ("ttft_ms", "total_ms"):
+                            if values.get(key) is not None:
+                                timings["provider_" + key] = values[key]
+                except Exception as exc:
+                    if consumer:
+                        consumer.cancel()
+                        await asyncio.gather(consumer, return_exceptions=True)
                     return VoiceTurnResult(
                         turn_id,
                         None,
                         "failed",
-                        "failed",
+                        "failed" if speak else "skipped",
                         count,
                         "dialogue",
-                        "reply_failed",
+                        f"reply_http_{exc.status_code}"
+                        if getattr(exc, "status_code", None) in {401, 402, 429}
+                        else "reply_failed",
                         timings,
                     )
+                if self.on_text_completed:
+                    try:
+                        self.on_text_completed(step)
+                    except Exception:
+                        failed = ("output", "text_consumer_failed")
             else:
                 assistant = replay
                 delta(replay.content)
             timings["text_completed"] = (perf_counter() - started) * 1000
             buffer.done = True
             changed.set()
-            await consumer
+            if consumer:
+                # A speech-only stop is expected. Cancellation of the foreground
+                # operation still propagates through the producer/finally path.
+                await asyncio.gather(consumer, return_exceptions=True)
             timings["total"] = (perf_counter() - started) * 1000
             return VoiceTurnResult(
                 turn_id,
                 assistant,
                 "completed",
-                "failed" if failed else "completed",
+                "stopped"
+                if turn_id in self._stopped_speech
+                else "skipped"
+                if not speak
+                else "failed"
+                if failed
+                else "completed",
                 count,
                 failed[0] if failed else None,
                 failed[1] if failed else None,
@@ -267,6 +322,8 @@ class VoiceSessionCoordinator:
                     task.cancel()
             await asyncio.gather(*(t for t in (producer, consumer) if t), return_exceptions=True)
             self._tasks.discard(current)
+            self._speech_tasks.pop(turn_id, None)
+            self._stopped_speech.discard(turn_id)
 
     async def aclose(self) -> None:
         self._closed = True

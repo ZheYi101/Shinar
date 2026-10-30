@@ -49,7 +49,7 @@ Prompt、检索与成本的最新结果见[语义准备实测](docs/validation/t
 | 本地数据 | 标准库 SQLite（WAL、按操作连接/事务）、QSettings 外观偏好 |
 | 导入 | TXT/Markdown、DOCX、SRT/VTT、EPUB、XLSX；视频读取旁挂字幕 |
 | 已有语音接口 | Qt Multimedia WAV 录制/播放、独立 STT/TTS adapter |
-| 语音基础 | 无 UI Python 转写/确认/分句合成与真实本机 LiveKit 传输；连续设备/真人交互仍待验收 |
+| 语音基础 | Python 协调器已接 QML 自动发送分轮与逐句朗读；真实本机 LiveKit 传输独立通过，连续设备/真人交互仍待验收 |
 
 Core 不依赖 Qt 或具体供应商 SDK。默认桌面壳是 ApplicationWindow，使用应用内标题栏；Kirigami 可选。LangGraph 保留独立实验入口，不是当前桌面编排主线。
 
@@ -308,13 +308,13 @@ uv sync --dev --extra desktop --extra realtime
 
 ### 无 UI 的 Python 基础语音
 
-`VoiceSessionCoordinator` 复用 Workbench 的推理/对话角色，提供转写草稿、确认落库、回复分句合成和独立重试；新增确认事务使回复失败不丢用户发言。普通 pytest 不加载模型；真实本地模型与 RTC 分别通过 `--run-local-speech`、`--run-realtime` 开启，始终可使用 Mock LLM 避免付费请求。接口、准备 profile 和复现命令见 [Python 语音指南](./docs/desktop/VOICE_PYTHON.md)。QML 尚未接新服务。
+`VoiceSessionCoordinator` 复用 Workbench 的推理/对话角色，提供转写草稿、确认落库、回复分句合成和独立重试；新增确认事务使回复失败不丢用户发言。普通 pytest 不加载模型；真实本地模型与 RTC 分别通过 `--run-local-speech`、`--run-realtime` 开启，始终可使用 Mock LLM 避免付费请求。接口、准备 profile 和复现命令见 [Python 语音指南](./docs/desktop/VOICE_PYTHON.md)。QML 已通过桌面控制器接入自动发送、分句播放与分阶段重试；连续通话仍未接入。
 
 ### 现有分轮语音
 
 在本地 `.env` 中分别配置 `LINGUALOOP_STT_BASE_URL/API_KEY/MODEL`、`LINGUALOOP_TTS_BASE_URL/API_KEY/MODEL/VOICE`；首次配置可复制 `.env.example`，保留已有配置。STT 使用 `/audio/transcriptions`，TTS 使用 `/audio/speech` 并请求 PCM WAV；服务需要兼容这些接口。模型和 voice 使用服务实际提供的 ID，文本中转服务不一定提供音频能力。修改配置后重启应用。`--mock` 明确禁用真实语音服务。
 
-选择材料和话题后点击“开始说话”，最多录制 60 秒，点击“结束录音”取得转写。编辑后点击“发送”，AI 回复保存后合成播放。可以重录、停止和重播；识别失败保留当前录音供重试，合成失败只重试合成。详细配置、隐私边界及真人验收步骤见 [分轮语音指南](./docs/desktop/VOICE.md)。
+确认材料范围并开始对话后，点击“开始语音”，最多录制 60 秒；点击“结束并发送”后自动识别和提交，无需再次确认。回复流式显示并逐句朗读，可停止本轮朗读而继续文字生成；文字草稿独立保留。音频设置中可关闭默认自动朗读，识别、回复和朗读失败分别重试。详细配置、隐私边界及真人验收步骤见 [分轮语音指南](./docs/desktop/VOICE.md)。
 
 材料会发送给所配置的文本服务，录音会发送给 STT，AI 回复会发送给 TTS。原始录音只作临时处理，数据库保存用户确认发送的文本。正常结束、切换材料或退出时清理临时音频；异常终止的残留见语音指南。
 

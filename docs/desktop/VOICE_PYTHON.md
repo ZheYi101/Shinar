@@ -1,6 +1,6 @@
 # Python 基础语音服务
 
-2026-10-29。此增量提供无 UI 的转写、确认、对话、分句合成和 RTC 输入/输出。未连接 QML；持续麦克风、VAD/AEC、自然插话、自动重连、设备播放与安装包运行时分发仍属后续工作。实际结果见[基础验收](../validation/speech/VOICE_PYTHON_INTEGRATION_2026-10-29.md)。
+2026-10-29。此增量提供无 UI 的转写、确认、对话、分句合成和 RTC 输入/输出。2026-10-30 已接入 QML 自动发送的分轮流程，见[桌面指南](./VOICE.md)；持续麦克风、VAD/AEC、自然插话、自动重连、设备播放与安装包运行时分发仍属后续工作。实际结果见[基础验收](../validation/speech/VOICE_PYTHON_INTEGRATION_2026-10-29.md)。
 
 ## 应用入口
 
@@ -117,3 +117,11 @@ $env:RUN_REAL_AI_TESTS='0'
 ```
 
 底层复现命令为 `scripts/validate_voice_pipeline.py --config <config.json> --case en --output build/voice-python-integration/manual/en.json`，加 `--rtc` 验证真实传输。它使用 Mock 双角色 LLM、真实语音模型及独立测试库，不读 `.env` 或正常学习库。输出只含安全计时/设备/错误阶段，公开测试音频另放同目录。
+
+## 2026-10-30：桌面接线接口增量
+
+- `submit_text`、`submit_confirmed`、`retry_reply` 增加 `speak=True`，关闭时不绑定 TTS；旧调用默认行为不变。
+- `submit_confirmed` 增加 `confirmation_kind="manual_transcript"`；桌面结束录音即授权自动提交，使用 `automatic_transcript`。
+- 可选 `on_turn_confirmed(ConversationTurn)` 在事务成功后通知；`on_text_completed(SessionStepResult)` 在文本成功持久化后通知，无需等待语音完成。
+- `stop_speech(turn_id)` 仅停止合成/音频消费者，保留对话 producer；`VoiceTurnResult.speech_status` 新增 `stopped`。回复结果保留安全 HTTP 401/402/429 错误码，不透传 provider 响应正文。
+- `timings_ms` 补充 `text_first_delta`、`provider_ttft_ms` 与 `provider_total_ms`；桌面另记识别、UI 呈现和播放器启动。这些都不是物理扬声器出声计时。

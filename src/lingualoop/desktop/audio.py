@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from lingualoop.core.voice import SpeechSegment
 
 from PySide6.QtCore import QCoreApplication, QObject, QTimer, QUrl, Signal
 from PySide6.QtMultimedia import (
@@ -23,6 +24,10 @@ class AudioController(QObject):
     stateChanged = Signal(str)
     durationChanged = Signal(int)
     devicesChanged = Signal()
+    queueChanged = Signal()
+    segmentStarted = Signal(object)
+    MAX_QUEUE_SEGMENTS = 3
+    MAX_QUEUE_BYTES = 24 * 1024**2
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -63,6 +68,11 @@ class AudioController(QObject):
         self._timer.setInterval(60000)
         self._timer.timeout.connect(self.stop_recording)
         self._pending_recording = False
+        self._segments = []
+        self._active_segment = None
+        self._queue_generation = ""
+        self._segment_serial = 0
+        self._player.mediaStatusChanged.connect(self._media_status)
 
     @property
     def input_devices(self):
@@ -148,6 +158,7 @@ class AudioController(QObject):
             self.stop_recording()
 
     def play(self, audio):
+        self.stop_playback()
         if not QMediaDevices.audioOutputs():
             self._fail(QCoreApplication.translate("Desktop", "没有可用播放设备，文字回复已保留。"))
             return
@@ -165,9 +176,83 @@ class AudioController(QObject):
         self._player.play()
 
     def stop_playback(self):
+        self._queue_generation = ""
         self._player.stop()
+        self._player.setSource(QUrl())
+        self._discard_segments()
+
+    @property
+    def queued_count(self) -> int:
+        return len(self._segments) + int(self._active_segment is not None)
+
+    @property
+    def queued_bytes(self) -> int:
+        items = self._segments + ([self._active_segment] if self._active_segment else [])
+        return sum(len(item[0].audio) for item in items)
+
+    def begin_playback(self, generation: str) -> None:
+        self.stop_playback()
+        self._queue_generation = generation
+
+    def enqueue(self, segment: SpeechSegment, generation: str) -> bool:
+        """Main-thread bounded admission. False means the caller must await capacity."""
+        if generation != self._queue_generation:
+            raise RuntimeError("stale_audio_generation")
+        if len(segment.audio) > self.MAX_QUEUE_BYTES:
+            raise ValueError("speech_audio_too_large")
+        if (
+            self.queued_count >= self.MAX_QUEUE_SEGMENTS
+            or self.queued_bytes + len(segment.audio) > self.MAX_QUEUE_BYTES
+        ):
+            return False
+        if not QMediaDevices.audioOutputs():
+            raise RuntimeError("audio_output_missing")
+        self._segment_serial += 1
+        path = self._dir() / f"segment-{self._segment_serial}.wav"
+        path.write_bytes(segment.audio)
+        self._segments.append((segment, path))
+        if self._active_segment is None:
+            self._play_next()
+        self.queueChanged.emit()
+        return True
+
+    def _play_next(self) -> None:
+        if not self._segments:
+            self.queueChanged.emit()
+            return
+        self._active_segment = self._segments.pop(0)
+        segment, path = self._active_segment
+        self._player.setSource(QUrl.fromLocalFile(str(path)))
+        self._player.play()
+
+    def _media_status(self, status) -> None:
+        if status != QMediaPlayer.MediaStatus.EndOfMedia or not self._active_segment:
+            return
+        _, path = self._active_segment
+        self._active_segment = None
+        self._player.setSource(QUrl())
+        self._remove_segment(path)
+        self._play_next()
+        self.queueChanged.emit()
+
+    @staticmethod
+    def _remove_segment(path: Path) -> None:
+        try:
+            path.unlink(missing_ok=True)
+        except OSError:
+            pass  # clear() retries after multimedia has released its file handles.
+
+    def _discard_segments(self) -> None:
+        items = self._segments + ([self._active_segment] if self._active_segment else [])
+        self._segments = []
+        self._active_segment = None
+        for _, path in items:
+            self._remove_segment(path)
+        self.queueChanged.emit()
 
     def _playback_state(self, state):
+        if state == QMediaPlayer.PlaybackState.PlayingState and self._active_segment:
+            self.segmentStarted.emit(self._active_segment[0])
         self.stateChanged.emit(
             "playing" if state == QMediaPlayer.PlaybackState.PlayingState else "idle"
         )
@@ -182,8 +267,7 @@ class AudioController(QObject):
         self._pending_recording = False
         self._timer.stop()
         self._recorder.stop()
-        self._player.stop()
-        self._player.setSource(QUrl())
+        self.stop_playback()
         self._recorder.setOutputLocation(QUrl())
         if self._directory is not None:
             self._directory.cleanup()

@@ -108,8 +108,8 @@ def test_failed_turn_keeps_original_source_and_newer_draft(desktop):
     newer = ws.snapshot()
     vm.draft = "A second, unsent thought."
     until(lambda: not vm.busy)
-    assert vm.errorMessage and len(vm.messages) == 2
-    vm.retryOperation()
+    assert vm.messages[-1]["replyError"] and len(vm.messages) == 2
+    vm.voice.retryReply(vm.messages[-1]["turnId"])
     until(lambda: not vm.busy)
     assert vm.draft == "A second, unsent thought."
     assert ws.snapshot() == newer

@@ -85,3 +85,35 @@ def test_ime_composition_does_not_submit_with_control_enter(desktop):
     event.setCommitString("中文😀")
     QGuiApplication.sendEvent(editor, event)
     assert "中文😀" in vm.draft and not vm.busy
+
+
+def test_automatic_voice_ui_and_status_are_translatable(desktop):
+    vm, window, *_ = desktop
+    load_and_start(vm, window)
+    vm.draft = "An independent draft."
+    ws = workspace_of(window)
+    engine = ws.parent()
+
+    class VoiceTranslator(QTranslator):
+        def isEmpty(self):
+            return False
+
+        def translate(self, context, source, disambiguation=None, n=-1):
+            return {
+                ("ConversationPage", "结束并发送"): "Finish and send",
+                ("Desktop", "正在录音 · 结束后自动发送"): "Recording; sends when finished",
+            }.get((context, source), "")
+
+    translator = VoiceTranslator()
+    app = QGuiApplication.instance()
+    app.installTranslator(translator)
+    try:
+        engine.retranslate()
+        vm.startRecording()
+        assert item(window, "recordButton").property("text") == "Finish and send"
+        assert vm.voice.statusText == "Recording; sends when finished"
+        assert vm.draft == "An independent draft."
+    finally:
+        vm.cancelRecording()
+        app.removeTranslator(translator)
+        engine.retranslate()

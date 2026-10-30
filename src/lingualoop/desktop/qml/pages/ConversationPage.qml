@@ -8,6 +8,12 @@ Item {
     id: page
     signal openMaterials()
     property real workspaceWidth: width
+    readonly property var voice: learningViewModel.voiceController
+    property bool followTail: true
+    function scrollToTail() {
+        if (followTail) conversation.contentItem.contentY = Math.max(0, conversation.contentItem.contentHeight - conversation.contentItem.height)
+    }
+    Timer { id: tailTimer; interval: 0; onTriggered: page.scrollToTail() }
     readonly property bool splitSource: workspaceWidth >= 1200
     RowLayout {
         anchors.fill: parent; spacing: 0
@@ -45,10 +51,14 @@ Item {
                                 MLabel { text: modelData.content; font.family: learningViewModel.preferences.targetLanguage === "japanese" ? AppTheme.japaneseReadingFont : AppTheme.readingFont; font.pixelSize: page.width < 600 ? 18 : 20; lineHeightMode: Text.FixedHeight; lineHeight: font.pixelSize * 1.6 }
                             }
                             MButton { visible: !!modelData.source; text: modelData.source ? modelData.source.label || qsTr("原文来源") : ""; variant: "text"; implicitHeight: 28; font.pixelSize: 12; Layout.maximumWidth: conversation.availableWidth; onClicked: workspace.previewMessage(modelData.id); contentItem: Text { text: parent.text; color: AppTheme.primary; font: parent.font; elide: Text.ElideRight } }
+                            MLabel { visible: !!modelData.replyError; text: modelData.replyError || ""; color: AppTheme.error; role: "supporting" }
+                            MButton { objectName: "retryReply-" + modelData.id; visible: !!modelData.canRetryReply; text: qsTr("重试本轮回复"); variant: "text"; enabled: !learningViewModel.busy; onClicked: voice.retryReply(modelData.turnId) }
+                            MLabel { visible: !!modelData.speechError; text: modelData.speechError || ""; color: AppTheme.error; role: "supporting" }
+                            MButton { objectName: "retrySpeech-" + modelData.id; visible: !!modelData.speechError; text: qsTr("重试朗读"); variant: "text"; enabled: !learningViewModel.busy; onClicked: voice.speakTurn(modelData.turnId || "legacy:" + modelData.id) }
                         }
                     }
                     MCard { visible: learningViewModel.pendingUserText.length > 0; color: AppTheme.surfaceContainerLow; padding: 14; MLabel { text: learningViewModel.pendingUserText; font.family: AppTheme.readingFont; font.pixelSize: 18 } }
-                    MLabel { objectName: "streamingReplyText"; visible: learningViewModel.pendingUserText.length > 0; text: learningViewModel.streamingText || "…"; font.family: AppTheme.readingFont; font.pixelSize: 18 }
+                    MLabel { objectName: "streamingReplyText"; visible: voice.replyState === "generating"; text: learningViewModel.streamingText || "…"; font.family: AppTheme.readingFont; font.pixelSize: 18 }
                     Flow { Layout.fillWidth: true; spacing: 8
                         Repeater { model: learningViewModel.suggestedDirections
                             MButton { required property string modelData; required property int index; objectName: "suggestedDirection" + index; text: modelData; variant: "text"; implicitWidth: Math.min(page.width-32,320); implicitHeight: Math.max(36,contentItem.implicitHeight+12); contentItem: Text { text: parent.text; color: AppTheme.primary; font: parent.font; wrapMode: Text.Wrap } onClicked: learningViewModel.useDirection(modelData) }
@@ -61,6 +71,25 @@ Item {
                 visible: learningViewModel.sessionActive || learningViewModel.canSpeak
                 Layout.fillWidth: true; Layout.maximumWidth: 760; Layout.alignment: Qt.AlignHCenter
                 spacing: 6
+                ColumnLayout {
+                    visible: voice.transcriptionError.length > 0
+                    Layout.fillWidth: true; spacing: 4
+                    MLabel { text: voice.transcriptionError; color: AppTheme.error; role: "supporting"; Accessible.role: Accessible.AlertMessage }
+                    MLabel { visible: voice.unsentTranscript.length > 0; text: voice.unsentTranscript; maximumLineCount: 4; elide: Text.ElideRight; role: "supporting" }
+                    RowLayout {
+                        MButton { objectName: "retryTranscriptionButton"; visible: voice.canRetryTranscription; text: qsTr("重试识别"); variant: "text"; enabled: !learningViewModel.busy; onClicked: learningViewModel.retryTranscription() }
+                        MButton { visible: voice.unsentTranscript.length > 0; text: qsTr("复制转写"); variant: "text"; onClicked: voice.copyTranscript() }
+                        MButton { objectName: "discardRecordingButton"; text: qsTr("丢弃录音"); variant: "text"; enabled: !learningViewModel.busy; onClicked: voice.discardRecording() }
+                    }
+                }
+                Item {
+                    Layout.fillWidth: true; Layout.preferredHeight: 28
+                    RowLayout {
+                        anchors.fill: parent
+                        MLabel { objectName: "voiceStatusLabel"; text: voice.statusText; role: "supporting"; font.pixelSize: 12; maximumLineCount: 1; elide: Text.ElideRight }
+                        MLabel { visible: voice.recognitionState === "recording"; text: qsTr("%1 秒").arg(learningViewModel.recordingSeconds); role: "supporting"; Layout.fillWidth: false; maximumLineCount: 1 }
+                    }
+                }
                 Rectangle {
                     visible: workspace.hasSource
                     Layout.fillWidth: true
@@ -87,12 +116,11 @@ Item {
                                 background: null; padding: 6
                                 placeholderText: qsTr("说说你的想法…")
                                 text: learningViewModel.draft
-                                enabled: learningViewModel.voiceState !== "recording"
                                 onTextChanged: if (text !== learningViewModel.draft) learningViewModel.draft = text
                                 onCursorPositionChanged: workspace.saveEditor(cursorPosition,conversation.contentItem.contentY)
                                 Keys.onPressed: function(event) {
                                     if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && (event.modifiers & Qt.ControlModifier) && !messageField.inputMethodComposing) {
-                                        if (learningViewModel.sessionActive && !learningViewModel.busy && text.trim()) learningViewModel.sendMessage(text)
+                                        if (learningViewModel.sessionActive && !learningViewModel.busy && text.trim()) { page.followTail = true; learningViewModel.sendMessage(text) }
                                         event.accepted = true
                                     }
                                 }
@@ -100,13 +128,12 @@ Item {
                         }
                         RowLayout {
                             Layout.fillWidth: true; spacing: 4
-                            MButton { objectName: "recordButton"; visible: learningViewModel.voiceReady && learningViewModel.sessionActive; text: learningViewModel.voiceState === "recording" ? qsTr("结束录音") : learningViewModel.canRetryTranscription && learningViewModel.draft.length ? qsTr("重新录音") : qsTr("开始语音"); icon.source: "../assets/illustrated/mic.png"; enabled: !learningViewModel.busy; variant: "text"; onClicked: { if (learningViewModel.voiceState === "recording") learningViewModel.stopRecording(); else if (learningViewModel.canRetryTranscription && learningViewModel.draft.length) learningViewModel.rerecord(); else learningViewModel.startRecording() } }
-                            MButton { visible: learningViewModel.voiceState === "recording"; text: qsTr("取消"); variant: "text"; onClicked: learningViewModel.cancelRecording() }
-                            MButton { visible: learningViewModel.canRetryTranscription; text: qsTr("重试识别"); variant: "text"; enabled: !learningViewModel.busy; onClicked: learningViewModel.retryTranscription() }
-                            MIconButton { visible: learningViewModel.canSpeak && learningViewModel.voiceState !== "playing"; symbol: "play_arrow"; label: qsTr("朗读回复"); enabled: !learningViewModel.busy; onClicked: learningViewModel.speakReply() }
-                            MIconButton { visible: learningViewModel.voiceState === "playing"; symbol: "stop"; label: qsTr("停止播放"); onClicked: learningViewModel.stopPlayback() }
-                            MLabel { text: learningViewModel.voiceState === "recording" ? qsTr("%1 秒").arg(learningViewModel.recordingSeconds) : ""; role: "supporting"; maximumLineCount: 1 }
-                            MButton { objectName: "sendMessageButton"; text: qsTr("发送 ↑"); enabled: learningViewModel.sessionActive && !learningViewModel.busy && learningViewModel.draft.trim().length > 0 && learningViewModel.voiceState !== "recording"; onClicked: learningViewModel.sendMessage(learningViewModel.draft) }
+                            MButton { objectName: "recordButton"; visible: learningViewModel.voiceReady && learningViewModel.sessionActive; text: voice.recognitionState === "recording" ? qsTr("结束并发送") : qsTr("开始语音"); icon.source: "../assets/illustrated/mic.png"; enabled: !learningViewModel.busy || voice.recognitionState === "recording"; variant: "text"; onClicked: { page.followTail = true; if (voice.recognitionState === "recording") learningViewModel.stopRecording(); else learningViewModel.startRecording() } }
+                            MIconButton { objectName: "cancelRecordingButton"; visible: voice.recognitionState === "recording"; symbol: "close"; label: qsTr("取消录音"); onClicked: learningViewModel.cancelRecording() }
+                            Item { Layout.fillWidth: true }
+                            MIconButton { objectName: "speakReplyButton"; visible: learningViewModel.canSpeak && !voice.canStopSpeech; symbol: "play_arrow"; label: qsTr("朗读回复"); enabled: !learningViewModel.busy; onClicked: learningViewModel.speakReply() }
+                            MIconButton { objectName: "stopSpeechButton"; visible: voice.canStopSpeech; symbol: "stop"; label: qsTr("停止朗读"); onClicked: learningViewModel.stopPlayback() }
+                            MButton { objectName: "sendMessageButton"; text: qsTr("发送 ↑"); enabled: learningViewModel.sessionActive && !learningViewModel.busy && learningViewModel.draft.trim().length > 0 && learningViewModel.voiceState !== "recording"; onClicked: { page.followTail = true; learningViewModel.sendMessage(learningViewModel.draft) } }
                         }
                     }
                 }
@@ -120,13 +147,21 @@ Item {
     }
     Connections {
         target: workspace
-        function onEditorRestoreRequested(cursor, scroll) { Qt.callLater(function() { messageField.cursorPosition = Math.min(cursor,messageField.length); conversation.contentItem.contentY = scroll }) }
+        function onEditorRestoreRequested(cursor, scroll) { page.followTail = false; Qt.callLater(function() { messageField.cursorPosition = Math.min(cursor,messageField.length); conversation.contentItem.contentY = scroll; page.followTail = conversation.contentItem.contentY >= conversation.contentItem.contentHeight - conversation.contentItem.height - 24 }) }
         function onFocusComposerRequested() { Qt.callLater(function() { messageField.forceActiveFocus() }) }
     }
-    Connections { target: conversation.contentItem; function onContentYChanged() { if (page.visible) workspace.saveEditor(messageField.cursorPosition,conversation.contentItem.contentY) } }
+    Connections {
+        target: conversation.contentItem
+        function onContentHeightChanged() { tailTimer.restart() }
+        function onHeightChanged() { tailTimer.restart() }
+        function onContentYChanged() {
+            if (conversation.contentItem.dragging || conversation.ScrollBar.vertical.pressed) page.followTail = conversation.contentItem.contentY >= conversation.contentItem.contentHeight - conversation.contentItem.height - 24
+            if (page.visible) workspace.saveEditor(messageField.cursorPosition,conversation.contentItem.contentY)
+        }
+    }
     Connections {
         target: learningViewModel
-        function onMessagesChanged() { Qt.callLater(function() { conversation.contentItem.contentY = Math.max(0,conversation.contentItem.contentHeight-conversation.height) }) }
-        function onUiChanged() { if(learningViewModel.streamingText.length) Qt.callLater(function() { conversation.contentItem.contentY = Math.max(0,conversation.contentItem.contentHeight-conversation.height) }) }
+        function onMessagesChanged() { tailTimer.restart() }
+        function onUiChanged() { if(learningViewModel.streamingText.length) tailTimer.restart() }
     }
 }

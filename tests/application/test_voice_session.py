@@ -96,6 +96,67 @@ def test_draft_confirmation_order_and_idempotency(tmp_path):
     asyncio.run(run())
 
 
+def test_automatic_transcript_and_text_only_never_bind_tts(tmp_path):
+    async def run():
+        work, provider = await make_work(tmp_path / "db")
+        confirmed = []
+
+        class NoTTS(Speech):
+            async def bind(self, language):
+                raise AssertionError("disabled TTS must not be bound")
+
+        voice = VoiceSessionCoordinator(work, stt=Speech(), tts=NoTTS(),
+                                        on_turn_confirmed=confirmed.append)
+        draft = await voice.recognize(wav_bytes())
+        result = await voice.submit_confirmed(draft, speak=False,
+                                              confirmation_kind="automatic_transcript")
+        assert result.text_status == "completed" and result.speech_status == "skipped"
+        assert len(confirmed) == 1 and provider.calls == 1
+        assert work.session.messages[-2].metadata["confirmation_kind"] == "automatic_transcript"
+        assert "text_first_delta" in result.timings_ms
+        await voice.aclose()
+        await work.aclose()
+
+    asyncio.run(run())
+
+
+def test_stop_speech_keeps_visible_stream_and_complete_history(tmp_path):
+    async def run():
+        first_audio, continue_reply = asyncio.Event(), asyncio.Event()
+
+        class SlowDialogue(Dialogue):
+            async def stream_reply(self, **kwargs):
+                self.calls += 1
+                yield "She waited. "
+                await continue_reply.wait()
+                yield "Then she left."
+
+        work, provider = await make_work(tmp_path / "db", SlowDialogue())
+        audio, deltas = [], []
+
+        async def consume(segment):
+            audio.append(segment)
+            first_audio.set()
+
+        voice = VoiceSessionCoordinator(work, stt=Speech(), tts=Speech(),
+                                        on_audio=consume, on_text_delta=deltas.append)
+        pending = asyncio.create_task(voice.submit_text("Why?", request_id="stop"))
+        await asyncio.wait_for(first_audio.wait(), 2)
+        turn_id = work.session.messages[-1].metadata["turn_id"]
+        await voice.stop_speech(turn_id)
+        assert not pending.done()
+        continue_reply.set()
+        result = await pending
+        assert result.speech_status == "stopped" and result.text_status == "completed"
+        assert len(audio) == 1 and "Then she left." in "".join(deltas)
+        assert work.session.messages[-1].content == "She waited. Then she left."
+        assert provider.calls == 1
+        await voice.aclose()
+        await work.aclose()
+
+    asyncio.run(run())
+
+
 def test_failed_reply_keeps_confirmation_and_retries_after_restart(tmp_path):
     async def run():
         path = tmp_path / "db"

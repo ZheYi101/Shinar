@@ -70,7 +70,7 @@ class VoiceTurnResult:
     turn_id: str
     assistant_message: Message | None
     text_status: Literal["completed", "failed"]
-    speech_status: Literal["completed", "failed", "skipped"]
+    speech_status: Literal["completed", "failed", "skipped", "stopped"]
     segment_count: int = 0
     error_stage: str | None = None
     error_code: str | None = None

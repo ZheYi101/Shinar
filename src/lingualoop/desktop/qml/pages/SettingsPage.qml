@@ -46,6 +46,7 @@ ColumnLayout {
                 }
                 ColumnLayout {
                     visible: workspace.settingsCategory === "audio"; Layout.fillWidth: true; spacing: 0
+                    SettingsRow { label: qsTr("自动朗读回复"); inlineControl: true; MSwitch { objectName: "autoReadRepliesSwitch"; Accessible.name: qsTr("自动朗读回复"); checked: learningViewModel.preferences.autoReadReplies; onToggled: learningViewModel.preferences.setValue("autoReadReplies", checked) } }
                     SettingsRow { label: qsTr("麦克风"); MComboBox { Layout.preferredWidth: Math.min(300,shell.width-24); model: learningViewModel.inputDevices; textRole: "name"; Accessible.name: qsTr("麦克风"); onActivated: learningViewModel.selectAudioDevice(model[currentIndex].id, false) } }
                     SettingsRow { label: qsTr("播放设备"); divider: false; MComboBox { Layout.preferredWidth: Math.min(300,shell.width-24); model: learningViewModel.outputDevices; textRole: "name"; Accessible.name: qsTr("播放设备"); onActivated: learningViewModel.selectAudioDevice(model[currentIndex].id, true) } }
                 }

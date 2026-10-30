@@ -33,7 +33,8 @@ def main() -> None:
         str(desktop / "qml"),
         *(
             str(desktop / name)
-            for name in ("workspace.py", "viewmodel.py", "audio.py", "speech_library.py")
+            for name in ("workspace.py", "viewmodel.py", "audio.py", "speech_library.py",
+                         "voice.py", "worker.py")
         ),
     ]
     subprocess.run(

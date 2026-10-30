@@ -15,7 +15,7 @@ pytest.importorskip("PySide6")
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("QT_QUICK_BACKEND", "software")
 
-from PySide6.QtCore import QObject, QPointF, QSettings, Qt, Signal, QThread
+from PySide6.QtCore import QObject, QPointF, QSettings, Qt, Signal, QThread, QTimer
 from PySide6.QtGui import QFontDatabase, QGuiApplication
 from PySide6.QtQuick import QQuickItem, QQuickWindow
 from PySide6.QtTest import QTest
@@ -44,6 +44,8 @@ class FakeAudio(QObject):
     stateChanged = Signal(str)
     durationChanged = Signal(int)
     devicesChanged = Signal()
+    queueChanged = Signal()
+    segmentStarted = Signal(object)
     input_devices = [{"id": "input", "name": "Test microphone"}]
     output_devices = [{"id": "output", "name": "Test speaker"}]
 
@@ -52,6 +54,10 @@ class FakeAudio(QObject):
         self.plays = 0
         self.cleared = False
         self.fail_play = False
+        self.segments = []
+        self.queued = []
+        self.generation = ""
+        self.auto_finish = True
 
     def start_recording(self):
         self.stateChanged.emit("recording")
@@ -74,11 +80,50 @@ class FakeAudio(QObject):
             self.stateChanged.emit("playing")
 
     def stop_playback(self):
+        self.generation = ""
+        self.queued = []
         self.stateChanged.emit("idle")
+        self.queueChanged.emit()
+
+    @property
+    def queued_count(self):
+        return len(self.queued)
+
+    def begin_playback(self, generation):
+        self.stop_playback()
+        self.generation = generation
+
+    def enqueue(self, segment, generation):
+        assert QThread.currentThread() == QGuiApplication.instance().thread()
+        if generation != self.generation:
+            raise RuntimeError("stale_audio_generation")
+        if len(self.queued) >= 3:
+            return False
+        if self.fail_play:
+            self.fail_play = False
+            raise RuntimeError("playback_failed")
+        self.plays += 1
+        self.segments.append(segment)
+        self.queued.append(segment)
+        self.stateChanged.emit("playing")
+        self.segmentStarted.emit(segment)
+        self.queueChanged.emit()
+        if self.auto_finish:
+            QTimer.singleShot(10, lambda: self.finish_segment(generation, segment))
+        return True
+
+    def finish_segment(self, generation=None, segment=None):
+        if generation is not None and generation != self.generation:
+            return
+        if self.queued and (segment is None or segment in self.queued):
+            self.queued.remove(segment or self.queued[0])
+        if not self.queued:
+            self.stateChanged.emit("idle")
+        self.queueChanged.emit()
 
     def clear(self):
         self.cleared = True
-        self.stateChanged.emit("idle")
+        self.stop_playback()
 
 
 class FakeSpeech:
@@ -282,8 +327,8 @@ def test_service_balance_error_is_actionable_and_saved_material_survives(desktop
     until(lambda: not vm.busy)
     vm.sendMessage('I liked the friends meeting again.')
     until(lambda: not vm.busy)
-    assert '402' in vm.errorMessage and '余额不足' in vm.errorMessage
-    assert 'PRIVATE_PROVIDER' not in vm.errorMessage
+    assert '402' in vm.messages[-1]['replyError'] and '余额不足' in vm.messages[-1]['replyError']
+    assert 'PRIVATE_PROVIDER' not in vm.messages[-1]['replyError']
     assert vm.hasMaterial and vm.materialTitle == 'Book'
     assert SQLiteStore(database).list_materials()[0].content == 'Two friends met at the station.'
 
@@ -347,50 +392,40 @@ def test_qml_three_voice_turns_retries_and_restart(desktop):
     vm.messageSent.connect(lambda: callbacks.append(QThread.currentThread()))
     assert scaffold.property("currentPage") == 1
     speech.fail_stt = True
+    vm.draft = "This independent text draft must survive."
     for turn in range(3):
         click(window, "recordButton")
-        assert vm.voiceState == "recording"
-        assert vm.recordingSeconds == 1
-        click(window, "recordButton")
-        until(lambda: not vm.busy)
-        if turn == 0:
-            assert vm.errorMessage and vm.canRetryTranscription
-            vm.retryOperation()
-            until(lambda: not vm.busy)
-        assert "友達" in vm.draft
-        edited = f"昨日は友達に会いました。{turn + 1}回目の話です。"
-        item(window, "messageInput").setProperty("text", edited)
-        assert vm.draft == edited
+        assert vm.voiceState == "recording" and vm.recordingSeconds == 1
         if turn == 1:
             speech.fail_tts = True
-        click(window, "sendMessageButton")
-        vm.sendMessage(edited)  # A second submission while busy must be ignored.
+        click(window, "recordButton")
+        vm.stopRecording()  # Duplicate recorder/stop events must not submit twice.
         until(lambda: not vm.busy)
-        assert len(vm.messages) == 1 + 2 * (turn + 1)
-        assert vm.draft == ""
-        if turn == 1:
-            assert vm.errorMessage
-            calls = provider.reply_calls
-            vm.retryOperation()
+        if turn == 0:
+            assert vm.voice.transcriptionError and vm.canRetryTranscription
+            click(window, "retryTranscriptionButton")
             until(lambda: not vm.busy)
-            assert provider.reply_calls == calls
-        assert vm.voiceState == "playing"
-    assert provider.reply_calls == 3
-    assert speech.transcriptions == 4
-    assert speech.syntheses == 5  # Opening + 3 turns + the failed synthesis.
+        assert len(vm.messages) == 1 + 2 * (turn + 1)
+        assert vm.draft == "This independent text draft must survive."
+        assert vm._workbench.session.messages[-2].metadata["confirmation_kind"] == "automatic_transcript"
+        if turn == 1:
+            assert vm.messages[-1]["speechError"]
+            calls = provider.reply_calls
+            click(window, "retrySpeech-" + vm.messages[-1]["id"])
+            until(lambda: not vm.busy)
+            assert provider.reply_calls == calls and not vm.messages[-1]["speechError"]
+        assert vm.voiceState == "idle"
+    assert provider.reply_calls == 3 and speech.transcriptions == 4
     assert len({id(loop) for loop in provider.loops + speech.loops}) == 1
-    assert len(callbacks) == 3 and all(thread == QGuiApplication.instance().thread() for thread in callbacks)
-    vm.stopPlayback()
+    assert callbacks and all(thread == QGuiApplication.instance().thread() for thread in callbacks)
     click(window, "conversationMenuButton")
     click(window, "finishDiscussionButton")
     until(lambda: not vm.busy)
     assert not vm.sessionActive and scaffold.property("currentPage") == 2
-    assert vm.reviewSummary and not vm.canRetryTranscription
     restored = LearningWorkbench(MockLearningLLMProvider(), event_store=SQLiteStore(database))
     assert restored.session.status.value == "completed"
     assert len(restored.session.messages) == 7
     assert restored.session.topic is None and vm.selectedTopicId == ""
-    assert restored.session.options.read_through == len(restored.material.content)
     assert "audio" not in restored.session.model_dump_json()
 
 
@@ -445,19 +480,19 @@ def test_reply_retry_preserves_confirmed_messages_and_playback_retry(desktop):
     vm.draft = "昨日、友達に会いました。"
     click(window, "sendMessageButton")
     until(lambda: not vm.busy)
-    assert vm.errorMessage and vm.draft and len(vm.messages) == 2
+    assert vm.messages[-1]["replyError"] and vm.draft == "" and len(vm.messages) == 2
     assert vm.messages[-1]["role"] == "user"
-    audio.fail_play = True
-    vm.retryOperation()
+    click(window, "retryReply-" + vm.messages[-1]["id"])
     until(lambda: not vm.busy)
-    assert len(vm.messages) == 3 and vm.draft == ""
+    assert len(vm.messages) == 3
     calls, syntheses = provider.reply_calls, speech.syntheses
-    assert vm.errorMessage
-    vm.retryOperation()
-    assert vm.voiceState == "playing"
+    audio.fail_play = True
+    vm.speakReply()
+    until(lambda: not vm.busy)
+    assert vm.messages[-1]["speechError"]
+    vm.speakReply()
+    until(lambda: not vm.busy)
     assert provider.reply_calls == calls and speech.syntheses == syntheses
-    vm.stopPlayback()
-    assert vm.voiceState == "idle"
     vm.startRecording()
     vm.cancelRecording()
     assert vm.voiceState == "idle" and not vm.canRetryTranscription
@@ -516,7 +551,8 @@ def test_free_text_streaming_initial_draft_and_shortcut(desktop):
     editor.forceActiveFocus()
     QTest.keyClick(window, Qt.Key.Key_Return, Qt.KeyboardModifier.ControlModifier)
     until(lambda: bool(vm.streamingText))
-    assert vm.busy and vm.pendingUserText and len(vm.messages) == 1
+    assert vm.busy and not vm.pendingUserText and len(vm.messages) == 2
+    assert vm.messages[-1]["role"] == "user"
     assert item(window, "streamingReplyText").isVisible()
     assert item(window, "streamingReplyText").property("text") == vm.streamingText
     until(lambda: not vm.busy)

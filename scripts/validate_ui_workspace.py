@@ -7,12 +7,14 @@ Qt rendering scale without changing the user's Windows settings.
 from __future__ import annotations
 
 import argparse
+import asyncio
 import io
 import json
 import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from time import monotonic
+from threading import Event
 import wave
 
 os.environ.setdefault("QT_QUICK_BACKEND", "software")
@@ -58,11 +60,23 @@ def synthetic_wav() -> bytes:
 
 
 class SyntheticSpeech:
+    hold = False
+    fail_stt = False
+    fail_tts = False
+
     async def transcribe(self, audio):
         assert audio == synthetic_wav()
+        while self.hold:
+            await asyncio.sleep(0.01)
+        if self.fail_stt:
+            self.fail_stt = False
+            raise RuntimeError("synthetic_stt_failure")
         return "She remembered the promise, but she changed her mind."
 
     async def synthesize(self, text):
+        if self.fail_tts:
+            self.fail_tts = False
+            raise RuntimeError("synthetic_tts_failure")
         return synthetic_wav()
 
 
@@ -74,6 +88,8 @@ class SyntheticAudio(QObject):
     stateChanged = Signal(str)
     durationChanged = Signal(int)
     devicesChanged = Signal()
+    queueChanged = Signal()
+    segmentStarted = Signal(object)
     input_devices = [{"id": "synthetic-in", "name": "合成录音（验证）"}]
     output_devices = [{"id": "synthetic-out", "name": "合成回放（验证）"}]
 
@@ -81,7 +97,10 @@ class SyntheticAudio(QObject):
         super().__init__()
         self._playback_timer = QTimer(self)
         self._playback_timer.setSingleShot(True)
-        self._playback_timer.timeout.connect(self.stop_playback)
+        self._playback_timer.timeout.connect(self.finish_segment)
+        self.queued = []
+        self.generation = ""
+        self.hold = False
 
     def start_recording(self):
         self._playback_timer.stop()
@@ -101,11 +120,45 @@ class SyntheticAudio(QObject):
 
     def stop_playback(self):
         self._playback_timer.stop()
+        self.queued = []
+        self.generation = ""
         self.stateChanged.emit("idle")
+        self.queueChanged.emit()
+
+    @property
+    def queued_count(self):
+        return len(self.queued)
+
+    def begin_playback(self, generation):
+        self.stop_playback()
+        self.generation = generation
+
+    def enqueue(self, segment, generation):
+        if generation != self.generation:
+            raise RuntimeError("stale_generation")
+        if len(self.queued) >= 3:
+            return False
+        self.queued.append(segment)
+        if len(self.queued) == 1:
+            self.segmentStarted.emit(segment)
+        self.stateChanged.emit("playing")
+        self.queueChanged.emit()
+        if not self.hold:
+            self._playback_timer.start(100)
+        return True
+
+    def finish_segment(self):
+        if self.queued:
+            self.queued.pop(0)
+        if self.queued:
+            self.segmentStarted.emit(self.queued[0])
+            self._playback_timer.start(100)
+        else:
+            self.stateChanged.emit("idle")
+        self.queueChanged.emit()
 
     def clear(self):
-        self._playback_timer.stop()
-        self.stateChanged.emit("idle")
+        self.stop_playback()
 
 
 def enter_text(window, name, text):
@@ -153,6 +206,7 @@ def main():
     parser.add_argument("--visible", action="store_true")
     parser.add_argument("--widths", default="360,600,800,1180,1440")
     parser.add_argument("--height", type=int, default=900)
+    parser.add_argument("--voice-states", action="store_true", help="Capture automatic speech and recovery states.")
     parser.add_argument(
         "--review-fixture",
         action="store_true",
@@ -271,9 +325,6 @@ def main():
         assert vm.voiceState == "recording"
         click(window, "recordButton")
         wait_until(lambda: not vm.busy)
-        assert "promise" in vm.draft
-        click(window, "sendMessageButton")
-        wait_until(lambda: not vm.busy)
         assert len(vm.messages) == 5 and not vm.draft
         thread_id = vm._workbench.session.id
         if args.review_fixture:
@@ -313,12 +364,43 @@ def main():
                 ws.toggleMaterial(extra_material)
             ws.openThread(thread_id)
         captures = []
+        speech_timings = []
 
         def capture(label, width):
             QTest.qWait(140)
+            # Measure the presented frame. On Windows a resized/occluded
+            # software window may not polish its layouts until a render occurs.
+            frame = window.grabWindow()
+            def window_layout_settled():
+                for name in ("windowMinimizeButton", "windowMaximizeButton", "windowCloseButton"):
+                    button = visible_item(window, name)
+                    position = button.mapToScene(QPointF())
+                    if position.x() < 0 or position.x() + button.width() > window.width():
+                        return False
+                return True
+
+            # Native DPI resizing and QML polish are asynchronous. Measure the
+            # resulting layout, not a fixed delay after the resize request.
+            try:
+                wait_until(window_layout_settled, timeout=5)
+            except RuntimeError:
+                chain = []
+                control = visible_item(window, "windowMinimizeButton")
+                while control is not None:
+                    chain.append((control.metaObject().className(), control.property("width"), control.property("implicitWidth")))
+                    control = control.parentItem() if hasattr(control, "parentItem") else None
+                window.grabWindow().save(str(args.output / f"{width}-{label}-layout-failure.png"))
+                print({"requested_width": width, "actual_width": window.width(), "visibility": str(window.visibility()), "exposed": window.isExposed(), "layout_chain": chain}, flush=True)
+                raise
             controls = {}
-            for name in ("windowMinimizeButton", "windowMaximizeButton", "windowCloseButton"):
-                button = visible_item(window, name)
+            for name in ("windowMinimizeButton", "windowMaximizeButton", "windowCloseButton",
+                         "recordButton", "sendMessageButton", "cancelRecordingButton",
+                         "stopSpeechButton"):
+                candidates = [obj for obj in window.findChildren(QObject)
+                              if obj.objectName() == name and hasattr(obj, "isVisible") and obj.isVisible()]
+                if not candidates:
+                    continue
+                button = candidates[0]
                 position = button.mapToScene(QPointF())
                 controls[name] = [position.x(), position.y(), button.width(), button.height()]
                 assert (
@@ -326,7 +408,7 @@ def main():
                     and position.x() + button.width() <= window.width()
                 ), (label, name, controls[name])
             path = args.output / f"{width}-{label}.png"
-            assert window.grabWindow().save(str(path))
+            assert frame.save(str(path))
             captures.append(
                 {
                     "view": label,
@@ -340,6 +422,12 @@ def main():
 
         try:
             for width in map(int, args.widths.split(",")):
+                if args.visible:
+                    window.showNormal()
+                    window.setPosition(16, 16)
+                    window.raise_()
+                    window.requestActivate()
+                    assert QTest.qWaitForWindowExposed(window, 5000)
                 window.setWidth(width)
                 window.setHeight(args.height if width > 600 else 780)
                 ws.navigate("library")
@@ -353,6 +441,74 @@ def main():
                     ws.clearSource()
                     ws.clearSource()
                 capture("chat", width)
+                if args.voice_states:
+                    provider = vm._workbench._provider
+                    original_stream = provider.stream_reply
+                    gate = Event()
+
+                    async def slow_reply(**kwargs):
+                        yield "She remembered the promise. "
+                        while not gate.is_set():
+                            await asyncio.sleep(0.01)
+                        yield "Remembering did not mean she could keep it."
+
+                    provider.stream_reply = slow_reply
+                    enter_text(window, "messageInput", "未发送的文字草稿 · 次の考えも残しておきます。😀")
+                    draft = vm.draft
+                    click(window, "recordButton")
+                    capture("voice-recording", width)
+                    click(window, "cancelRecordingButton")
+                    assert vm.draft == draft
+                    speech.hold = audio.hold = True
+                    try:
+                        click(window, "recordButton")
+                        click(window, "recordButton")
+                        wait_until(lambda: vm.voice.recognitionState == "transcribing")
+                        capture("voice-recognizing", width)
+                        speech.hold = False
+                        wait_until(lambda: audio.queued_count > 0 and vm.voice.replyState == "generating")
+                        capture("voice-reply-and-play", width)
+                        click(window, "stopSpeechButton")
+                        gate.set()
+                        wait_until(lambda: not vm.busy)
+                        assert vm.draft == draft and not audio.queued_count
+                        speech_timings.append({"width": width, "timings_ms": dict(vm.voice.timings)})
+                    finally:
+                        speech.hold = audio.hold = False
+                        gate.set()
+                        provider.stream_reply = original_stream
+                    speech.fail_stt = True
+                    click(window, "recordButton")
+                    click(window, "recordButton")
+                    wait_until(lambda: not vm.busy)
+                    assert vm.voice.transcriptionError
+                    capture("voice-recognition-error", width)
+                    click(window, "discardRecordingButton")
+
+                    async def failed_reply(**kwargs):
+                        raise RuntimeError("synthetic_reply_failure")
+                        yield ""
+
+                    provider.stream_reply = failed_reply
+                    enter_text(window, "messageInput", "Can you explain her decision?")
+                    click(window, "sendMessageButton")
+                    wait_until(lambda: not vm.busy)
+                    capture("voice-reply-error", width)
+                    provider.stream_reply = original_stream
+                    click(window, "retryReply-" + vm.messages[-1]["id"])
+                    wait_until(lambda: not vm.busy)
+                    speech.fail_tts = True
+                    enter_text(window, "messageInput", "I understand her choice a little better now.")
+                    click(window, "sendMessageButton")
+                    wait_until(lambda: not vm.busy)
+                    assert vm.messages[-1]["speechError"]
+                    capture("voice-speech-error", width)
+                    click(window, "retrySpeech-" + vm.messages[-1]["id"])
+                    wait_until(lambda: not vm.busy)
+                    states = [entry for entry in captures if entry["width"] == width and entry["view"].startswith("voice-")]
+                    for control in ("recordButton", "sendMessageButton"):
+                        positions = [entry["windowControls"][control][1] for entry in states]
+                        assert max(positions) - min(positions) < 1, (width, control, positions)
                 ws.toggleSource()
                 wait_until(lambda: ws.documentReady)
                 if args.review_fixture:
@@ -381,6 +537,8 @@ def main():
             vm.finishPractice()
             wait_until(lambda: not vm.busy)
             capture("review", window.width())
+            ws.navigate("chat")
+            capture("history", window.width())
             # Only messages emitted while the owned engine is alive are runtime diagnostics.
             report = {
                 "provider": "Mock",
@@ -392,7 +550,9 @@ def main():
                 "real_ai": False,
                 "model_downloads": False,
                 "database": "temporary",
-                "voice": "QML record/stop/transcribe/send/play with synthetic WAV and test audio transport",
+                "voice": "QML record/stop/automatic-transcribe-submit/sentence-play with synthetic WAV and test audio transport",
+                "voice_states": args.voice_states,
+                "synthetic_voice_timings": speech_timings,
                 "input": "file URL dropped on QML DropArea; text committed as input-method events",
                 "review_fixture": args.review_fixture,
                 "intermediate": intermediate,

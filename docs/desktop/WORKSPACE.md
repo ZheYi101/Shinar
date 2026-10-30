@@ -36,4 +36,4 @@ $linguaWheel = Get-ChildItem build/package-check/*.whl | Sort-Object LastWriteTi
 .venv\Scripts\python.exe scripts/check_wheel_resources.py $linguaWheel.FullName
 ```
 
-本次 QML 重构保留原 Qt 分轮录音/朗读入口，没有连接新的 `VoiceSessionCoordinator`。持续麦克风、VAD/AEC、自然插话、真人设备与最终视觉验收均不能由离屏测试替代。
+2026-10-30 已通过独立桌面控制器接入 `VoiceSessionCoordinator`：结束录音自动提交、逐句朗读、停止朗读、逐轮重试和恢复。文字草稿独立保留；关闭原文、缩窗或换主题不清理音频。当前仍是分轮交互，连续麦克风、VAD/AEC、自然插话与真人设备另做。说明与证据见[语音指南](./VOICE.md)及[接线记录](../validation/engineering/VOICE_QML_2026-10-30.md)。

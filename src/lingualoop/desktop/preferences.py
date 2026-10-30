@@ -34,6 +34,10 @@ class DesktopPreferences(QObject):
     def reducedMotion(self):
         return str(self._settings.value("reducedMotion", "false")).lower() in {"true", "1"}
 
+    @Property(bool, notify=changed)
+    def autoReadReplies(self):
+        return str(self._settings.value("autoReadReplies", "true")).lower() in {"true", "1"}
+
     @Property(str, notify=changed)
     def targetLanguage(self):
         return self._get("targetLanguage")
@@ -56,7 +60,7 @@ class DesktopPreferences(QObject):
 
     @Slot(str, "QVariant")
     def setValue(self, key, value):
-        if key == "reducedMotion":
+        if key in {"reducedMotion", "autoReadReplies"}:
             value = bool(value)
         elif key not in self.CHOICES or value not in self.CHOICES[key]:
             return
