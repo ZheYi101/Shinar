@@ -11,6 +11,7 @@ class DesktopPreferences(QObject):
         "difficulty": ("unknown", "A1", "A2", "B1", "B2", "C1", "C2"),
         "feedbackTiming": ("end", "immediate", "off"),
         "correctionIntensity": ("low", "medium", "high"),
+        "voicePauseMs": ("650", "1000"),
     }
     DEFAULTS = {key: choices[0] for key, choices in CHOICES.items()}
 
@@ -37,6 +38,10 @@ class DesktopPreferences(QObject):
     @Property(bool, notify=changed)
     def autoReadReplies(self):
         return str(self._settings.value("autoReadReplies", "true")).lower() in {"true", "1"}
+
+    @Property(str, notify=changed)
+    def voicePauseMs(self):
+        return self._get("voicePauseMs")
 
     @Property(str, notify=changed)
     def targetLanguage(self):

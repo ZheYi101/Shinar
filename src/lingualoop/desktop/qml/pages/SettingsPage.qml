@@ -46,9 +46,19 @@ ColumnLayout {
                 }
                 ColumnLayout {
                     visible: workspace.settingsCategory === "audio"; Layout.fillWidth: true; spacing: 0
+                    SettingsValue { label: qsTr("连续语音组件"); value: learningViewModel.voiceController.continuous.assetsReady && learningViewModel.voiceController.continuous.environmentReady ? qsTr("已准备，开始语音后才开启麦克风。") : qsTr("首次使用需准备独立运行环境及本机组件；准备期间不开麦。") }
+                    MLabel { text: learningViewModel.voiceController.continuous.setupSizeText; role: "supporting" }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        MButton { objectName: "prepareContinuousVoice"; text: qsTr("准备连续语音组件"); variant: "outlined"; enabled: !learningViewModel.busy; onClicked: learningViewModel.voiceController.continuous.prepare() }
+                        MButton { visible: learningViewModel.voiceController.continuous.connectionState === "preparing"; text: qsTr("取消"); variant: "text"; onClicked: learningViewModel.voiceController.continuous.stop() }
+                    }
+                    MLabel { text: learningViewModel.voiceController.continuous.noticeText; visible: text.length > 0; role: "supporting" }
+                    MLabel { text: learningViewModel.voiceController.continuous.errorText; visible: text.length > 0; color: AppTheme.error; role: "supporting" }
+                    SettingsRow { label: qsTr("发言停顿"); MComboBox { objectName: "voicePauseChoice"; model: [qsTr("650 毫秒 · 普通停顿"), qsTr("1000 毫秒 · 较长停顿")]; currentIndex: learningViewModel.preferences.voicePauseMs === "1000" ? 1 : 0; enabled: !learningViewModel.voiceController.continuous.active; onActivated: learningViewModel.preferences.setValue("voicePauseMs", currentIndex === 1 ? "1000" : "650") } }
                     SettingsRow { label: qsTr("自动朗读回复"); inlineControl: true; MSwitch { objectName: "autoReadRepliesSwitch"; Accessible.name: qsTr("自动朗读回复"); checked: learningViewModel.preferences.autoReadReplies; onToggled: learningViewModel.preferences.setValue("autoReadReplies", checked) } }
-                    SettingsRow { label: qsTr("麦克风"); MComboBox { Layout.preferredWidth: Math.min(300,shell.width-24); model: learningViewModel.inputDevices; textRole: "name"; Accessible.name: qsTr("麦克风"); onActivated: learningViewModel.selectAudioDevice(model[currentIndex].id, false) } }
-                    SettingsRow { label: qsTr("播放设备"); divider: false; MComboBox { Layout.preferredWidth: Math.min(300,shell.width-24); model: learningViewModel.outputDevices; textRole: "name"; Accessible.name: qsTr("播放设备"); onActivated: learningViewModel.selectAudioDevice(model[currentIndex].id, true) } }
+                    SettingsRow { label: qsTr("麦克风"); MComboBox { objectName: "inputDeviceChoice"; Layout.preferredWidth: Math.min(300,shell.width-24); model: learningViewModel.inputDevices; textRole: "name"; currentIndex: model.findIndex(d => d.id === learningViewModel.selectedInputDeviceId); Accessible.name: qsTr("麦克风"); onActivated: learningViewModel.selectAudioDevice(model[currentIndex].id, false) } }
+                    SettingsRow { label: qsTr("播放设备"); divider: false; MComboBox { objectName: "outputDeviceChoice"; Layout.preferredWidth: Math.min(300,shell.width-24); model: learningViewModel.outputDevices; textRole: "name"; currentIndex: model.findIndex(d => d.id === learningViewModel.selectedOutputDeviceId); Accessible.name: qsTr("播放设备"); onActivated: learningViewModel.selectAudioDevice(model[currentIndex].id, true) } }
                 }
                 ColumnLayout {
                     visible: workspace.settingsCategory === "data"; Layout.fillWidth: true; spacing: 0

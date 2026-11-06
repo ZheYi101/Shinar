@@ -20,6 +20,7 @@ ScrollView {
 
     FileDialog {
         id: audioFile
+        objectName: "speechBenchmarkFile"
         title: qsTr("选择本地测速录音（16kHz、单声道、16-bit PCM、最多 60 秒）")
         nameFilters: ["PCM WAV (*.wav)"]
         onAccepted: {
@@ -80,12 +81,15 @@ ScrollView {
         }
         MLabel { objectName: "speechLibraryStatus"; text: speechLibrary.status; Accessible.role: Accessible.AlertMessage }
         ProgressBar { Layout.fillWidth: true; visible: speechLibrary.busy; indeterminate: speechLibrary.progress === 0; value: speechLibrary.progress }
+        MLabel { visible: speechLibrary.busy && speechLibrary.progress > 0; text: qsTr("当前组件下载进度"); role: "supporting" }
         MButton { objectName: "speechCancel"; text: qsTr("取消当前任务"); variant: "outlined"; visible: speechLibrary.busy; onClicked: speechLibrary.cancel() }
         MLabel { visible: speechLibrary.models.length === 0 && !speechLibrary.busy; text: qsTr("这个语言/用途暂时没有候选模型。") }
         Repeater {
             model: speechLibrary.models
             MCard {
+                id: speechModelCard
                 required property var modelData
+                property bool termsExpanded: false
                 objectName: "speechModel-" + modelData.id
                 visible: !modelData.excluded && modelData.downloadBytes > 0
                 MLabel { text: modelData.name + " · " + modelData.task; role: "title" }
@@ -93,6 +97,22 @@ ScrollView {
                 MLabel { text: modelData.device.toUpperCase() + " · " + modelData.streaming; role: "supporting" }
                 MLabel { text: modelData.vramEstimateMiB > 0 ? qsTr("%1 · 显存准入估算 %2 MiB，非硬上限").arg(modelData.deviceNote).arg(modelData.vramEstimateMiB) : modelData.deviceNote; role: "supporting" }
                 MLabel { text: modelData.notes; role: "supporting" }
+                MLabel { text: modelData.runtimeReady ? qsTr("运行环境：已验证") : qsTr("运行环境：待准备"); role: "supporting" }
+                MLabel { visible: modelData.setupError.length > 0; text: modelData.setupError; color: AppTheme.error; role: "supporting" }
+                MLabel { visible: !modelData.runtimeReady || !modelData.installed; text: qsTr("本次需下载约 %1 MiB，准备空间约 %2 MiB（含运行库与共享资源）").arg(modelData.setupMiB).arg(modelData.setupDiskMiB); role: "supporting" }
+                ColumnLayout {
+                    visible: modelData.voices.length > 0; Layout.fillWidth: true; spacing: 4
+                    MLabel { text: qsTr("声音 / 风格"); role: "label" }
+                    MComboBox { objectName: "speechVoice-" + modelData.id; Layout.fillWidth: true; model: modelData.voices; textRole: "label"; currentIndex: model.findIndex(v => v.id === modelData.voiceId); enabled: !speechLibrary.busy; onActivated: speechLibrary.selectVoice(modelData.id, model[currentIndex].id) }
+                    MLabel { text: qsTr("当前语音保持原声音；更改在下次绑定生效，连续语音需重新开始。"); role: "supporting" }
+                }
+                ColumnLayout {
+                    visible: modelData.termsRequired; Layout.fillWidth: true
+                    MButton { text: qsTr("查看此版本模型与角色条款"); variant: "text"; onClicked: speechModelCard.termsExpanded = !speechModelCard.termsExpanded }
+                    ScrollView { visible: speechModelCard.termsExpanded; Layout.fillWidth: true; Layout.preferredHeight: 200; clip: true; contentWidth: availableWidth; TextArea { text: modelData.termsText; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; font.family: AppTheme.uiFont; color: AppTheme.colorOnSurface; background: Rectangle { color: AppTheme.surfaceContainerLow } } }
+                    CheckBox { objectName: "speechTerms-" + modelData.id; Layout.fillWidth: true; text: qsTr("已阅读并同意本版本语音模型与角色条款"); checked: modelData.termsAccepted; enabled: !speechLibrary.busy; onToggled: speechLibrary.acceptVoiceTerms(modelData.id, checked); contentItem: Text { text: parent.text; font: parent.font; color: AppTheme.colorOnSurface; wrapMode: Text.Wrap; leftPadding: parent.indicator.width + 8; verticalAlignment: Text.AlignVCenter } }
+                    MLabel { text: "VOICEVOX:ずんだもん"; role: "supporting" }
+                }
                 MLabel {
                     visible: modelData.downloadBytes > 0
                     text: qsTr("下载 %1 MiB · 展开大小上限 %2 MiB · 测速进程预算 %3 MiB（另留系统余量）").arg(modelData.downloadMiB).arg(modelData.unpackedLimitMiB).arg(modelData.evaluationBudgetMiB)
@@ -107,16 +127,16 @@ ScrollView {
                     spacing: 8
                     MButton {
                         objectName: "speechInstall-" + modelData.id
-                        text: qsTr("下载 / 继续")
-                        visible: !modelData.installed && modelData.downloadBytes > 0
+                        text: qsTr("准备 / 下载 / 继续")
+                        visible: (!modelData.installed || !modelData.runtimeReady) && modelData.downloadBytes > 0
                         enabled: !speechLibrary.busy && modelData.downloadable
-                        onClicked: speechLibrary.install(modelData.id)
+                        onClicked: speechLibrary.preparePackage(modelData.id)
                     }
                     MButton {
                         objectName: "speechBenchmark-" + modelData.id
                         text: qsTr("本机测速")
                         visible: modelData.installed
-                        enabled: !speechLibrary.busy
+                        enabled: !speechLibrary.busy && modelData.benchmarkable
                         onClicked: {
                             if (modelData.task === "STT") {
                                 dialog.pendingModel = modelData.id
@@ -125,8 +145,8 @@ ScrollView {
                             } else speechLibrary.runBenchmark(modelData.id, "")
                         }
                     }
-                    MButton { text: qsTr("试听"); visible: modelData.preview.length > 0; enabled: !speechLibrary.busy; variant: "tonal"; onClicked: speechLibrary.preview(modelData.id) }
-                    MButton { text: qsTr("停止试听"); visible: modelData.preview.length > 0; variant: "text"; onClicked: speechLibrary.stopPreview() }
+                    MButton { objectName: "speechPreview-" + modelData.id; text: qsTr("试听"); visible: modelData.preview.length > 0; enabled: !speechLibrary.busy; variant: "tonal"; onClicked: speechLibrary.preview(modelData.id) }
+                    MButton { objectName: "speechStopPreview-" + modelData.id; text: qsTr("停止试听"); visible: modelData.preview.length > 0; variant: "text"; onClicked: speechLibrary.stopPreview() }
                     MButton {
                         objectName: "speechSelect-" + modelData.id
                         text: modelData.selected ? qsTr("已选用") : qsTr("选用模型")
@@ -148,6 +168,6 @@ ScrollView {
             }
         }
         MLabel { text: qsTr("缓存位置：%1").arg(speechLibrary.cachePath); role: "supporting" }
-        MLabel { text: qsTr("所选测速录音不会复制或上传。对话模型用于当前桌面分轮语音；计算与加速中可切回已配置的远程语音。"); role: "supporting" }
+        MLabel { text: qsTr("所选测速录音不会复制或上传。模型按会话语言用于分轮与连续语音；计算与加速中可切回已配置的远程语音。"); role: "supporting" }
     }
 }

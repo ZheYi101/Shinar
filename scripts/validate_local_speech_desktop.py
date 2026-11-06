@@ -6,12 +6,9 @@ import argparse
 import json
 import os
 from pathlib import Path
-from time import monotonic
+from time import monotonic, sleep
 
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-os.environ.setdefault("QT_QUICK_BACKEND", "software")
-
-from PySide6.QtCore import QObject, QPointF, QSettings, Qt
+from PySide6.QtCore import QObject, QPointF, QSettings, Qt, QCoreApplication, QEvent
 from PySide6.QtGui import QFontDatabase, QGuiApplication
 from PySide6.QtTest import QTest
 
@@ -33,16 +30,24 @@ def wait_until(predicate, timeout=180):
 
 
 def find_item(window, name):
+    matches = []
     pending = [window.contentItem()]
     while pending:
         item = pending.pop()
         if item.objectName() == name:
-            return item
+            matches.append(item)
         pending.extend(item.childItems())
+    if matches:
+        return next((item for item in matches if item.isVisible()), matches[0])
     raise RuntimeError("未找到控件：" + name)
 
 
 def click(window, name, scroll_name=None):
+    app = QGuiApplication.instance()
+    app.processEvents()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    window.contentItem().ensurePolished()
+    window.grabWindow()
     if scroll_name:
         scroll = find_item(window, scroll_name)
         flick = scroll.property("contentItem")
@@ -52,15 +57,26 @@ def click(window, name, scroll_name=None):
             flick.setProperty(
                 "contentY", max(0, min(y - 12, flick.property("contentHeight") - flick.height()))
             )
-            QTest.qWait(100)
+            app.processEvents()
+            QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+            sleep(0.03)
+            window.grabWindow()
+    app.processEvents()
+    window.contentItem().ensurePolished()
+    window.grabWindow()
     item = find_item(window, name)
     point = item.mapToScene(QPointF(item.width() / 2, item.height() / 2)).toPoint()
-    assert item.isVisible() and item.isEnabled() and 0 <= point.y() < window.height()
+    assert item.isVisible() and item.isEnabled() and 0 <= point.y() < window.height(), {
+        "control": name, "visible": item.isVisible(), "enabled": item.isEnabled(),
+        "x": point.x(), "y": point.y(), "window_height": window.height(),
+    }
     QTest.mouseClick(window, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, point)
     QTest.qWait(100)
 
 
 def main():
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    os.environ.setdefault("QT_QUICK_BACKEND", "software")
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=Path("build/local-speech-evaluation"))
     parser.add_argument("--benchmark", help="Optional installed TTS id; runs real local inference")

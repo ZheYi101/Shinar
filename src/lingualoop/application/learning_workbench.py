@@ -34,7 +34,7 @@ from lingualoop.core.domain import (
     MessageRole,
     utc_now,
 )
-from lingualoop.core.conversation import ConversationTurn, ConversationRepository
+from lingualoop.core.conversation import ConversationTurn, ConversationRepository, with_interruption_notice, with_delivery_notice
 from lingualoop.kernel.conversation_store import MemoryConversationRepository
 from lingualoop.core.ports import EventStore, LearningLLMProvider
 from lingualoop.kernel import (
@@ -628,6 +628,20 @@ class LearningWorkbench:
             raise ValueError("conversation_turn_missing")
         return turn
 
+    def interrupt_reply(self, turn_id: str, reason: str) -> ConversationTurn:
+        """Invalidate persistence before cancelling the producer (same worker loop)."""
+        self.get_turn(turn_id)
+        turn = self._turns.cancel_turn(turn_id, reason)
+        self._session = with_interruption_notice(self._session, turn)
+        if getattr(self, "_reply_turn_id", None) == turn_id and self._reply_task:
+            self._reply_task.cancel()
+        return turn
+
+    def record_speech_delivery(self, turn_id: str, state: str, segment: int = -1) -> None:
+        turn = self.get_turn(turn_id)
+        self._turns.record_delivery(turn_id, state, segment)
+        self._session = with_delivery_notice(self._session, turn, state)
+
     def freeze_turn_source(self, source_context: TurnSourceSnapshot | None) -> TurnSourceSnapshot | None:
         if source_context is None:
             return None
@@ -662,7 +676,8 @@ class LearningWorkbench:
         context = assemble_turn_context(material, self._session, user_content,
             source_context=source_context) if self._uses_semantic() or source_context else None
         message = Message(role=MessageRole.USER, content=user_content, source_context=source_context,
-                          metadata={"confirmation_kind": confirmation_kind})
+                          metadata={"confirmation_kind": confirmation_kind,
+                                    "previous_reply_interrupted": any(m.metadata.get("reply_interrupted") or m.metadata.get("speech_interrupted") for m in self._session.messages[-2:])})
         turn = ConversationTurn(session_id=self._session.id, request_id=request_id,
             user_message_id=message.id, history_ids=[m.id for m in self._session.messages],
             source_hash=digest(self._material.content), scope_end=reading_end(material),
@@ -699,6 +714,7 @@ class LearningWorkbench:
         turn = self._turns.claim_turn(turn.id)
         self._sending = True
         self._reply_task = asyncio.current_task()
+        self._reply_turn_id = turn.id
         if not self._uses_semantic():
             self._cancel_preparation()
         try:
@@ -734,6 +750,11 @@ class LearningWorkbench:
                     result = await reply()
                 if self._session.id != turn.session_id:
                     raise RuntimeError("conversation_session_changed")
+                # A successful explicit retry supersedes its earlier interruption notice.
+                if any(m.id == turn.user_message_id and m.metadata.get("reply_interrupted") for m in result.session.messages):
+                    messages = [m.model_copy(update={"metadata": {k: v for k, v in m.metadata.items() if k != "reply_interrupted"}})
+                                if m.id == turn.user_message_id else m for m in result.session.messages]
+                    result = result.model_copy(update={"session": result.session.model_copy(update={"messages": messages})})
                 self._turns.finish_turn(turn, result.session, result.events)
                 if self._turns is not self._event_store:
                     await self._event_store.append_many(result.events)
@@ -745,6 +766,7 @@ class LearningWorkbench:
         finally:
             self._sending = False
             self._reply_task = None
+            self._reply_turn_id = None
         self._schedule_preparation()
         return result
 

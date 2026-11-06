@@ -225,6 +225,11 @@ class LearningViewModel(QObject):
     def busy(self) -> bool:
         return self._busy or self.voice.active
 
+    @Property(bool, notify=busyChanged)
+    def operationBusy(self) -> bool:
+        return bool(self._busy or self.voice._job or self.voice.call.connectionState in
+                    {"preparing", "connecting", "reconnecting", "stopping"})
+
     @Property(QObject, constant=True)
     def voiceController(self):
         return self.voice
@@ -1062,6 +1067,14 @@ class LearningViewModel(QObject):
     def outputDevices(self):
         return self._audio.output_devices if self._audio else []
 
+    @Property(str, notify=uiChanged)
+    def selectedInputDeviceId(self):
+        return getattr(self._audio, "selected_input_id", self.inputDevices[0]["id"] if self.inputDevices else "")
+
+    @Property(str, notify=uiChanged)
+    def selectedOutputDeviceId(self):
+        return getattr(self._audio, "selected_output_id", self.outputDevices[0]["id"] if self.outputDevices else "")
+
     @Property(bool, notify=uiChanged)
     def canRetryTranscription(self):
         return self.voice.canRetryTranscription
@@ -1072,6 +1085,7 @@ class LearningViewModel(QObject):
 
     def configure_local_speech(self, library):
         self._local_speech = library.local_service
+        library.configure_preview(lambda: self.selectedOutputDeviceId, lambda: self.voice.active)
         library.inferenceStatus.connect(self._local_speech_status)
         library.configurationChanged.connect(self._local_speech_configuration)
 
@@ -1311,7 +1325,9 @@ class LearningViewModel(QObject):
 
     @Slot(str, bool)
     def selectAudioDevice(self, device_id, output):
-        if self._audio and not self.busy:
+        if self.voice.call.active:
+            self.voice.call.device_changed()
+        if self._audio and (not self.busy or self.voice.call.active):
             self._audio.select_device(device_id, output=output)
 
     def _clear_audio(self):
@@ -1330,9 +1346,14 @@ class LearningViewModel(QObject):
             self._preparation_timer.stop()
 
             async def cleanup():
-                if self._local_speech:
-                    await self._local_speech.close()
-                await self._workbench.aclose()
+                try:
+                    await self.voice.call.aclose()
+                finally:
+                    try:
+                        if self._local_speech:
+                            await self._local_speech.close()
+                    finally:
+                        await self._workbench.aclose()
 
             self._worker.close(cleanup)
             self._clear_audio()

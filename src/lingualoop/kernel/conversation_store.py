@@ -2,7 +2,7 @@
 
 import time
 
-from lingualoop.core.conversation import ConversationTurn
+from lingualoop.core.conversation import ConversationTurn, with_interruption_notice, with_delivery_notice
 from lingualoop.core.domain import PracticeSession, SessionEvent
 
 
@@ -58,6 +58,7 @@ class MemoryConversationRepository:
                 "attempt": turn.attempt + 1,
                 "lease_until": time.time() + 180,
                 "error_code": None,
+                "cancel_reason": None,
             }
         )
         self.turns[turn_id] = turn
@@ -90,3 +91,26 @@ class MemoryConversationRepository:
             self.turns[turn.id] = current.model_copy(
                 update={"state": "failed", "lease_until": 0, "error_code": error_code}
             )
+
+    def cancel_turn(self, turn_id: str, reason: str) -> ConversationTurn:
+        current = self.turns[turn_id]
+        changes = {"speech_delivery": "interrupted", "cancel_reason": reason}
+        if current.state != "completed":
+            changes.update(state="cancelled", lease_until=0, error_code=None)
+        current = current.model_copy(update=changes)
+        self.turns[turn_id] = current
+        session = self.sessions.get(current.session_id)
+        if session:
+            self.sessions[session.id] = with_interruption_notice(session, current)
+        return current
+
+    def record_delivery(self, turn_id: str, state: str, segment: int = -1) -> None:
+        if state not in {"completed", "interrupted", "failed"}:
+            raise ValueError("invalid_speech_delivery")
+        current = self.turns[turn_id]
+        self.turns[turn_id] = current.model_copy(
+            update={"speech_delivery": state, "last_played_segment": segment}
+        )
+        session = self.sessions.get(current.session_id)
+        if session:
+            self.sessions[session.id] = with_delivery_notice(session, current, state)

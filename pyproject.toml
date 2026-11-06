@@ -34,6 +34,11 @@ realtime = [
     "livekit==1.1.21",
     "livekit-api==1.2.2",
 ]
+continuous-voice = [
+    "livekit==1.1.21",
+    "livekit-api==1.2.2",
+    "onnxruntime==1.23.2",
+]
 dev = [
     "pytest>=8",
     "ruff==0.16.5",
@@ -74,7 +79,7 @@ dev = [
 where = ["src"]
 
 [tool.setuptools.package-data]
-"lingualoop.local_speech" = ["catalog.json"]
+"lingualoop.local_speech" = ["catalog.json", "runtime_resources/**/*", "runtime_resources/*"]
 "lingualoop.desktop" = ["qml/*.qml", "qml/*/*.qml", "qml/*/qmldir", "qml/assets/*.svg", "qml/assets/LICENSE", "qml/assets/fonts/*", "qml/assets/illustrated/*", "translations/*.ts", "translations/*.qm"]
 
 [project.scripts]

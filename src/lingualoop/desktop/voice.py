@@ -82,6 +82,8 @@ class DesktopVoiceController(QObject):
         self._started = 0.0
         self.timings: dict[str, float] = {}
         self._sent_revision = None
+        from .continuous_voice import ContinuousVoiceController
+        self.call = ContinuousVoiceController(self)
         self._eventReceived.connect(self._event, Qt.ConnectionType.QueuedConnection)
         self.worker.jobCompleted.connect(self._completed, Qt.ConnectionType.QueuedConnection)
         self._lease_timer = QTimer(self)
@@ -100,22 +102,34 @@ class DesktopVoiceController(QObject):
 
     @Property(bool, notify=changed)
     def active(self) -> bool:
-        return bool(self._job or self._recognition == "recording")
+        return bool(self._job or self._recognition == "recording" or self.call.active)
+
+    @Property(QObject, constant=True)
+    def continuous(self):
+        return self.call
+
+    @Property(bool, notify=changed)
+    def canSendText(self):
+        return self.call.canSendText if self.call.active else not self.active and not self.vm._busy
 
     @Property(str, notify=changed)
     def recognitionState(self) -> str:
-        return self._recognition
+        return self.call.inputState if self.call.active else self._recognition
 
     @Property(str, notify=changed)
     def replyState(self) -> str:
+        if self.call.active:
+            return self.call.replyState
         return self._reply
 
     @Property(str, notify=changed)
     def speechState(self) -> str:
-        return self._speech
+        return self.call.outputState if self.call.active else self._speech
 
     @Property(bool, notify=changed)
     def canStopSpeech(self) -> bool:
+        if self.call.active:
+            return self.call.outputState in {"synthesizing", "playing", "draining"}
         return self._speech in {"synthesizing", "playing", "draining"} and not self._muted
 
     @Property(str, notify=changed)
@@ -132,6 +146,8 @@ class DesktopVoiceController(QObject):
 
     @Property(str, notify=changed)
     def statusText(self) -> str:
+        if self.call.active:
+            return self.call.statusText
         if self._recognition == "recording":
             return QCoreApplication.translate("Desktop", "正在录音 · 结束后自动发送")
         if self._recognition == "transcribing":
@@ -271,6 +287,9 @@ class DesktopVoiceController(QObject):
         self._launch("recording", submit)
 
     def send_text(self, text: str) -> None:
+        if self.call.active:
+            self.call.send_text(text)
+            return
         if not self._can_start() or not self.vm.sessionActive or not text.strip():
             return
         source = self.vm.source_context_provider()
@@ -291,6 +310,9 @@ class DesktopVoiceController(QObject):
 
     @Slot(str)
     def retryReply(self, turn_id: str) -> None:
+        if self.call.active:
+            self.call.send_text("", retry_turn=turn_id)
+            return
         if not self._can_start():
             return
         self._turn_errors.pop(turn_id, None)
@@ -301,6 +323,9 @@ class DesktopVoiceController(QObject):
 
     @Slot(str)
     def speakTurn(self, turn_id: str) -> None:
+        if self.call.active:
+            self.call.send_text("", retry_turn=turn_id, speech_only=True)
+            return
         if not self._can_start() or not self.vm._speech_available("tts"):
             return
         self._turn = turn_id
@@ -586,6 +611,9 @@ class DesktopVoiceController(QObject):
 
     @Slot()
     def stopPlayback(self) -> None:
+        if self.call.active:
+            self.call.stop_speech()
+            return
         self._stop_speech(user=True)
 
     def _stop_speech(self, *, user: bool) -> None:
@@ -632,6 +660,10 @@ class DesktopVoiceController(QObject):
     def turn_details(self, message: Message, turn_id: str = "") -> dict[str, object]:
         turn_id = message.metadata.get("turn_id", turn_id)
         details = {"turnId": turn_id, "replyError": "", "speechError": "", "canRetryReply": False}
+        details["replyNotice"] = (QCoreApplication.translate("Desktop", "这轮回复已停止。")
+                                  if message.metadata.get("reply_interrupted") else "")
+        if message.metadata.get("speech_interrupted") and not details["replyNotice"]:
+            details["replyNotice"] = QCoreApplication.translate("Desktop", "这条回复的朗读已停止。")
         details["speechError"] = (
             self._speech_errors.get(turn_id or "legacy:" + message.id, "")
             if message.role.value == "assistant"
@@ -649,8 +681,10 @@ class DesktopVoiceController(QObject):
         except ValueError:
             return details
         pending = turn.state != "completed" and session.messages[-1].id == turn.user_message_id
-        if pending and not self.active:
-            details["replyError"] = self._turn_errors.get(turn_id) or QCoreApplication.translate(
+        if turn.state == "cancelled":
+            details["replyNotice"] = QCoreApplication.translate("Desktop", "这轮回复已停止。")
+        if pending and (not self.active or self.call.canSendText):
+            details["replyError"] = "" if turn.state == "cancelled" else self._turn_errors.get(turn_id) or QCoreApplication.translate(
                 "Desktop", "这轮回复尚未完成。"
             )
             details["canRetryReply"] = (
@@ -689,6 +723,7 @@ class DesktopVoiceController(QObject):
         self._cache_overflow = True
 
     def close(self) -> None:
+        self.call.close()
         self._closed = True
         self._lease_timer.stop()
         self.worker.cancel_job(self._job)

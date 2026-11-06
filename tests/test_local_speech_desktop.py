@@ -3,6 +3,7 @@
 import hashlib
 import os
 from pathlib import Path
+from threading import get_ident
 
 import httpx
 import pytest
@@ -46,6 +47,8 @@ def library_desktop(tmp_path, monkeypatch):
         "gpus": [],
     }
     monkeypatch.setattr(module, "detect_hardware", lambda _: hardware)
+    monkeypatch.setattr(module, "prepare_managed_runtime", lambda *args, **kwargs: {"prepared": True})
+    monkeypatch.setattr(module, "runtime_status", lambda *args, **kwargs: {"prepared": True})
     library = SpeechLibraryViewModel(tmp_path / "speech")
     artifact = Artifact(
         path="model.onnx",
@@ -169,6 +172,48 @@ def test_progress_does_not_recreate_model_cards(library_desktop):
     until(lambda: not library.busy)
 
 
+def test_preview_cannot_echo_into_active_voice_or_fall_back_from_a_removed_device(library_desktop, monkeypatch):
+    from types import SimpleNamespace
+    import lingualoop.desktop.speech_library as module
+
+    _, library, _, _, _, root = library_desktop
+    preview = library.store.root / "reports/fixture.wav"
+    preview.parent.mkdir(parents=True, exist_ok=True)
+    preview.write_bytes(b"synthetic fixture")
+    library._rows = [{"id": "test-tts", "preview": str(preview)}]
+    played = []
+    library._player = SimpleNamespace(setSource=lambda value: played.append(value),
+                                      play=lambda: played.append("play"), stop=lambda: None)
+    library.configure_preview(lambda: "removed-device", lambda: True)
+    library.preview("test-tts")
+    assert "停止语音" in library.status and not played
+    library.configure_preview(lambda: "removed-device", lambda: False)
+    monkeypatch.setattr(module.QMediaDevices, "audioOutputs", lambda: [])
+    library.preview("test-tts")
+    assert "播放设备不可用" in library.status and not played
+
+
+def test_voicevox_terms_and_style_are_explicit_and_do_not_replace_a_model_id(library_desktop):
+    from PySide6.QtCore import Qt
+    from lingualoop.local_speech.model_profile import accepted_terms, voice_choice
+    app, library, vm, window, engine, root = library_desktop
+    package = next(p for p in load_catalog() if p.id == "voicevox-japanese")
+    library.catalog = [package]
+    library.setFilter("ja", "conversation")
+    until(lambda: not library.busy)
+    assert not accepted_terms(library.store.root, package)
+    click(window, "speechTerms-" + package.id, scroll="speechModelsPage")
+    until(lambda: not library.busy)
+    assert accepted_terms(library.store.root, package)
+    combo = item(window, "speechVoice-" + package.id)
+    combo.forceActiveFocus()
+    QTest.keyClick(window, Qt.Key.Key_Down)
+    until(lambda: not library.busy)
+    assert voice_choice(library.store.root, package.id)["style_id"] == 1
+    assert not read_json(root / "speech/selections.json", {})
+    assert library.models[0]["id"] == "voicevox-japanese"
+
+
 @pytest.mark.parametrize("theme,width", [("light", 360), ("dark", 360), ("light", 1440), ("dark", 800)])
 def test_compute_subpage_device_budget_and_idle_settings(library_desktop, monkeypatch, theme, width):
     from PySide6.QtCore import Qt
@@ -237,3 +282,31 @@ def test_library_responsive_geometry(library_desktop, width):
     # Dialog keeps every action scrollable at narrow sizes.
     click(window, "speechRefresh", scroll="speechModelsPage")
     until(lambda: not library.busy)
+
+
+def test_inference_status_does_not_run_installation_checks_on_gui_thread(
+    library_desktop, monkeypatch
+):
+    app, library, vm, window, engine, root = library_desktop
+    click(window, "openSpeechCompute")
+    until(lambda: not library.busy)
+    gui_thread = get_ident()
+    snapshots = []
+    original = library._runtime_snapshot
+
+    def snapshot():
+        snapshots.append(get_ident())
+        return original()
+
+    monkeypatch.setattr(library, "_runtime_snapshot", snapshot)
+    runtime_changes = QSignalSpy(library.runtimesChanged)
+    for i in range(20):
+        library.inferenceStatus.emit(f"TTS CPU {i}")
+        app.processEvents()
+        assert library.runtimes["cpu"]["prepared"]
+    assert not snapshots and runtime_changes.count() == 0
+    assert item(window, "computeStatus").property("text") == "TTS CPU 19"
+    library.refresh()
+    until(lambda: not library.busy)
+    assert snapshots and all(thread != gui_thread for thread in snapshots)
+    assert runtime_changes.count() == 1

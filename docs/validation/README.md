@@ -1,5 +1,7 @@
 # 验收与验证记录
 
+- [本地语音设置闭环（实施中）](engineering/LOCAL_SPEECH_SETUP_2026-10-30.md)：分类型环境、VOICEVOX/Melo 声音与真实下载验收。
+
 本目录保存已经形成阶段结果的报告，按验证对象分类。日期和报告中的源码／产物版本决定证据范围；不同报告的测试数量不能当作当前工作区实时状态。失败、慢轮次和未验证事项照实保留。
 
 ## 文本与 AI
@@ -14,6 +16,10 @@
 验收契约在 [AI 专项方案](../architecture/ai/PREPARATION_AND_DIALOGUE.md#10-可观测性与质量验收)。三条件实验已形成阶段结果，不能把有限实测或离线修正等同于完整质量验收。
 
 ## 语音
+
+- [先自测再交付语音窗口](./engineering/VOICE_HANDOFF_2026-11-06.md)：真实 QML／STT／TTS／RTC 三轮与独立双向设备检查，保留自然播放结束后的队列超限失败及修正；真人门禁另列。
+
+- [连续语音实施与验收](./engineering/CONTINUOUS_VOICE_2026-10-30.md)：持续 PCM／真实 RTC／VAD、自动提交、取消与 QML；明确区分真实模型、合成声卡与待完成的真人设备证据。
 
 - [Python 基础语音与真实 RTC](./speech/VOICE_PYTHON_INTEGRATION_2026-10-29.md)：确认事务、双角色复用、分句合成、五组真实本地后端和三语 RTC WAV/PCM；未接 QML/持续设备，保留全库 UI 回归失败。
 - [本地语音模型库阶段验收](./speech/LOCAL_SPEECH_ACCEPTANCE_2026-10-28.md)：目录、下载、固定包和本机计算验证；不代替真人音质或连续对话。

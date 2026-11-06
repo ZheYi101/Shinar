@@ -50,6 +50,7 @@ def benchmark(
     devices=None,
     gpu_index=0,
     vram_budget_mb=3072,
+    profiles=None,
 ):
     if not packages or len(packages) > 2 or len({p.task for p in packages}) != len(packages):
         raise ValueError("测速需要一个模型，或一组 STT + TTS。")
@@ -70,6 +71,10 @@ def benchmark(
         raise ValueError("当前可用内存不足以同时测试这组模型。")
     if any(p.task == "stt" for p in packages) and not wav:
         raise ValueError("请选择自己有权使用的 16kHz 单声道 PCM WAV（最多 60 秒）。")
+    if profiles and len({p.python for p in profiles.values()}) > 1:
+        from .paired_benchmark import benchmark_profiles
+        return benchmark_profiles(store, packages, language, profiles, wav=wav, repeats=repeats,
+                                  threads=threads, cancel=cancel, timeout=timeout, hardware=hardware)
     with ExitStack() as stack:
         for package in sorted(packages, key=lambda p: p.id):
             stack.enter_context(package_lock(store.root, package))
@@ -102,6 +107,9 @@ def benchmark(
             "preview": str(preview) if preview else None,
             "runtime_version": RUNTIME_VERSION,
         }
+        if profiles:
+            request["models"] = [profiles[p.id].spec for p in packages]
+            python = next(iter(profiles.values())).python
         env = os.environ.copy()
         env["PYTHONUTF8"] = "1"
         # Keep source-checkout support, without exposing credentials to the child.
@@ -166,6 +174,13 @@ def benchmark(
                     "preview": str(preview) if preview else None,
                     "accuracy_evaluated": False,
                     "live_chain_evaluated": False,
+                }
+                from .model_profile import measurement_identity
+                report["model_identities"] = {
+                    p.id: measurement_identity(
+                        store.root, p, devices[p.id],
+                        profiles[p.id].spec.get("voice_id") if profiles else None,
+                    ) for p in packages
                 }
                 atomic_json(report_dir / (report_id + ".json"), report)
                 return report

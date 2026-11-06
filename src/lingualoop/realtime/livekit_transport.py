@@ -34,6 +34,7 @@ class LiveKitTransport:
         self._seq = 0
         self._text_done = False
         self._cancelled = False
+        self._audio_finished = False
         self._source: Any = None
         self._publication: Any = None
         self._lock = asyncio.Lock()
@@ -161,6 +162,7 @@ class LiveKitTransport:
             await self._release_audio()
             self.outgoing, self._seq = ref, 0
             self._text_done, self._cancelled = False, False
+            self._audio_finished = False
             await self._event("start")
 
     def _active(self, ref: TurnRef) -> bool:
@@ -183,7 +185,7 @@ class LiveKitTransport:
 
     async def send_audio(self, ref: TurnRef, frame: PcmFrame) -> bool:
         async with self._lock:
-            if not self._active(ref):
+            if not self._active(ref) or self._audio_finished:
                 return False
             if self._source is None:
                 self._source = self.rtc.AudioSource(48000, 1, queue_size_ms=100)
@@ -207,12 +209,25 @@ class LiveKitTransport:
         self.receiver.cancel(ref)
         await self._publish(TurnEvent(ref, "cancel", 0), control=True)
 
+    async def cancel_outgoing(self, ref: TurnRef) -> None:
+        """Local output cancellation, independent of the peer's microphone track."""
+        if self.outgoing == ref:
+            self._cancelled = True
+            await self._ack_cancel(ref)
+
     async def drain_audio(self, ref: TurnRef, timeout: float = 10) -> None:
         if not self._active(ref):
             raise RuntimeError("realtime_audio_not_active")
         if self._source:
             async with asyncio.timeout(timeout):
                 await self._source.wait_for_playout()
+
+    async def finish_audio(self, ref: TurnRef) -> None:
+        """Unpublish a naturally drained track without interrupting its business turn."""
+        async with self._lock:
+            if self.outgoing == ref:
+                self._audio_finished = True
+                await self._release_audio()
 
     async def _ack_cancel(self, ref: TurnRef) -> None:
         async with self._lock:

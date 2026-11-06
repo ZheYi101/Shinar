@@ -20,7 +20,7 @@ from lingualoop.core.domain import (
 )
 from lingualoop.core.ports import EventStore
 from lingualoop.core.knowledge import ModelBudgetExceeded
-from lingualoop.core.conversation import ConversationTurn
+from lingualoop.core.conversation import ConversationTurn, with_interruption_notice, with_delivery_notice
 
 
 def default_database_path() -> Path:
@@ -466,7 +466,8 @@ class SQLiteStore(EventStore):
             if turn.state == "completed" or (turn.state == "generating" and turn.lease_until > time.time()):
                 raise RuntimeError("conversation_turn_not_claimable")
             turn = turn.model_copy(update={"state": "generating", "attempt": turn.attempt + 1,
-                                          "lease_until": time.time() + 180, "error_code": None})
+                                          "lease_until": time.time() + 180, "error_code": None,
+                                          "cancel_reason": None})
             connection.execute("UPDATE conversation_turns SET payload=? WHERE id=?", (_dump(turn), turn.id))
             return turn
 
@@ -496,6 +497,41 @@ class SQLiteStore(EventStore):
             if current.state == "generating" and current.attempt == turn.attempt:
                 current = current.model_copy(update={"state": "failed", "lease_until": 0, "error_code": error_code})
                 connection.execute("UPDATE conversation_turns SET payload=? WHERE id=?", (_dump(current), turn.id))
+
+    def cancel_turn(self, turn_id: str, reason: str) -> ConversationTurn:
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute("SELECT payload FROM conversation_turns WHERE id=?", (turn_id,)).fetchone()
+            if not row:
+                raise ValueError("conversation_turn_missing")
+            current = ConversationTurn.model_validate_json(row[0])
+            changes = {"speech_delivery": "interrupted", "cancel_reason": reason}
+            if current.state != "completed":
+                changes.update(state="cancelled", lease_until=0, error_code=None)
+            current = current.model_copy(update=changes)
+            connection.execute("UPDATE conversation_turns SET payload=? WHERE id=?", (_dump(current), turn_id))
+            row = connection.execute("SELECT payload FROM sessions WHERE id=?", (current.session_id,)).fetchone()
+            if row:
+                session = PracticeSession.model_validate_json(row[0])
+                session = with_interruption_notice(session, current)
+                connection.execute("UPDATE sessions SET payload=? WHERE id=?", (_dump(session), session.id))
+            return current
+
+    def record_delivery(self, turn_id: str, state: str, segment: int = -1) -> None:
+        if state not in {"completed", "interrupted", "failed"}:
+            raise ValueError("invalid_speech_delivery")
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute("SELECT payload FROM conversation_turns WHERE id=?", (turn_id,)).fetchone()
+            if not row:
+                raise ValueError("conversation_turn_missing")
+            current = ConversationTurn.model_validate_json(row[0]).model_copy(
+                update={"speech_delivery": state, "last_played_segment": segment})
+            connection.execute("UPDATE conversation_turns SET payload=? WHERE id=?", (_dump(current), turn_id))
+            row = connection.execute("SELECT payload FROM sessions WHERE id=?", (current.session_id,)).fetchone()
+            if row:
+                session = with_delivery_notice(PracticeSession.model_validate_json(row[0]), current, state)
+                connection.execute("UPDATE sessions SET payload=? WHERE id=?", (_dump(session), session.id))
 
 
 def _commit_conversation(connection: sqlite3.Connection, session: PracticeSession,

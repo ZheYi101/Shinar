@@ -70,14 +70,14 @@ class ModelPackage(BaseModel):
     id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]+$")
     revision: str = Field(pattern=r"^[a-zA-Z0-9_-]+$")
     name: str
-    task: Literal["stt", "tts"]
+    task: Literal["stt", "tts", "vad", "runtime"]
     languages: list[str]
     scenarios: list[Literal["conversation", "import", "reading"]]
     streaming: str
     license_note: str
     sources: list[str]
     adapter: Literal[
-        "sensevoice", "sensevoice-ort", "reazon", "zipformer", "kokoro", "vits", "candidate"
+        "sensevoice", "sensevoice-ort", "reazon", "zipformer", "kokoro", "vits", "candidate", "silero-vad", "voicevox", "melo_english", "resource"
     ] = "candidate"
     files: list[Artifact] = Field(default_factory=list)
     required_files: list[str] = Field(default_factory=list)

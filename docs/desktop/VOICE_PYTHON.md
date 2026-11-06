@@ -1,6 +1,6 @@
 # Python 基础语音服务
 
-2026-10-29。此增量提供无 UI 的转写、确认、对话、分句合成和 RTC 输入/输出。2026-10-30 已接入 QML 自动发送的分轮流程，见[桌面指南](./VOICE.md)；持续麦克风、VAD/AEC、自然插话、自动重连、设备播放与安装包运行时分发仍属后续工作。实际结果见[基础验收](../validation/speech/VOICE_PYTHON_INTEGRATION_2026-10-29.md)。
+2026-10-29。此增量提供无 UI 的转写、确认、对话、分句合成和 RTC 输入/输出。2026-10-30 已接入 QML 自动发送的分轮流程，见[桌面指南](./VOICE.md)；持续 PCM、VAD/APM 与插话取消的当前实现见[连续语音指南](./CONTINUOUS_VOICE.md)；真人设备门禁及独立安装包分发仍待完成。本地模型的普通下载入口见[设置指南](./LOCAL_SPEECH_SETUP.md)。实际结果见[基础验收](../validation/speech/VOICE_PYTHON_INTEGRATION_2026-10-29.md)。
 
 ## 应用入口
 

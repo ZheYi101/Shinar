@@ -1,0 +1,3 @@
+# Preserve the upstream terms bytes and Markdown hard-break spaces.
+src/lingualoop/local_speech/runtime_resources/VOICEVOX-TERMS-0.17.0.txt -text whitespace=-blank-at-eol
+src/lingualoop/local_speech/runtime_resources/ENG-TO-IPA-LICENSE.txt -text

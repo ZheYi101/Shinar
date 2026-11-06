@@ -42,6 +42,9 @@ def device_profile(package) -> dict:
             "vram_mb": 1536,
             "note": "推荐 GPU：2024 FP32 实测约 53–58 ms；CPU 约 505–714 ms，未通过平均 500 ms 筛选。",
         }
+    if package.adapter == "melo_english":
+        return {"cuda": True, "prefer_gpu": True, "vram_mb": 1536,
+                "note": "独立英文已验证 CUDA 提速；CPU 整句合成较慢，实际表现以本机测速为准。"}
     return {
         "cuda": False,
         "prefer_gpu": False,
@@ -78,4 +81,8 @@ def resolve_device(
 
 
 def runtime_version(package) -> str:
+    if package.adapter == "voicevox":
+        return "voicevox-0.17.1"
+    if package.adapter == "melo_english":
+        return "torch-2.9.1-transformers-4.57.3"
     return "1.23.2" if package.adapter == "sensevoice-ort" else "1.13.8"

@@ -14,6 +14,8 @@ LinguaLoop 是一个把沉浸式输入转化为语音输出练习的开源语言
 
 ## 快速开始（Windows）
 
+连续语音开发环境额外安装 `--extra continuous-voice`，再在「设置 → 音频设备」显式准备本机连接与 VAD 组件。连续模式支持停顿发送、静音和停止回复；真实设备验收仍单列。使用及零付费验证命令见[连续语音指南](./docs/desktop/CONTINUOUS_VOICE.md)。
+
 需要 Python ≥3.11 与 `uv`。在仓库根目录运行：
 
 ```powershell
@@ -308,7 +310,7 @@ uv sync --dev --extra desktop --extra realtime
 
 ### 无 UI 的 Python 基础语音
 
-`VoiceSessionCoordinator` 复用 Workbench 的推理/对话角色，提供转写草稿、确认落库、回复分句合成和独立重试；新增确认事务使回复失败不丢用户发言。普通 pytest 不加载模型；真实本地模型与 RTC 分别通过 `--run-local-speech`、`--run-realtime` 开启，始终可使用 Mock LLM 避免付费请求。接口、准备 profile 和复现命令见 [Python 语音指南](./docs/desktop/VOICE_PYTHON.md)。QML 已通过桌面控制器接入自动发送、分句播放与分阶段重试；连续通话仍未接入。
+`VoiceSessionCoordinator` 复用 Workbench 的推理/对话角色，提供转写草稿、确认落库、回复分句合成和独立重试；新增确认事务使回复失败不丢用户发言。普通 pytest 不加载模型；真实本地模型与 RTC 分别通过 `--run-local-speech`、`--run-realtime` 开启，始终可使用 Mock LLM 避免付费请求。接口、准备 profile 和复现命令见 [Python 语音指南](./docs/desktop/VOICE_PYTHON.md)。QML 已通过桌面控制器接入自动发送、分句播放与分阶段重试；持续 PCM 与真实本机 RTC 已接通，真人设备门禁仍单独验收。
 
 ### 现有分轮语音
 
@@ -327,3 +329,5 @@ uv sync --dev --extra desktop --extra realtime
 基础桌面安装可查看目录、下载及准备运行环境；CLI 旧测速入口也可用 `uv sync --dev --extra desktop --extra local-speech`。`LINGUALOOP_SPEECH_DIR` 覆盖缓存目录，`LINGUALOOP_SPEECH_PYTHON` 仅覆盖 CLI/旧 CPU 测速解释器，实际对话使用应用管理的独立环境。高级本地验证可通过 `LINGUALOOP_CUDA_DLL_DIR` 指定匹配的 CUDA DLL 目录，不修改系统 PATH。命令、资源预算、许可边界和本机结果见[本地语音指南](./docs/desktop/LOCAL_SPEECH.md)。
 
 逐模型的中英日严格评测见[语音评测记录](./docs/validation/speech/LOCAL_SPEECH_STRICT_EVALUATION_2026-10-28.md)：公开真人语料的 CER/WER、冷/热首结果、首 PCM、合成/播报字速、独立候选环境及匿名听评包分开记录。评测脚本与模型资产放在独立目录，不切换正常应用的语音 provider；未取得人工评分的听感项目保持未验收。
+
+本地语音的普通下载、分类型环境和声音选择见[设置闭环指南](docs/desktop/LOCAL_SPEECH_SETUP.md)；真人设备证据单独记录。

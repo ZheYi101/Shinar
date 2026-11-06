@@ -2,6 +2,7 @@
 
 import asyncio
 from threading import Event
+from time import monotonic
 
 from PySide6.QtCore import QSettings
 from PySide6.QtTest import QTest
@@ -83,7 +84,8 @@ def test_queue_backpressure_does_not_block_text_reader_and_holds_thread_lock(des
     assert vm.busy and len(audio.segments) == 3
     assert len(vm.voice._pending_audio) == 1
     assert workspace_of(window).threadLocked
-    for _ in range(20):
+    deadline = monotonic() + 8
+    while vm.busy and monotonic() < deadline:
         audio.finish_segment()
         QTest.qWait(25)
         assert audio.queued_count <= 3

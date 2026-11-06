@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import hashlib
 from pathlib import Path
 import subprocess
 import sys
@@ -21,6 +22,13 @@ def main():
         if path.is_file()
     }
     expected.add("lingualoop/local_speech/catalog.json")
+    runtime_resources = source.parents[1] / "local_speech/runtime_resources"
+    expected.update(
+        "lingualoop/local_speech/runtime_resources/"
+        + path.relative_to(runtime_resources).as_posix()
+        for path in runtime_resources.rglob("*")
+        if path.is_file()
+    )
     expected.update(
         "lingualoop/desktop/translations/" + path.name
         for path in (source.parent / "translations").glob("*")
@@ -30,6 +38,14 @@ def main():
         missing = expected.difference(archive.namelist())
         if missing:
             raise SystemExit("Missing resources: " + ", ".join(sorted(missing)))
+        stale = [
+            name
+            for name in expected
+            if hashlib.sha256(archive.read(name)).digest()
+            != hashlib.sha256((source.parents[2] / name).read_bytes()).digest()
+        ]
+        if stale:
+            raise SystemExit("Stale resources: " + ", ".join(sorted(stale)))
         obsolete = {
             name
             for name in archive.namelist()
@@ -62,11 +78,17 @@ from lingualoop.desktop.preferences import DesktopPreferences
 from lingualoop.desktop.viewmodel import LearningViewModel
 from lingualoop.desktop.window import DesktopWindowController
 from lingualoop.local_speech.catalog import load_catalog
+from lingualoop.local_speech.installation import manifest, runtime_spec
+from lingualoop.local_speech.model_profile import voices
 import lingualoop.desktop.window as window_module
 root = Path(sys.argv[1])
 assert Path(desktop.__file__).is_relative_to(root)
 assert Path(window_module.__file__).is_relative_to(root)
 assert any(package.id == 'sensevoice-int8-20250909' for package in load_catalog())
+assert len(voices('melo-english-en')) == 5
+assert voices('voicevox-japanese')[0]['style_id'] == 3
+assert len(runtime_spec('rtc-cpu').fingerprint) == 64
+assert manifest()['runtimes']['melo-cuda']['device'] == 'cuda'
 app = QGuiApplication([])
 prefs = DesktopPreferences(QSettings(str(root / 'settings.ini'), QSettings.Format.IniFormat))
 vm = LearningViewModel(LearningWorkbench(MockLearningLLMProvider(), event_store=SQLiteStore(root / 'smoke.sqlite3')), 'Mock', preferences=prefs)

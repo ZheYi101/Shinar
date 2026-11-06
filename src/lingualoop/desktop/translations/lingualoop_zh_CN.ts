@@ -4,12 +4,17 @@
 <context>
     <name>ConversationPage</name>
     <message>
-        <location filename="../qml/pages/ConversationPage.qml" line="+32"/>
+        <location filename="../qml/pages/ConversationPage.qml" line="+33"/>
         <source>选择材料</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+5"/>
+        <source>Mock 对话：回复是测试语料，未调用对话模型。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
         <source>我</source>
         <translation type="unfinished"></translation>
     </message>
@@ -24,7 +29,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+3"/>
         <source>重试本轮回复</source>
         <translation type="unfinished"></translation>
     </message>
@@ -34,7 +39,17 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+24"/>
+        <location line="+18"/>
+        <source>打开系统麦克风设置</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>丢弃并继续</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
         <source>复制转写</source>
         <translation type="unfinished"></translation>
     </message>
@@ -44,7 +59,27 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+19"/>
+        <location line="+18"/>
+        <source>停止语音</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>恢复监听</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>静音麦克风</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>停止回复</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
         <source>清除指向</source>
         <translation type="unfinished"></translation>
     </message>
@@ -54,28 +89,34 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="-31"/>
         <source>开始语音</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-51"/>
+        <location line="-29"/>
+        <location line="+9"/>
         <source>重试识别</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+54"/>
+        <location line="+68"/>
         <source>朗读回复</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-44"/>
+        <location line="-55"/>
         <source>%1 秒</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+41"/>
+        <location line="+52"/>
         <source>结束并发送</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>分轮录音</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -143,7 +184,7 @@
     </message>
     <message>
         <location line="+14"/>
-        <location filename="../viewmodel.py" line="+258"/>
+        <location filename="../viewmodel.py" line="+263"/>
         <source>日语</source>
         <translation type="unfinished"></translation>
     </message>
@@ -234,13 +275,13 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../viewmodel.py" line="-512"/>
+        <location filename="../viewmodel.py" line="-517"/>
         <source>就绪。当前模式：{value0}</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+16"/>
-        <location line="+557"/>
+        <location line="+562"/>
         <location line="+115"/>
         <location line="+185"/>
         <location line="+19"/>
@@ -248,7 +289,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-835"/>
+        <location line="-840"/>
         <source>{value0} 未配置或配置无效，请检查 LINGUALOOP_{value1}_*。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -278,7 +319,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+71"/>
+        <location line="+76"/>
         <source>尚未加载材料。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -560,7 +601,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+97"/>
+        <location line="+106"/>
         <source>对话结束后，这里会显示本轮总结。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -605,12 +646,12 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+10"/>
         <source>播放失败，文字回复已保留，可以重播或继续输入。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+50"/>
+        <location line="+55"/>
         <source>没有可用麦克风，请连接设备后重试，或使用文字输入。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -630,12 +671,42 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../speech_library.py" line="+50"/>
+        <location filename="../speech_library.py" line="+74"/>
         <source>点击刷新，检测当前可用资源。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+35"/>
+        <location line="+65"/>
+        <source>正在准备独立 Python 与安装工具…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>正在准备模型所需词典与共享资源…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>正在下载并校验固定运行库…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>正在离线安装运行库…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>正在执行实际计算验证…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>正在下载并校验模型权重…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
         <source>GPU {value0} · {value1} · 整卡显存 {value2} / {value3} MiB · 整卡使用率 {value4:.0f}%</source>
         <translation type="unfinished"></translation>
     </message>
@@ -660,12 +731,17 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+13"/>
+        <source>请先停止语音并释放已加载模型，再修复运行环境。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
         <source>准备独立运行环境与必要运行库（GPU 下载可能较大）…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+24"/>
+        <location line="+40"/>
         <source>检查运行环境并执行真实计算探针…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -700,17 +776,117 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+29"/>
+        <location line="+32"/>
         <source>操作未完成，请检查网络、磁盘与本地运行依赖后重试。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <location line="+7"/>
+        <source>下载连接中断，已下载部分保留，请重试继续。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>下载源暂不可用或拒绝请求，请稍后重试。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+24"/>
+        <source>请先阅读并确认此版本的语音模型与角色条款。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>请先准备此模型所需的运行环境。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>此声音尚未开放 GPU，请选择自动或 CPU。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>此运行环境当前仅支持 Windows x64 非冻结桌面版。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>运行环境未通过实际计算验证，请检查驱动或重新准备。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>缓存盘空间不足，请释放页面所示准备空间后重试。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>声音选项无效，请重新选择。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>准备已取消，已校验下载保留，可继续。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>本地语音准备未完成，请检查网络、磁盘和运行环境后重试。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
         <source>完成。测速仅含本地计算；尚未验证真人语音与完整对话延迟。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+29"/>
+        <location line="+42"/>
+        <source>ずんだもん：本轮支持 CPU，需确认模型与角色条款并保留署名。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>本轮仅支持 CPU；尚未开放 GPU 加速。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>独立英文：CPU 可用但较慢，CUDA 已验证提速；采用整句合成。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>推荐使用已验证的 NVIDIA GPU；实际速度与资源需求以本机测速为准。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>按句合成，返回完整音频</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>尚未本机测速</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>%1 · 热态整句合成平均 %2 / p95 %3 ms · 进程内存 %4 MiB · %5 次</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>；并发整句合成 p95 %1 ms</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>当前计算设备不支持此模型，请切换自动或 CPU。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
         <source>检测硬件与本地模型…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -720,7 +896,17 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+18"/>
+        <source>磁盘空间不足，无法完成环境与模型准备。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>准备环境与模型…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+35"/>
         <source>卸载模型…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -730,12 +916,12 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+25"/>
         <source>请先在计算与加速中准备对应运行环境。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+19"/>
+        <location line="+20"/>
         <source>独立进程测速（含预热与 5 次热态）…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -760,12 +946,12 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+14"/>
         <source>请先准备所选计算设备的运行环境。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+26"/>
         <source>STT + TTS 同时运行测速…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -780,17 +966,27 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+24"/>
-        <source>已保存本语言的模型；实时对话选择会用于桌面分轮语音，下次推理按计算设置运行。</source>
+        <location line="+30"/>
+        <source>已保存本语言的模型；后续语音按计算设置绑定，当前轮次保留原配置，连续语音需重新开始。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+9"/>
+        <source>请先停止语音，再试听模型声音。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>所选播放设备不可用，请在音频设置中重新选择。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
         <source>试听播放失败，可重新测速生成音频并检查输出设备。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../voice.py" line="+136"/>
+        <location filename="../voice.py" line="+152"/>
         <source>正在录音 · 结束后自动发送</source>
         <translation type="unfinished"></translation>
     </message>
@@ -825,7 +1021,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+285"/>
+        <location line="+294"/>
         <source>播放失败，文字回复已保留。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -853,6 +1049,8 @@
     <message>
         <location line="+3"/>
         <location line="+20"/>
+        <location filename="../continuous_voice.py" line="+838"/>
+        <location line="+34"/>
         <source>回复未完成，已发送的发言已保留。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -883,7 +1081,18 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+90"/>
+        <location line="+75"/>
+        <location line="+22"/>
+        <source>这轮回复已停止。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-19"/>
+        <source>这条回复的朗读已停止。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
         <source>这轮回复尚未完成。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -915,6 +1124,182 @@
     <message>
         <location line="+7"/>
         <source>请求未完成，请检查网络、模型配置后重试。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../continuous_voice.py" line="-744"/>
+        <source>未启用自动朗读；识别后的发言仍会发送。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+39"/>
+        <source>组件需下载约 %1 MiB · 准备空间约 %2 MiB；准备期间不开麦。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>正在请求麦克风权限…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>正在准备连续语音，麦克风尚未开启…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>正在加载识别模型，麦克风尚未开启…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>正在加载朗读模型，麦克风尚未开启…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>正在连接语音，麦克风尚未开启…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>语音连接中断，正在重新连接…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>正在停止语音…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>麦克风已静音，可发送文字</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>正在识别 · 可以继续说</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location line="+5"/>
+        <source>正在听 · 停顿后自动发送</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-3"/>
+        <source>正在朗读 · 可以插话</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>正在回复 · 可以继续说</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+89"/>
+        <source>连续语音组件尚未准备，请前往设置 → 音频设备。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>麦克风权限未开启，请允许此应用使用麦克风，再重新开始语音。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+47"/>
+        <source>音频设备不可用，请选择麦克风和播放设备后重试。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+58"/>
+        <source>麦克风已静音；尚未提交的语音已丢弃。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+188"/>
+        <source>待播音频超出容量，已停止朗读；静音麦克风后可重试，文字回复继续。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>播放设备未能输出声音；静音麦克风后可重试朗读，文字回复继续。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>麦克风音频传输中断，已暂停监听并丢弃未发送的语音；请恢复监听后重说。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>当前语音达到长度上限，已暂停监听；请缩短发言后恢复监听。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>所选音频设备已移除或改变，请在音频设置中重新选择，再恢复监听。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>麦克风无法采集声音，请检查系统麦克风权限和所选设备，再恢复监听。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>语音处理异常，已暂停监听；请恢复监听后重试，文字仍可使用。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+92"/>
+        <source>语音连接未恢复，请重新开始语音。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>语音已连接，请点击恢复监听。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>连续语音组件已准备。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>正在准备本机语音连接组件…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>语音组件下载：%1 / %2 MiB</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>连续语音未能准备或连接，请在音频设置中重试。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+41"/>
+        <source>朗读未能播放，文字回复继续生成。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>语音合成未完成，文字回复已保留；可重试朗读。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>朗读音频未能送达播放设备，文字回复已保留；可重试朗读。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>识别未完成，发言未发送。可重试识别或丢弃后继续。</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1068,7 +1453,7 @@
 <context>
     <name>LocalSpeechLibrary</name>
     <message>
-        <location filename="../qml/components/LocalSpeechLibrary.qml" line="+23"/>
+        <location filename="../qml/components/LocalSpeechLibrary.qml" line="+24"/>
         <source>选择本地测速录音（16kHz、单声道、16-bit PCM、最多 60 秒）</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1159,6 +1544,11 @@
     </message>
     <message>
         <location line="+8"/>
+        <source>当前组件下载进度</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>取消当前任务</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1168,7 +1558,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+10"/>
         <source>本机计算延迟较低的候选；识别准确率、音质与完整链路仍需验收。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1178,7 +1568,42 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <location line="+2"/>
+        <source>运行环境：已验证</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>运行环境：待准备</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>本次需下载约 %1 MiB，准备空间约 %2 MiB（含运行库与共享资源）</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>声音 / 风格</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>当前语音保持原声音；更改在下次绑定生效，连续语音需重新开始。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+4"/>
+        <source>查看此版本模型与角色条款</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>已阅读并同意本版本语音模型与角色条款</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>下载 %1 MiB · 展开大小上限 %2 MiB · 测速进程预算 %3 MiB（另留系统余量）</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1188,17 +1613,22 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+47"/>
+        <location line="+7"/>
+        <source>准备 / 下载 / 继续</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+40"/>
         <source>缓存位置：%1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-40"/>
-        <source>下载 / 继续</source>
+        <location line="+1"/>
+        <source>所选测速录音不会复制或上传。模型按会话语言用于分轮与连续语音；计算与加速中可切回已配置的远程语音。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="-34"/>
         <source>本机测速</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1235,11 +1665,6 @@
     <message>
         <location line="+6"/>
         <source>来源与许可</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>所选测速录音不会复制或上传。对话模型用于当前桌面分轮语音；计算与加速中可切回已配置的远程语音。</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1516,12 +1941,12 @@
     </message>
     <message>
         <location line="+1"/>
-        <location line="+52"/>
+        <location line="+62"/>
         <source>计算与加速</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-38"/>
+        <location line="-48"/>
         <source>显示语言</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1664,6 +2089,46 @@
     </message>
     <message>
         <location line="+4"/>
+        <source>连续语音组件</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>已准备，开始语音后才开启麦克风。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>首次使用需准备独立运行环境及本机组件；准备期间不开麦。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>准备连续语音组件</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>取消</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>发言停顿</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>650 毫秒 · 普通停顿</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>1000 毫秒 · 较长停顿</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <location line="+0"/>
         <source>自动朗读回复</source>
         <translation type="unfinished"></translation>
@@ -1894,7 +2359,7 @@
     </message>
     <message>
         <location line="+1"/>
-        <source>NVIDIA GPU 需要合适的显卡驱动。软件按需下载匹配的 CUDA 12 / cuDNN 运行库到独立目录，通常无需安装完整 CUDA Toolkit；GPU 环境约需 1–2 GiB 下载和更多磁盘空间。</source>
+        <source>NVIDIA GPU 需要合适的显卡驱动。软件按需下载匹配的 CUDA / cuDNN 运行库到独立目录，通常无需安装完整 CUDA Toolkit。下载与准备空间按下方固定组件清单估算。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1905,6 +2370,36 @@
     <message>
         <location line="+0"/>
         <source>尚未准备或验证</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>ONNX CPU</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>ONNX NVIDIA GPU</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>VOICEVOX CPU</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Melo 英文 CPU</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Melo 英文 NVIDIA GPU</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>需下载约 %1 MiB · 准备空间约 %2 MiB</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

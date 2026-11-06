@@ -1,8 +1,8 @@
 # TTS / STT 实际接入方案
 
-状态：**总体方案；基础 Python 增量已实现，连续设备音频与高级交互仍待实现**。日期：2026-10-29。
+状态：**总体蓝图；2026-10-30 已接入 QML 连续 PCM／RTC、端点自动提交、AEC 参考和插话取消；真人设备门禁待完成**。本轮采用范围与实际接口以[连续语音指南](../../desktop/CONTINUOUS_VOICE.md)为准，下文历史表格不作为当前交付清单。VOICEVOX/Melo 设置入口与独立环境已接线，见第 17 节；原生 partial、完整 ModelSupervisor 和云端部署仍为后续范围。
 
-后续用户选择先实现无 UI 基础链路：确认事务、双角色对话复用、分句合成、冻结的本地后端和真实 RTC WAV/PCM。当前实现以 [Python 指南](../../desktop/VOICE_PYTHON.md) 和[基础验收](../../validation/speech/VOICE_PYTHON_INTEGRATION_2026-10-29.md)为准；下文的连续收音、VAD/AEC、插话及完整监督器仍是总体蓝图，不能当已交付。
+后续用户选择先实现无 UI 基础链路：确认事务、双角色对话复用、分句合成、冻结的本地后端和真实 RTC WAV/PCM。该阶段证据见 [Python 指南](../../desktop/VOICE_PYTHON.md)和[基础验收](../../validation/speech/VOICE_PYTHON_INTEGRATION_2026-10-29.md)；后续桌面接线与未通过项以[连续语音指南](../../desktop/CONTINUOUS_VOICE.md)、[本地设置指南](../../desktop/LOCAL_SPEECH_SETUP.md)及对应验收记录为准，下文目标设计不能直接当作已交付。
 
 本文件统一说明语音功能的产品行为、模块逻辑、状态、接口、故障恢复、实施顺序和验收。产品主旨沿用 [Project Brief](../../product/PROJECT_BRIEF.md)，范围沿用 [MVP](../../product/MVP_SPEC.md)；模型背景查 [本地语音指南](../../desktop/LOCAL_SPEECH.md)、[设置接入记录](../../validation/speech/LOCAL_SPEECH_COMPUTE_SETTINGS_2026-10-29.md) 和 [完整模型补测](../../validation/speech/SPEECH_GPU_JAPANESE_MELO_FOLLOWUP_2026-10-29.md)。设计形成时未运行模型；后续基础实现的独立结果见上方链接。
 
@@ -623,4 +623,20 @@ JobEvent: job_id, voice_session_id, turn_id?, generation?, stage, error_code?
 
 以下条件需要重新选择局部方案：中文 Melo GPU 无法保持质量或没有收益；VOICEVOX 连续性/声音许可不满足产品；目标机没有任何通过速度与质量门的 CPU STT；严格本机 RTC 无法通过；冻结发行的运行时无法可复现安装；或真人长停顿表明默认端点频繁误切。重新选择应围绕该问题补证据，不回到“一个大模型覆盖所有语言”或把慢/失败样本删掉。
 
-本次文档只提出实现与验收工作，不改变现有 `.env`、用户学习库、模型选择或运行中的应用。
+本方案保留目标设计与分层验收；已接线范围及证据以对应验证记录为准，不将目标状态当作已交付。
+
+## 17. 本地设置闭环接口（2026-10-30）
+
+`local_speech.installation` 提供冻结的 `RuntimeSpec`、`InstallationPlan`，以及 `make_plan()` / `runtime_plan()` / `prepare_managed_runtime()` / `managed_status()`。准备入口显式下载固定版本资源，使用独立候选目录，成功探针后原子更新就绪指针；失败不替换旧指针。推理与修复共享模型锁，其他实例正在使用模型时也不能替换关联环境。新增准备错误使用 `speech_*` 码，由桌面翻译。
+
+`model_profile.VoiceOption` 定义 `id`、标签、可选 `speaker_id` / `style_id` / 署名。`build_profile()` 是测速、分轮与连续语音共同的冻结入口。`voices.json` 保存候选，`selections.json` 的既有选择项增加可选 `voice_id`；旧条目与 Lessac 保留。VOICEVOX 的 `voice-terms.json` 按包指纹记录确认。声音只切换 profile，不重复下载共享权重，也不修改已经绑定的会话。
+
+新报告的 `model_identities` 绑定冻结声音、运行环境与前端身份，模型指纹及实际设备继续单独记录；原生整句合成不标成流式首音。不同解释器的配对测速使用各自常驻进程，仍受同一 RAM/VRAM 准入、取消和清理规则约束。
+
+`ContinuousVoiceController.prepare()` 准备独立 RTC/APM 解释器、Silero 与 SFU；`environmentReady` 依实际探针，`assetsReady` 依资产校验，不能用开发环境 SDK import 代替。SFU 下载也经过固定长度/SHA、续传、取消和缓存；`AudioSessionProcess(python=...)` 显式使用该解释器。公开验证入口可读取普通设置选择，不必注册评测 profile。操作方式和未通过项见[设置指南](../../desktop/LOCAL_SPEECH_SETUP.md)及[实施记录](../../validation/engineering/LOCAL_SPEECH_SETUP_2026-10-30.md)。
+
+桌面音频帧不充当 UI 状态通知。组件就绪与体积使用 `componentsChanged`；设置的 `runtimes` 属性只返回后台 `_runtime_snapshot()` 的结果，由 `runtimesChanged` 更新。`inferenceStatus` 仅更新 `statusChanged`，避免隐藏计算页每个绑定重新验证全部运行环境并阻塞 QAudioSource/Sink。准备、配置与显式刷新仍重查资源，不把缓存读数用于推理准入。
+
+开麦授权属于用户开始／恢复意图，携带当前语音会话身份；停止或关闭后拒绝迟到授权。设备清单变化先检查已选 ID 与实际格式支持，不自动切换默认外放。故障记录仅保留有界的安全错误码与阶段；可见合成 PCM／真实播放探针和真人声学验收分开。
+
+自然朗读结束时，`AudioSessionWorker` 等待发送队列排空后关闭该输出的接收入口，调用 `LiveKitTransport.finish_audio()` 撤销音轨发布，再依序送完已经接收的 PCM。桌面设备排空后清除输出代际，拒绝后续旧回调；自然完成不写成用户中断。`AudioSource.wait_for_playout()` 只等待该 source 的排队音频，并不撤销已发布轨道，参见 [AudioSource](https://docs.livekit.io/reference/python/livekit/rtc/audio_source.html)及 [LocalParticipant](https://docs.livekit.io/reference/python/livekit/rtc/participant.html)。失效 reader 的请求立即失败；退出中即使语音清理失败，也继续释放模型和 Workbench，避免等待不存在的 IPC 回包后提前关闭事件循环。

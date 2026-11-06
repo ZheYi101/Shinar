@@ -121,7 +121,9 @@ class AsyncWorker(QObject):
             await cleanup()
 
         try:
-            asyncio.run_coroutine_threadsafe(shutdown(), self._loop).result(timeout=5)
+            # RTC process shutdown and model-tree cleanup have their own bounded
+            # waits; keep the loop alive long enough to close their pipe handles.
+            asyncio.run_coroutine_threadsafe(shutdown(), self._loop).result(timeout=15)
         except Exception:
             pass
         finally:

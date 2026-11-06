@@ -713,9 +713,9 @@ Core 与供应商/Qt 保持隔离，QML 拆成设计系统、组件和业务页�
 未解决：独立 Melo 英文、Kotoba、VOICEVOX 的产品适配，冻结应用的运行时分发、会话前自动预热、跨平台显卡后端，以及真人端点到出声、并发与打断验收。GPU 新环境完整下载受本机网络停滞影响，不能把现有运行环境的 kernel/模型通过写成新下载已通过。验证见[接入记录](../validation/speech/LOCAL_SPEECH_COMPUTE_SETTINGS_2026-10-29.md)。
 
 
-<a id="decision-0026"></a>
+<a id="decision-0029"></a>
 
-## Decision 0026: QML 自动发送分轮语音与独立播放状态
+## Decision 0029: QML 自动发送分轮语音与独立播放状态
 
 日期：2026-10-30。状态：采用；是 Decision 0023/0024 的桌面过渡增量。
 
@@ -724,3 +724,38 @@ Core 与供应商/Qt 保持隔离，QML 拆成设计系统、组件和业务页�
 输入在事务提交后成为历史，按录音/文字请求 ID 防重；回复与朗读分别重试。原文在结束录音时捕获，下一份文字草稿独立保留。主线程有界音频队列以 EndOfMedia 推进，合成完成和设备播放完成分别释放状态；模型调用留在共享 asyncio loop。桌面文案继续使用 Qt 翻译入口。
 
 未解决：连续麦克风、端点/VAD、AEC、自然插话、网络自动恢复与真人多语言质量；本次 Mock 和合成音频验证不能替代这些验收。新本地声音的产品安装/下载也不纳入此增量。见[QML 语音记录](../validation/engineering/VOICE_QML_2026-10-30.md)。
+
+<a id="decision-0030"></a>
+
+## Decision 0030: 独立 RTC/DSP 进程与停顿自动提交
+
+后续设置闭环采用 Decision 0031；本节既有独立 RTC/DSP 选择保持。
+
+日期：2026-10-30。状态：采用，机制已接线，真人设备验收待完成。
+
+背景：分轮自动发送已接通，但仍需每次停止录音。用户确认本轮完成停顿自动提交、自然插话与扬声器 AEC，先用耳机验证；不要求 partial，付费模型预算为 0。
+
+选择：Qt 主线程用 QAudioSource/Sink 做有界设备 IO，独立 AudioSessionWorker 拥有两个 LiveKit peer、APM、Silero v6.2.3 CPU ONNX 和有状态重采样器；业务仍由既有 worker、VoiceSessionCoordinator 和 Workbench 执行。麦克风／回复都经过真实本机 SFU。模型资产固定 hash 和许可，显式准备，开麦不下载。
+
+默认 650 ms 停顿，可选 1000 ms。Engine VAD 唯一产生端点，本地近端检测快速停旧输出；认领前校验句段版本与近端状态。输入会话／麦克风代际独立于输出代际。续说先等旧识别清理，新回复先等旧生成释放。取消事务先失效旧轮，再清队列、reset 设备和取消推理，拒绝迟到保存；完整文字与音频交付分别记录。
+
+用户选择先静音再发文字；停止朗读仅停声音，停止语音也取消未完成回复，但不结束学习线程。一次断线最多重建一次，恢复需用户重新开启监听。设备变化不自动转外放。字体、中文优先翻译入口与原文／草稿契约继续沿用。
+
+影响：新增可选 continuous-voice extra，不给基础 CLI 引入 ORT/RTC 必需依赖；SQLite 使用已有 JSON 扩展默认字段，不保存录音和助手半流。真人、合成声卡和真实本地服务的证据分开。Decision 0029 修正了此前与工作区 Decision 0026 重复的编号，语义不变。
+
+未解决：真人耳机／扬声器、声学余音、学习者口音和真实模型对话质量；partial、完整监督器与云部署仍后续。新声音 GUI 与独立环境准备现按 Decision 0031 实施并记录验证，不再作为本节未接线项。见[验收记录](../validation/engineering/CONTINUOUS_VOICE_2026-10-30.md)。
+
+
+<a id="decision-0031"></a>
+
+## Decision 0031: 按运行时类型准备语音与冻结声音配置
+
+日期：2026-10-30。状态：采用，真实验证中。
+
+背景：评测 adapter 不能依赖开发目录和手写 profile 成为普通用户入口，ONNX、VOICEVOX、Melo 和 RTC 的依赖不同。
+
+选择：复用固定下载、SHA256、锁与缓存，按 ONNX CPU/CUDA、VOICEVOX CPU、Melo CPU/CUDA、RTC/APM 分环境准备。固定 Python/uv、wheel 与前端，候选环境通过实际计算后原子切换，失败保留上一环境。Melo 固定 Python 3.12.13、Torch 2.9.1、Transformers 4.57.3；不改系统 Python、PATH 或安装驱动。
+
+VOICEVOX 首批只开放ずんだもん，普通风格核对固定 VVM、按版本确认条款并署名。Melo EN/EN_NEWEST 共享资源。候选声音与已选声音分开，报告绑定环境/前端/声音；测速与业务共用 profile，不同解释器配对使用独立常驻进程。
+
+影响：扩展既有 JSON 默认字段与资源分发，不迁移学习数据库；旧 prepared-profile、旧模型兼容记录和分轮回退保留。独立安装包、更多角色及其他 GPU 平台另做。原定最终提交等待设置和真人设备门禁；2026-11-06 用户明确要求先整理提交当前实现，未完成门禁仍单独记录，见[设置指南](../desktop/LOCAL_SPEECH_SETUP.md)与[交付自测](../validation/engineering/VOICE_HANDOFF_2026-11-06.md)。

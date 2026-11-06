@@ -125,7 +125,7 @@
   },
   {
     "id": "voicevox-japanese",
-    "revision": "candidate",
+    "revision": "core0171-vvm0170",
     "name": "VOICEVOX 日语",
     "task": "tts",
     "languages": [
@@ -141,7 +141,27 @@
       "https://github.com/VOICEVOX/voicevox_core",
       "https://github.com/VOICEVOX/voicevox_engine"
     ],
-    "notes": "日语优先候选，先固定一个允许分发的声音及完整运行包，再开放下载。"
+    "notes": "ずんだもん。CPU only. Voice terms and attribution required.",
+    "adapter": "voicevox",
+    "files": [
+      {
+        "path": "0.vvm",
+        "url": "https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.17.0/0.vvm",
+        "size": 59308488,
+        "sha256": "ecd35374d4182cd883cba5040376f7f888cc6ba248b1c2f4cea07cdb34bb1318"
+      },
+      {
+        "path": "VOICEVOX-TERMS.txt",
+        "url": "https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.17.0/README.txt",
+        "size": 27238,
+        "sha256": "12a64121db0815fc5e6ea8cdf13cd3ed052b7c7d7a170a70a2c0eced2fc63573"
+      }
+    ],
+    "required_files": [
+      "0.vvm",
+      "VOICEVOX-TERMS.txt"
+    ],
+    "evaluation_budget_mb": 1536
   },
   {
     "id": "kokoro-japanese-frontend",
@@ -498,5 +518,99 @@
     ],
     "evaluation_budget_mb": 2048,
     "notes": "GPU 不可用时的中/英 CPU 备选；原版识别质量优于 2025 微调包的英文/日文表现，仍需本机平均 ≤500 ms。原批次日语 CPU 未通过，日语优先 Reazon 或 FP32 GPU。"
+  },
+  {
+    "id": "melo-english-en",
+    "revision": "pinned-209145-v1",
+    "name": "Melo English en",
+    "task": "tts",
+    "languages": [
+      "en"
+    ],
+    "scenarios": [
+      "conversation"
+    ],
+    "streaming": "not applicable",
+    "license_note": "MIT; bundled acoustic/frontend provenance and BERT Apache-2.0 notices",
+    "sources": [
+      "https://huggingface.co/myshell-ai/MeloTTS-English/resolve/bb4fb7346d566d277ba8c8c7dbfdf6786139b8ef/config.json",
+      "https://huggingface.co/myshell-ai/MeloTTS-English/resolve/bb4fb7346d566d277ba8c8c7dbfdf6786139b8ef/README.md",
+      "https://huggingface.co/myshell-ai/MeloTTS-English/resolve/bb4fb7346d566d277ba8c8c7dbfdf6786139b8ef/checkpoint.pth"
+    ],
+    "adapter": "melo_english",
+    "files": [
+      {
+        "path": "config.json",
+        "url": "https://huggingface.co/myshell-ai/MeloTTS-English/resolve/bb4fb7346d566d277ba8c8c7dbfdf6786139b8ef/config.json",
+        "size": 3488,
+        "sha256": "039116c927c70eaa4458d315ea83aaaa99e1fca1c621b50c8ca56b4a5700eb77"
+      },
+      {
+        "path": "README.md",
+        "url": "https://huggingface.co/myshell-ai/MeloTTS-English/resolve/bb4fb7346d566d277ba8c8c7dbfdf6786139b8ef/README.md",
+        "size": 5755,
+        "sha256": "493958e29457067b476c3e871885d848dd46c8fb74c8694b46fa94ad062e00c1"
+      },
+      {
+        "path": "checkpoint.pth",
+        "url": "https://huggingface.co/myshell-ai/MeloTTS-English/resolve/bb4fb7346d566d277ba8c8c7dbfdf6786139b8ef/checkpoint.pth",
+        "size": 207860748,
+        "sha256": "acd278040eaf9536908e2b965273df5a731c44d8f0da66cc5fed7972772ed23c"
+      }
+    ],
+    "required_files": [
+      "checkpoint.pth",
+      "config.json",
+      "README.md"
+    ],
+    "notes": "独立英文；CPU 可用但较慢，已验证 CUDA 提速。整句合成，非原生流式。",
+    "evaluation_budget_mb": 3072
+  },
+  {
+    "id": "melo-english-v3",
+    "revision": "pinned-209145-v1",
+    "name": "Melo English v3",
+    "task": "tts",
+    "languages": [
+      "en"
+    ],
+    "scenarios": [
+      "conversation"
+    ],
+    "streaming": "not applicable",
+    "license_note": "MIT; bundled acoustic/frontend provenance and BERT Apache-2.0 notices",
+    "sources": [
+      "https://huggingface.co/myshell-ai/MeloTTS-English-v3/resolve/f7c4a35392c0e9be24a755f1edb4c3f63040f759/README.md",
+      "https://huggingface.co/myshell-ai/MeloTTS-English-v3/resolve/f7c4a35392c0e9be24a755f1edb4c3f63040f759/checkpoint.pth",
+      "https://huggingface.co/myshell-ai/MeloTTS-English-v3/resolve/f7c4a35392c0e9be24a755f1edb4c3f63040f759/config.json"
+    ],
+    "adapter": "melo_english",
+    "files": [
+      {
+        "path": "README.md",
+        "url": "https://huggingface.co/myshell-ai/MeloTTS-English-v3/resolve/f7c4a35392c0e9be24a755f1edb4c3f63040f759/README.md",
+        "size": 4523,
+        "sha256": "347cd460b6e32b04d9da7d2f7ba81faa3b7270ae979990da4a65f356d65749fa"
+      },
+      {
+        "path": "checkpoint.pth",
+        "url": "https://huggingface.co/myshell-ai/MeloTTS-English-v3/resolve/f7c4a35392c0e9be24a755f1edb4c3f63040f759/checkpoint.pth",
+        "size": 207602918,
+        "sha256": "959433dc1c6df618922560b4b7bc8c7af0a4b7ceaea267480c5d9ae8a3cfe536"
+      },
+      {
+        "path": "config.json",
+        "url": "https://huggingface.co/myshell-ai/MeloTTS-English-v3/resolve/f7c4a35392c0e9be24a755f1edb4c3f63040f759/config.json",
+        "size": 3409,
+        "sha256": "66db2f9d3fba6e94e7f430668188130129c0428a5a1646bcd8bd453a966e778a"
+      }
+    ],
+    "required_files": [
+      "checkpoint.pth",
+      "config.json",
+      "README.md"
+    ],
+    "notes": "独立英文；CPU 可用但较慢，已验证 CUDA 提速。整句合成，非原生流式。",
+    "evaluation_budget_mb": 3072
   }
 ]

@@ -15,8 +15,8 @@ import socket
 import subprocess
 import tempfile
 import time
-import urllib.request
 import zipfile
+import shutil
 from collections import Counter
 import re
 
@@ -73,20 +73,21 @@ def hidden_flags() -> int:
     return subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
 
 
-def ensure_server(cache: Path, *, download: bool = False) -> Path:
+def ensure_server(cache: Path, *, download: bool = False, cancel=None,
+                  progress=lambda done, total: None) -> Path:
     archive = cache / ARCHIVE_NAME
-    if not archive.exists():
+    valid = archive.is_file() and hashlib.sha256(archive.read_bytes()).hexdigest() == ARCHIVE_SHA256
+    if not valid:
         if not download:
             raise RuntimeError("livekit_archive_missing_use_download_server")
         cache.mkdir(parents=True, exist_ok=True)
-        # Fixed official URL; no shell execution or user-controlled archive path.
-        with urllib.request.urlopen(RELEASE_URL, timeout=60) as response:
-            payload = response.read(30_000_001)
-        if len(payload) > 30_000_000:
-            raise RuntimeError("livekit_archive_too_large")
-        if hashlib.sha256(payload).hexdigest() != ARCHIVE_SHA256:
-            raise RuntimeError("livekit_archive_checksum_mismatch")
-        archive.write_bytes(payload)
+        from .continuous_assets import server_package
+        from lingualoop.local_speech.downloads import ModelStore
+
+        folder = ModelStore(cache.parent).install(server_package(), cancel=cancel, progress=progress)
+        temporary = archive.with_suffix(".preparing")
+        shutil.copyfile(folder / ARCHIVE_NAME, temporary)
+        os.replace(temporary, archive)
     if hashlib.sha256(archive.read_bytes()).hexdigest() != ARCHIVE_SHA256:
         raise RuntimeError("livekit_archive_checksum_mismatch")
     executable = cache / f"server-{SERVER_VERSION}" / "livekit-server.exe"

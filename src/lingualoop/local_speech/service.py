@@ -182,13 +182,16 @@ class LocalSpeechService:
             if settings.gpu_index < len(gpus):
                 gpus[settings.gpu_index]["available_mb"] += device_profile(package)["vram_mb"]
         device, reason = resolve_device(package, settings, hardware, occupied_mb=occupied)
-        python = runtime_python(self.store.root, device)
-        if not runtime_status(self.store.root, device).get("prepared"):
+        from .installation import managed_status, runtime_id_for
+        native = package.adapter in {"voicevox", "melo_english"}
+        status = managed_status(self.store.root, runtime_id_for(package, device)) if native else runtime_status(self.store.root, device)
+        python = status.get("python") if native else runtime_python(self.store.root, device)
+        if not status.get("prepared"):
             # Auto may use CPU only if there is a prepared CPU runtime; expose the reason.
             if (
                 device == "cuda"
                 and getattr(settings, f"{task}_device") == "auto"
-                and runtime_status(self.store.root, "cpu").get("prepared")
+                and (managed_status(self.store.root, runtime_id_for(package, "cpu")) if native else runtime_status(self.store.root, "cpu")).get("prepared")
             ):
                 device, python, reason = (
                     "cpu",
@@ -197,8 +200,9 @@ class LocalSpeechService:
                 )
             else:
                 raise ValueError("请先在“计算与加速”中准备所选设备的运行环境。")
+        report_args = {"voice_id": choice.get("voice_id")} if native else {}
         reports = matching_reports(
-            self.store, package, language, hardware, device, settings.gpu_index
+            self.store, package, language, hardware, device, settings.gpu_index, **report_args
         )
         if not reports:
             raise ValueError("当前模型、语言与计算设备尚未完成本机测速，请在语音模型中先测速。")
@@ -216,17 +220,13 @@ class LocalSpeechService:
                 raise ValueError(
                     "当前设备上的识别平均延迟未通过 500 ms 筛选，请选择其他模型或 GPU。"
                 )
-        spec = {
-            "id": package.id,
-            "adapter": package.adapter,
-            "task": task,
-            "path": str(self.store.model_path(package)),
-            "language": language,
-            "provider": device,
-            "gpu_index": settings.gpu_index,
-            "vram_budget_mb": max(512, settings.vram_budget_mb - occupied),
-        }
-        return LocalSpeechProfile(task, language, package.id, str(python), json.dumps(spec, sort_keys=True), settings.idle_seconds, reason)
+        from .model_profile import build_profile
+        from .model_profile import voices
+        selected_voice = next((v for v in voices(package.id) if v["id"] == choice.get("voice_id")), None)
+        return build_profile(self.store, package, language, device, gpu_index=settings.gpu_index,
+                             vram_budget_mb=max(512, settings.vram_budget_mb - occupied),
+                             idle_seconds=settings.idle_seconds, reason=reason,
+                             python_override=python if not native else None, voice=selected_voice)
 
     async def execute(
         self, profile: LocalSpeechProfile, *, audio: bytes | None = None, text: str | None = None

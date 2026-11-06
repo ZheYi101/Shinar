@@ -1,5 +1,7 @@
 # 分轮语音配置与验收
 
+2026-10-30 后续增量已接入独立的连续语音入口：停顿自动提交、真实 RTC PCM、AEC 和插话取消。分轮路径继续保留；真人设备验收仍独立标记。使用、接口和证据边界见[连续语音指南](CONTINUOUS_VOICE.md)。下文描述分轮路径。
+
 ## 接口与配置
 
 2026-10-30：桌面通过 `DesktopVoiceController` 接入 `VoiceSessionCoordinator`。Qt Multimedia 录制 16kHz、单声道 PCM16 WAV，结束录音后自动识别并提交，回复流式显示并逐句朗读。正常流程不要求再确认转写。这是自动发送的分轮过渡方案，连续收音、VAD/AEC、自然插话和 LiveKit 桌面主路径仍属后续范围。

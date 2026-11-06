@@ -9,7 +9,7 @@ from pathlib import Path
 
 def instance_key(spec: dict) -> str:
     spec = dict(spec)
-    for name in ("speaker_id", "style_id", "voice"):
+    for name in ("speaker_id", "style_id", "voice", "voice_id"):
         spec.pop(name, None)
     if spec.get("adapter") in {"sensevoice-ort", "voicevox", "melo_english"}:
         spec.pop("language", None)
@@ -110,6 +110,12 @@ class LocalSpeechProvider:
             raise ValueError("speech_audio_too_large")
         result = await self.service.execute(self.profile, audio=audio)
         return result["text"]
+
+    async def prepare(self) -> None:
+        if self.profile is None:
+            raise ValueError("speech_provider_requires_binding")
+        await self.service._request(self.task, self.profile.language,
+                                    _profile=self.profile, prepare=True)
 
     async def synthesize(self, text: str) -> bytes:
         if self.task != "tts" or self.profile is None:

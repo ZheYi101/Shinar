@@ -15,7 +15,7 @@ from runtime_worker import load_model, recognize, synthesize
 
 def load_key(spec):
     result = dict(spec)
-    for name in ("speaker_id", "style_id", "voice"):
+    for name in ("speaker_id", "style_id", "voice", "voice_id"):
         result.pop(name, None)
     if spec["adapter"] in {"sensevoice-ort", "voicevox", "melo_english"}:
         result.pop("language", None)
@@ -62,7 +62,9 @@ def serve() -> None:
                 model = load_model(spec, 2)
                 loaded_spec = load_key(spec)
             loaded_ms = (time.perf_counter() - start) * 1000
-            if spec["task"] == "stt":
+            if request.get("prepare") is True:
+                result = {"prepared": True, "purpose": "prepare", "compute_ms": 0}
+            elif spec["task"] == "stt":
                 if spec["adapter"] == "sensevoice-ort":
                     model.spec = spec
                 result = recognize(

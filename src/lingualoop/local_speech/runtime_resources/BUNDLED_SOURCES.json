@@ -1,0 +1,21 @@
+[
+  {
+    "name": "distance",
+    "source_archive": "distance-source.tar.gz",
+    "sha256": "60807584f5b6003f5c521aa73f39f51f631de3be5cccc5a1d67166fcbf0d4551"
+  },
+  {
+    "name": "docopt",
+    "source_archive": "docopt-source.tar.gz",
+    "sha256": "49b3a825280bd66b3aa83585ef59c4a8c82f2c8a522dbe754a8bc8d08c85c491"
+  },
+  {
+    "name": "eng-to-ipa",
+    "source_archive": "eng-to-ipa-source.tar.gz",
+    "sha256": "0e4fac8370b0ffeaf696193e971b3ff9bd3762e4d153c6d0d280147887e008b1",
+    "license_file": "ENG-TO-IPA-LICENSE.txt",
+    "license_source": "https://raw.githubusercontent.com/mphilli/English-to-IPA/fda784a9a27a4b3be7260debc130e33b55210f6a/LICENSE",
+    "license_sha256": "bcb12c66e0592eb6b8bc9703d7a2cb35b368ba8c60554e2ce017f27240ad76fc",
+    "license_note": "Upstream 0.0.2 sdist omits LICENSE; redistribute its MIT notice separately."
+  }
+]

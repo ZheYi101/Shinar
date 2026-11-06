@@ -8,7 +8,9 @@ from .storage import read_json
 from .compute import device_profile, runtime_version
 
 
-def matching_reports(store, package, language, hardware, device="cpu", gpu_index=0):
+def matching_reports(store, package, language, hardware, device="cpu", gpu_index=0, *, voice_id=None):
+    from .model_profile import measurement_identity
+    identity = measurement_identity(store.root, package, device, voice_id)
     reports = []
     revisions = {model.id: adapter_revision(model.adapter) for model in load_catalog()}
     revisions[package.id] = adapter_revision(package.adapter)
@@ -17,6 +19,7 @@ def matching_reports(store, package, language, hardware, device="cpu", gpu_index
         measured = report.get("hardware", {})
         if (
             report.get("schema") == 1
+            and (not identity or report.get("model_identities", {}).get(package.id) == identity)
             and report.get("language") == language
             and report.get("metrics", {})
             .get("runtime_versions", {})
@@ -54,6 +57,8 @@ def model_rows(store, packages, language, scenario, hardware, devices=None, gpu_
         if language not in package.languages or scenario not in package.scenarios:
             continue
         permitted, reason = admission(package, hardware)
+        download_space = sum(f.size + f.unpacked_limit for f in package.files) + 256 * 1024**2
+        downloadable = bool(package.files) and hardware.get("disk_free_bytes", 0) >= download_space
         installed = store.installed(package)
         device = (devices or {}).get(package.id, "cpu")
         excluded = package.id.startswith(("qwen3-", "kokoro-")) or (
@@ -81,13 +86,14 @@ def model_rows(store, packages, language, scenario, hardware, devices=None, gpu_
         average = sum(latencies) / len(latencies) if latencies else float("inf")
         within_budget = ready and (average <= 500 if package.task == "stt" else local_p95 <= 300)
         summary = "尚未本机测速"
+        pcm_label = "整句合成" if package.adapter in {"voicevox", "melo_english"} else "首 PCM"
         if report:
             field = "compute_ms" if package.task == "stt" else "first_pcm_ms"
             p95 = percentile([v[field] for v in values if field in v])
             peak = metrics.get("peak_process_rss_bytes", 0) / 1024**2
             summary = (
                 (
-                    f"{device.upper()} · 热态{'整段计算' if package.task == 'stt' else '首 PCM'} 平均 {average:.0f} / p95 {p95:.0f} ms · "
+                    f"{device.upper()} · 热态{'整段计算' if package.task == 'stt' else pcm_label} 平均 {average:.0f} / p95 {p95:.0f} ms · "
                     f"进程内存 {peak:.0f} MiB · {report['repeats']} 次"
                 )
                 if p95 is not None
@@ -96,7 +102,7 @@ def model_rows(store, packages, language, scenario, hardware, devices=None, gpu_
             if latencies and package.task == "stt":
                 summary += f"；结束后计算 p95 {percentile(latencies):.0f} ms（不含端点等待）"
             if concurrent_latencies:
-                summary += f"；并发{'首 PCM' if package.task == 'tts' else '结束后计算'} p95 {percentile(concurrent_latencies):.0f} ms"
+                summary += f"；并发{pcm_label if package.task == 'tts' else '结束后计算'} p95 {percentile(concurrent_latencies):.0f} ms"
         marker = read_json(store.model_path(package) / ".installed.json", {}) if installed else {}
         disk_bytes = sum(v.get("size", 0) for v in marker.get("files", {}).values())
         selected = selections.get(f"{language}:{scenario}:{package.task}", {})
@@ -121,15 +127,23 @@ def model_rows(store, packages, language, scenario, hardware, devices=None, gpu_
                     sum(f.unpacked_limit or f.size for f in package.files) / 1024**2
                 ),
                 "installed": installed,
-                "downloadable": permitted,
+                "downloadable": downloadable,
+                "benchmarkable": permitted,
                 "reason": reason,
                 "installedMiB": round(disk_bytes / 1024**2, 1),
                 "measured": ready,
                 "measurement": summary,
+                "measurementStats": {
+                    "average_ms": average, "p95_ms": percentile(latencies),
+                    "peak_mib": metrics.get("peak_process_rss_bytes", 0) / 1024**2,
+                    "repeats": report["repeats"],
+                    "concurrent_p95_ms": percentile(concurrent_latencies),
+                } if ready else {},
                 "recommended": False,
                 "latencyScore": local_p95 if local_p95 != float("inf") else -1,
                 "withinRealtimeBudget": within_budget,
                 "selected": selected.get("id") == package.id
+                and (not identity_for_row(store.root, package, device) or selected.get("voice_id") == identity_for_row(store.root, package, device).get("voice_id"))
                 and selected.get("fingerprint") == package.fingerprint
                 and selected.get("runtime_version") == runtime_version(package)
                 and selected.get("adapter_revision", 1) == adapter_revision(package.adapter),
@@ -156,6 +170,7 @@ def model_rows(store, packages, language, scenario, hardware, devices=None, gpu_
             if r["task"] == task
             and r["measured"]
             and r["downloadable"]
+            and r["benchmarkable"]
             and not r["excluded"]
             and (scenario != "conversation" or r["withinRealtimeBudget"])
         ]
@@ -166,3 +181,8 @@ def model_rows(store, packages, language, scenario, hardware, devices=None, gpu_
     rows.sort(key=lambda r: (r["task"] != "STT", not r["selected"], not r["recommended"],
                              priority.get(r["id"], 10)))
     return rows
+
+
+def identity_for_row(root, package, device):
+    from .model_profile import measurement_identity
+    return measurement_identity(root, package, device)

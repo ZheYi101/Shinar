@@ -391,6 +391,7 @@ class OpenAICompatibleLLMProvider(LearningLLMProvider):
                 "interpretation_candidates": [point.model_dump() for point in context.focus_points],
                 "information_gaps": context.gaps,
                 "reader_source_focus": context.source_context.model_dump(exclude={"quote"}) if context.source_context else None,
+                "previous_reply_interrupted": bool(user_message.metadata.get("previous_reply_interrupted")),
             }
             prior = [message for message in message_history if message.id != user_message.id][-10:]
             return [SystemMessage(content=_dialogue_system_prompt(target_language) +
@@ -414,6 +415,7 @@ class OpenAICompatibleLLMProvider(LearningLLMProvider):
         previous = ' '.join(message.content for message in
             [item for item in message_history if item.id != user_message.id][-2:])[-1000:]
         packet = _compact_reply_packet(material, topic, metadata.get("preparation"), user_message.content, previous)
+        packet["previous_reply_interrupted"] = bool(user_message.metadata.get("previous_reply_interrupted"))
         # Workbench supplies the current user message in history too. Include it exactly once,
         # and omit persistence IDs that have no conversational meaning to the dialogue model.
         prior = [message for message in message_history if message.id != user_message.id]

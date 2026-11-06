@@ -51,6 +51,8 @@ class AudioController(QObject):
         )
         self._player = QMediaPlayer(self)
         self._output = QAudioOutput(self)
+        self.selected_input_id = bytes(self._input.device().id()).hex()
+        self.selected_output_id = bytes(self._output.device().id()).hex()
         self._player.setAudioOutput(self._output)
         self._player.errorOccurred.connect(
             lambda *_: self._fail(
@@ -93,6 +95,11 @@ class AudioController(QObject):
         device = next((item for item in devices if bytes(item.id()).hex() == device_id), None)
         if device is not None:
             (self._output if output else self._input).setDevice(device)
+            if output:
+                self.selected_output_id = device_id
+            else:
+                self.selected_input_id = device_id
+            self.devicesChanged.emit()
 
     def _dir(self):
         if self._directory is None:

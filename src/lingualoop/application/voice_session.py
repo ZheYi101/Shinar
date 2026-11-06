@@ -47,6 +47,18 @@ class VoiceSessionCoordinator:
         self._closed = False
         self._speech_tasks: dict[str, asyncio.Task] = {}
         self._stopped_speech: set[str] = set()
+        self._reply_tasks: dict[str, asyncio.Task] = {}
+
+    async def interrupt_reply(self, turn_id: str, reason: str = "user_interruption") -> None:
+        """Cancel output and its durable generation; never cancel microphone input."""
+        task = self._reply_tasks.get(turn_id)
+        if task is None:
+            return  # A late controller cannot cancel a later retry of the same turn.
+        self.workbench.interrupt_reply(turn_id, reason)
+        if task and task is not asyncio.current_task():
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+        await self.stop_speech(turn_id)
 
     async def stop_speech(self, turn_id: str) -> None:
         """Stop this turn's speech without cancelling its dialogue producer."""
@@ -190,6 +202,7 @@ class VoiceSessionCoordinator:
         timings: dict[str, float] = {}
         current = asyncio.current_task()
         self._tasks.add(current)
+        self._reply_tasks[turn_id] = current
         consumer: asyncio.Task | None = None
         producer: asyncio.Task | None = None
 
@@ -322,6 +335,7 @@ class VoiceSessionCoordinator:
                     task.cancel()
             await asyncio.gather(*(t for t in (producer, consumer) if t), return_exceptions=True)
             self._tasks.discard(current)
+            self._reply_tasks.pop(turn_id, None)
             self._speech_tasks.pop(turn_id, None)
             self._stopped_speech.discard(turn_id)
 

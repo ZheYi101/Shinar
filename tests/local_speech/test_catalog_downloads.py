@@ -47,7 +47,8 @@ def test_catalog_pins_all_downloads_and_does_not_offer_japanese_kokoro():
             assert item.adapter != "candidate"
             assert all(len(f.sha256) == 64 and f.size > 0 for f in item.files)
     assert "ja" not in next(p for p in catalog if p.id == "kokoro-int8-zhen-v11").languages
-    assert next(p for p in catalog if p.id == "voicevox-japanese").files == []
+    voicevox = next(p for p in catalog if p.id == "voicevox-japanese")
+    assert voicevox.adapter == "voicevox" and voicevox.required_files == ["0.vvm", "VOICEVOX-TERMS.txt"]
 
 
 @pytest.mark.parametrize(

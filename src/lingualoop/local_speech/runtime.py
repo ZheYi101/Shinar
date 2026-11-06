@@ -16,6 +16,10 @@ from .processes import terminate_tree
 
 
 def runtime_python(root: Path, device: str) -> str:
+    from .installation import managed_status
+    current = managed_status(root, "ort-" + device)
+    if current.get("prepared"):
+        return current["python"]
     folder = root / "runtimes" / ("cuda12-ort1232-v1" if device == "cuda" else "cpu-v1")
     python = folder / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
     return str(python)
@@ -83,6 +87,9 @@ def probe_runtime(python: str, device: str, *, gpu_index=0, cancel=None) -> dict
 
 
 def install_runtime(root: Path, device: str, *, cancel=None, gpu_index=0) -> dict:
+    if os.name == "nt":
+        from .installation import prepare_managed_runtime
+        return prepare_managed_runtime(root, "ort-" + device, cancel=cancel, gpu_index=gpu_index, repair=True)
     if device not in {"cpu", "cuda"}:
         raise ValueError("未知运行环境。")
     if sys.version_info[:2] not in {(3, 11), (3, 12), (3, 13)} or getattr(sys, "frozen", False):
@@ -137,6 +144,10 @@ def install_runtime(root: Path, device: str, *, cancel=None, gpu_index=0) -> dic
 
 
 def runtime_status(root: Path, device: str) -> dict:
+    from .installation import managed_status
+    current = managed_status(root, "ort-" + device)
+    if current.get("prepared"):
+        return current
     python = Path(runtime_python(root, device))
     marker = read_json(python.parent.parent / "ready.json", {})
     return {"prepared": python.is_file() and marker.get("ok") is True, **marker}

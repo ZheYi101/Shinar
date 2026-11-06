@@ -21,7 +21,7 @@ Item {
         ColumnLayout {
             Layout.fillWidth: true; Layout.fillHeight: true; spacing: 0
             WindowTitleBar { Layout.fillWidth: true; Layout.preferredHeight: AppTheme.topBarHeight; onToggleSidebar: root.compact ? drawer.open() : workspace.toggleSidebar(); onNavigate: page => workspace.navigate(page === 3 ? "settings" : "review") }
-            ProgressBar { visible: learningViewModel.busy; Layout.fillWidth: true; Layout.preferredHeight: 2; indeterminate: true }
+            ProgressBar { visible: learningViewModel.operationBusy; Layout.fillWidth: true; Layout.preferredHeight: 2; indeterminate: true }
             RowLayout {
                 visible: learningViewModel.errorMessage.length > 0 || workspace.error.length > 0
                 Layout.fillWidth: true; Layout.leftMargin: 20; Layout.rightMargin: 12; spacing: 8

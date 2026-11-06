@@ -236,10 +236,12 @@ def synthesize(model, language, index=0, output=None, adapter="kokoro", *, text=
 
 def evaluate(request):
     import psutil
-    import sherpa_onnx
-
-    if sherpa_onnx.__version__.split("+")[0] != request["runtime_version"]:
-        raise ValueError("本地推理运行时版本不匹配，请安装项目固定的 local-speech extra。")
+    sherpa_version = None
+    if any(s["adapter"] not in {"voicevox", "melo_english", "sensevoice-ort"} for s in request["models"]):
+        import sherpa_onnx
+        sherpa_version = sherpa_onnx.__version__.split("+")[0]
+        if sherpa_version != request["runtime_version"]:
+            raise ValueError("本地推理运行时版本不匹配，请安装项目固定的 local-speech extra。")
     if any(s["adapter"] == "sensevoice-ort" for s in request["models"]):
         import onnxruntime
 
@@ -284,8 +286,8 @@ def evaluate(request):
                 concurrent["tts"].append(synthesis.result())
     memory = psutil.Process().memory_info()
     return {
-        "runtime_version": sherpa_onnx.__version__.split("+")[0],
-        "sherpa_build": sherpa_onnx.__version__,
+        "runtime_version": sherpa_version,
+        "sherpa_build": sherpa_version,
         "provider": specs[0].get("provider", "cpu")
         if len({s.get("provider", "cpu") for s in specs}) == 1
         else "mixed",
@@ -296,7 +298,9 @@ def evaluate(request):
         "runtime_versions": {
             s["id"]: "1.23.2"
             if s["adapter"] == "sensevoice-ort"
-            else sherpa_onnx.__version__.split("+")[0]
+            else "voicevox-0.17.1" if s["adapter"] == "voicevox"
+            else "torch-2.9.1-transformers-4.57.3" if s["adapter"] == "melo_english"
+            else sherpa_version
             for s in specs
         },
         "threads_per_model": request["threads"],

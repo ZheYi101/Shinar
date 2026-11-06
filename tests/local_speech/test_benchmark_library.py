@@ -28,7 +28,15 @@ def test_admission_uses_available_memory_and_no_unverified_candidates():
     assert admission(package, hardware())[0]
     assert not admission(package, dict(hardware(), available_ram_bytes=1024**3))[0]
     assert not admission(package, dict(hardware(), available_ram_bytes=None))[0]
-    assert not admission(load_catalog()[3], hardware())[0]
+    candidate = next(p for p in load_catalog() if p.adapter == "candidate")
+    assert not admission(candidate, hardware())[0]
+
+
+def test_download_does_not_require_model_inference_memory(tmp_path):
+    package = load_catalog()[0]
+    rows = model_rows(ModelStore(tmp_path), [package], "zh", "conversation",
+                      dict(hardware(), available_ram_bytes=1024**3))
+    assert rows[0]["downloadable"] and not rows[0]["benchmarkable"]
 
 
 def test_percentile_keeps_slow_turn_and_summary_distinguishes_concurrent():

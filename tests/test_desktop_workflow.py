@@ -6,7 +6,7 @@ import json
 import io
 import os
 from pathlib import Path
-from time import monotonic
+from time import monotonic, sleep
 import wave
 
 import pytest
@@ -189,7 +189,8 @@ def qt_app():
 def until(predicate, timeout=5000):
     deadline = monotonic() + timeout / 1000
     while not predicate() and monotonic() < deadline:
-        QTest.qWait(20)
+        QGuiApplication.instance().processEvents()
+        sleep(0.01)
     assert predicate()
 
 

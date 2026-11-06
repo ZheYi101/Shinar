@@ -158,6 +158,27 @@ def test_local_cancel_gates_audio_before_network_await(transport):
     asyncio.run(scenario())
 
 
+def test_natural_audio_finish_closes_track_and_rejects_late_segments(transport):
+    async def scenario():
+        closed = []
+        class Source:
+            def clear_queue(self):
+                closed.append("clear")
+            async def aclose(self):
+                closed.append("close")
+        ref = TurnRef("s", "first", 1)
+        await transport.start_turn(ref)
+        transport._source = Source()
+        await transport.finish_audio(ref)
+        assert closed == ["clear", "close"] and not transport._cancelled
+        assert not await transport.send_audio(ref, PcmFrame(bytes(1920)))
+        assert await transport.complete_text(ref)
+        await transport.start_turn(TurnRef("s", "next", 2))
+        assert not transport._audio_finished
+        await transport.close()
+    asyncio.run(scenario())
+
+
 def test_cleanup_failure_does_not_skip_other_resources_or_disconnect(transport):
     async def scenario():
         closed = []

@@ -8,6 +8,7 @@ import tarfile
 from contextlib import contextmanager
 from pathlib import Path, PurePosixPath
 from uuid import uuid4
+from types import SimpleNamespace
 
 import httpx
 
@@ -78,6 +79,12 @@ class ModelStore:
 
     def model_path(self, package):
         return self.root / "models" / package.id / package.revision
+
+    def fetch_artifact(self, artifact, *, cancel=None, progress=lambda done, total: None):
+        """Share verified blobs across runtime/model jobs, including concurrent app instances."""
+        with package_lock(self.root, SimpleNamespace(id="asset-" + artifact.sha256)):
+            with httpx.Client(follow_redirects=True, timeout=httpx.Timeout(30, read=30)) as client:
+                return self._fetch(artifact, client, cancel, progress)
 
     def installed(self, package):
         path = self.model_path(package)
@@ -179,6 +186,19 @@ class ModelStore:
                     shutil.rmtree(self._owned(staging))
 
     def _fetch(self, artifact, client, cancel, progress):
+        for attempt in range(3):
+            _check_cancel(cancel)
+            try:
+                return self._fetch_once(artifact, client, cancel, progress)
+            except httpx.TransportError:
+                if attempt == 2:
+                    raise
+            except httpx.HTTPStatusError as error:
+                if attempt == 2 or error.response.status_code < 500:
+                    raise
+        raise RuntimeError("speech_download_incomplete")
+
+    def _fetch_once(self, artifact, client, cancel, progress):
         cache = self.root / "downloads"
         cache.mkdir(parents=True, exist_ok=True)
         complete = cache / artifact.sha256
