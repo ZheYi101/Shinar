@@ -43,6 +43,7 @@ LinguaLoop 是一个把沉浸式输入转化为语音输出练习的开源语言
 
 - 开始跨模块改动前阅读 `docs/architecture/ARCHITECTURE.md`；阅读器改动还须阅读 `docs/architecture/READER_ARCHITECTURE.md`。总览描述当前实现，专项文档维护契约，技术决策记录取舍，路线图列未完成项；不要把规划当作现有依赖。
 - 保持单一业务入口：材料、会话、已读授权与确认消息由 Workbench／core 管理；QML 与 WebEngine 不另建会话、预算、模型调用或持久化流程。新增能力先明确数据所有者、依赖方向、异步失效条件与失败回退。
+- 对话瞬态展示只能由 ViewModel 的 `present_conversation(ConversationEvent)` 更新；控制器读取只读快照，不直接写展示字段或发送门面的对话信号。异步事件保留原任务身份与代际，草稿版本只控制确认清稿，不阻止有效回复显示。
 - 规范化原文、哈希和 Python 字符区间是来源事实。DOM、CFI、页码和滚动位置只作显示定位；不能用首次引文匹配替代精确坐标，不能因升级引擎或修复排版重写历史快照。改变规范化／来源索引语义须显式版本化并说明兼容方案。
 - EPUB 解析、原件读写和显示投影留在无 Qt 的 `infrastructure/epub_reader.py`；通用来源操作留在 `application/source_document.py`。Qt profile、资源白名单与 WebChannel 只在桌面适配边界。JS 负责渲染与坐标转换，不能决定已读授权或生成对话依据。
 - WebChannel 只注册专用 `ReaderBridge`，不注册完整 workspace／viewmodel，不增加任意方法调用、文件读取或脚本执行接口。Python 对每个请求复核文档身份、代际、路由和范围；导航、关闭、换线程后的旧回调不得写入当前状态。文件／ZIP 工作在后台完成，Qt 对象留主线程。

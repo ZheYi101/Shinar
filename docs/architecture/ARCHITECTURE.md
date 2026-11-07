@@ -52,7 +52,7 @@ flowchart TB
 - `LearningWorkbench` 保管会话确认、生成、提交和恢复；`MaterialWorkbench` 在同一实例上维护导入、已读范围和参考准备职责，不产生第二个会话或持久化所有者。
 - `SemanticPreparation` 保管准备流程与清单；`PreparationRequests` 单独拥有请求锁、预算预留／结算及校验缓存。provider 的配置、prompt／请求包与解析分别在独立职责模块。
 - ViewModel、Workspace、连续语音与语音库各自保留一个 QObject 门面；无独立 QObject 的职责基类维护投影、阅读状态、事件归约或安装／测速操作。QML 信号和属性由同一实例发布，避免重复元对象与两份状态。
-- `ConversationPresentation` 保存瞬态消息投影与流式显示；`PresentationToken` 携带会话、轮次、代际和草稿版本，旧轮次不能追加到当前流。已确认消息仍只由 Workbench 保存。
+- `ConversationPresentation` 是瞬态对话展示的唯一写入者，对外只暴露递归只读的 `ConversationSnapshot`；QML 读取脱离所有者的普通值。文本、分轮语音和连续语音通过 ViewModel 的 `present_conversation(ConversationEvent)` 更新，`ConversationView` 普通职责基类统一投影消息、条件清稿和发送相关 Qt 信号。不存在可写字段别名。
 - `SourceLoadRequest/Result` 在无 Qt 的来源加载边界交换普通数据。Workspace 在主线程冻结偏好、材料、范围及目录，后台不读取 Qt 对象；缺件／投影失败返回错误码并文本回退。
 - `BlockingRequest/run_blocking` 只开放包内具名操作，按事件循环最多两个文件／安装任务子进程。解析、投影、长材料索引、原件保存和运行环境安装等待实际进程清理；父进程安装索引缓存并提交学习数据。
 
@@ -80,6 +80,10 @@ CLI 与桌面使用相同 Workbench 用例；CLI 导入先保存，显式确认�
 Qt 控件、WebEngine profile 和音频对象属于主线程。网络与准备任务复用长期 asyncio worker；ZIP／文件及长文本处理进入后台，不在 QML 或 JS 中执行业务。后台结果通过 queued signal 返回，不能在 worker 中直接修改 Qt 控件。
 
 结果生效须核对材料、会话、请求代际和当前路由；取消不是唯一的有效性保障。导航、换线程、新一轮消息与退出时，旧任务即使晚到也不能覆盖当前状态。关闭流程由创建者取消任务并释放资源，重试复用原业务入口。
+
+对话展示事件固定为开始、确认、增量、完成、失败、打断、结算、刷新、失效、转写预览、录音时长、耗时、错误和状态通知；不引入通用事件总线。`PresentationToken` 携带会话、轮次、任务标识、门面单调代际和草稿版本。传输层先校验原任务／通话身份，再在主线程生成展示事件，后台回调不得读取新任务身份来标记旧结果。确认只允许同一任务绑定一次轮次；完成／失败／打断后拒绝继续追加，结算通知幂等。历史切换、重试与退出使旧事件失效；无 token 的刷新只用于门面当前同步状态和恢复轮询。
+
+草稿仍由 ViewModel 管理；确认事件仅在已发送文本和版本均匹配时清稿。编辑新草稿不使当前有效回复失效。展示入口从 Workbench 会话快照生成历史投影，不提交消息或保存半段流；数据库、来源索引和历史 payload 保持不变。
 
 SQLite 不跨线程共享 connection。重模型和 RTC／DSP 使用既有独立进程边界；阅读器沿用 Qt 管理的 Chromium 进程。新能力不自行添加本地 HTTP 服务、第二套 event loop 或无界任务池。
 

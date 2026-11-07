@@ -22,11 +22,11 @@ from lingualoop.core import (
     CorrectionIntensity,
     SessionUserProfile,
 )
-from lingualoop.infrastructure.material_import import import_material_file
 from lingualoop.core.reading_scope import scope_material, reading_end, paragraph_boundary
 from lingualoop.kernel import SessionStepResult
 from lingualoop.desktop.worker import AsyncWorker
-from lingualoop.desktop.conversation_presentation import ConversationPresentation, presentation_field
+from lingualoop.desktop.conversation_presentation import ConversationEvent, ConversationPresentation
+from lingualoop.desktop.conversation_view import ConversationView
 from lingualoop.desktop.preferences import DesktopPreferences
 from lingualoop.providers.speech import CompatibleSpeechProvider, SpeechSettings
 
@@ -36,7 +36,7 @@ from lingualoop.desktop.learning_presentation import (LearningPresentation, _top
 AsyncOperation = Callable[[], Coroutine[Any, Any, Any]]
 
 
-class LearningViewModel(QObject, LearningPresentation):
+class LearningViewModel(QObject, LearningPresentation, ConversationView):
     """Small, stable QML API over :class:`LearningWorkbench`.
 
     Domain models stay in Python. QML receives plain strings and dictionaries so
@@ -44,13 +44,6 @@ class LearningViewModel(QObject, LearningPresentation):
     """
 
 
-
-    _messages = presentation_field("messages")
-    _streaming_text = presentation_field("streaming_text")
-    _pending_user_text = presentation_field("pending_user_text")
-    _response_timing = presentation_field("response_timing")
-    _recording_seconds = presentation_field("recording_seconds")
-    _error = presentation_field("error")
 
     workbench = property(lambda self: self._workbench)
     worker = property(lambda self: self._worker)
@@ -76,14 +69,14 @@ class LearningViewModel(QObject, LearningPresentation):
         audio_controller=None,
     ) -> None:
         super().__init__()
-        self.presentation = ConversationPresentation()
+        self._conversation = ConversationPresentation()
+        self._presentation_generation = 0
         self._workbench = workbench
         self._provider_label = getattr(workbench.provider, "display_label", provider_label)
         self._busy = False
         self._status = QCoreApplication.translate("Desktop", "就绪。当前模式：{value0}").format(
             value0=self._provider_label
         )
-        self._messages: list[dict[str, str]] = []
         self._feedback_items: list[dict[str, str]] = []
         self._review_items: list[dict[str, str]] = []
         self._worker = AsyncWorker(self)
@@ -93,9 +86,6 @@ class LearningViewModel(QObject, LearningPresentation):
         self._on_success = None
         self._retry_operation = None
         self._closed = False
-        self._streaming_text = ""
-        self._pending_user_text = ""
-        self._response_timing = ""
         self._topic_filter = QCoreApplication.translate("Desktop", "全部")
         self._topic_search = ""
         self._preparation_state = "idle"
@@ -113,7 +103,6 @@ class LearningViewModel(QObject, LearningPresentation):
         self._preferences = (
             preferences if preferences is not None else DesktopPreferences(parent=self)
         )
-        self._error = ""
         self._draft = ""
         self._session_drafts = {}
         self.source_context_provider = lambda: None
@@ -122,7 +111,6 @@ class LearningViewModel(QObject, LearningPresentation):
         self._custom_topic = ""
         self._practice_mode = "discussion"
         self._role_description = ""
-        self._recording_seconds = 0
         self._last_reply = ""
         self._stt = stt_provider
         self._tts = tts_provider
@@ -181,7 +169,6 @@ class LearningViewModel(QObject, LearningPresentation):
         self._refresh_review_items()
         self.materialChanged.emit()
         self.sessionChanged.emit()
-        self.messagesChanged.emit()
         self.feedbackItemsChanged.emit()
         self.reviewItemsChanged.emit()
         self.topicsChanged.emit()
@@ -258,7 +245,6 @@ class LearningViewModel(QObject, LearningPresentation):
         self.uiChanged.emit()
         self.materialChanged.emit()
         self.sessionChanged.emit()
-        self.messagesChanged.emit()
         self.feedbackItemsChanged.emit()
         self.reviewItemsChanged.emit()
         self.dueReviewCountChanged.emit()
@@ -290,7 +276,7 @@ class LearningViewModel(QObject, LearningPresentation):
         self._custom_topic = ""
         self._workbench.reset()
         self.historyChanged.emit()
-        self._messages = []
+        self.refresh_session_state()
         self._feedback_items = []
         self._review_items = []
         self._set_status(
@@ -300,7 +286,6 @@ class LearningViewModel(QObject, LearningPresentation):
         )
         self.materialChanged.emit()
         self.sessionChanged.emit()
-        self.messagesChanged.emit()
         self.feedbackItemsChanged.emit()
         self.reviewItemsChanged.emit()
         self.materialsChanged.emit()
@@ -321,7 +306,7 @@ class LearningViewModel(QObject, LearningPresentation):
 
         self._on_success = on_success
         self._retry_operation = (status, operation, on_success)
-        self._error = ""
+        self.present_conversation(ConversationEvent("error"))
         self.uiChanged.emit()
         try:
             self._worker.submit(operation)
@@ -340,23 +325,21 @@ class LearningViewModel(QObject, LearningPresentation):
         self._busy = False
         self.busyChanged.emit()
         if error:
-            self._streaming_text = ""
-            self._pending_user_text = ""
+            self.present_conversation(ConversationEvent("invalidate"))
             self.report_error(error)
             self.refresh_session_state()
             self.materialChanged.emit()
             self.materialsChanged.emit()
             self.topicsChanged.emit()
-            self.messagesChanged.emit()
         elif callback is not None:
-            self._error = ""
+            self.present_conversation(ConversationEvent("error"))
             self._retry_operation = None
             callback(result)
         self.uiChanged.emit()
 
     @Slot(str)
     def report_error(self, message):
-        self._error = message
+        self.present_conversation(ConversationEvent("error", text=message))
         self.errorOccurred.emit(message)
         self._set_status(QCoreApplication.translate("Desktop", "操作未完成，内容已保留。"))
 
@@ -368,14 +351,13 @@ class LearningViewModel(QObject, LearningPresentation):
         self._refresh_review_items()
         self.materialChanged.emit()
         self.sessionChanged.emit()
-        self.messagesChanged.emit()
         self.feedbackItemsChanged.emit()
         self.reviewItemsChanged.emit()
         self.materialsChanged.emit()
         self.dueReviewCountChanged.emit()
         self.topicsChanged.emit()
         self.historyChanged.emit()
-        if not self._error:
+        if not self.presentation.error:
             self._set_status(
                 QCoreApplication.translate(
                     "Desktop", "范围已确认，可以先聊天，基础理解会在后台保存。"
@@ -392,7 +374,7 @@ class LearningViewModel(QObject, LearningPresentation):
         self._last_reply = next(
             (
                 message["content"]
-                for message in reversed(self._messages)
+                for message in reversed(self.presentation.messages)
                 if message["role"] == "assistant"
             ),
             "",
@@ -403,7 +385,6 @@ class LearningViewModel(QObject, LearningPresentation):
         self.refresh_session_state(session)
         self._refresh_review_items()
         self.sessionChanged.emit()
-        self.messagesChanged.emit()
         self.feedbackItemsChanged.emit()
         self.reviewItemsChanged.emit()
         self.dueReviewCountChanged.emit()
@@ -578,7 +559,7 @@ class LearningViewModel(QObject, LearningPresentation):
 
     @Slot()
     def dismissError(self):
-        self._error = ""
+        self.present_conversation(ConversationEvent("error"))
         self.uiChanged.emit()
 
     def after_started(self, result):
@@ -632,7 +613,7 @@ class LearningViewModel(QObject, LearningPresentation):
             self._audio.select_device(device_id, output=output)
 
     def _clear_audio(self):
-        self.presentation.invalidate()
+        self.present_conversation(ConversationEvent("invalidate"))
         self.voice.reset()
         if self._audio:
             self._audio.clear()
@@ -642,6 +623,7 @@ class LearningViewModel(QObject, LearningPresentation):
 
     def begin_shutdown(self):
         if not self._closed:
+            self.present_conversation(ConversationEvent("invalidate"))
             self._closed = True
             self.voice.close()
             self._preparation_timer.stop()

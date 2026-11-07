@@ -22,6 +22,7 @@ from PySide6.QtCore import (
 from PySide6.QtGui import QDesktopServices
 
 from lingualoop.application.continuous_voice import ContinuousConversation
+from lingualoop.desktop.conversation_presentation import ConversationEvent
 from lingualoop.infrastructure.blocking_jobs import BlockingRequest, run_blocking
 from lingualoop.realtime.audio_process import AudioSessionProcess
 from lingualoop.realtime.continuous_assets import (
@@ -463,7 +464,8 @@ class ContinuousVoiceController(QObject, ContinuousVoicePresentation):
         self._pause_id = ""
         self._pause_source = None
         self._sources.clear()
-        self.vm.presentation.streaming_text = ""
+        self._presentation_token = self.vm.new_presentation_token(identity + ":stop")
+        self.vm.present_conversation(ConversationEvent("begin", self._presentation_token))
         self.notify()
 
         async def stop():

@@ -51,17 +51,18 @@ def test_closed_workspace_ignores_late_delivery():
 
 def test_presentation_rejects_a_previous_turn():
     from lingualoop.desktop.conversation_presentation import (
+        ConversationEvent,
         ConversationPresentation,
         PresentationToken,
     )
 
     view = ConversationPresentation()
-    previous = PresentationToken("session", "first", 1, 0)
-    current = PresentationToken("session", "second", 2, 1)
-    view.activate(previous)
-    view.activate(current)
-    assert not view.append(previous, "late")
-    assert view.append(current, "current") and view.streaming_text == "current"
+    previous = PresentationToken("session", "first", 1, 0, "first-job")
+    current = PresentationToken("session", "second", 2, 1, "second-job")
+    view.apply(ConversationEvent("begin", previous))
+    view.apply(ConversationEvent("begin", current))
+    assert not view.apply(ConversationEvent("delta", previous, text="late"))
+    assert view.apply(ConversationEvent("delta", current, text="current")) and view.snapshot.streaming_text == "current"
 
 
 def test_worker_shutdown_waits_for_the_actual_executor_thread():

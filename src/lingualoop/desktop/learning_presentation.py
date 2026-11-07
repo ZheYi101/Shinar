@@ -7,6 +7,8 @@ from typing import Any
 
 from PySide6.QtCore import QObject, Property, Signal, Slot, Qt, QCoreApplication
 
+from .conversation_presentation import ConversationEvent, display_value
+
 from lingualoop.core.reading_scope import scope_material, reading_end, paragraph_boundary
 
 
@@ -201,7 +203,7 @@ class LearningPresentation:
 
     @Property(list, notify=messagesChanged)
     def messages(self) -> list[dict[str, str]]:
-        return self._messages
+        return display_value(self.presentation.messages)
 
     @Property(list, notify=feedbackItemsChanged)
     def feedbackItems(self) -> list[dict[str, str]]:
@@ -359,34 +361,7 @@ class LearningPresentation:
         return scope_material(self._workbench.material).content
 
     def refresh_session_state(self, session: Any | None = None) -> None:
-        session = session or self._workbench.session
-        if session is None:
-            self._messages = []
-            self._feedback_items = []
-            return
-        turn_id = ""
-        messages = []
-        for message in session.messages:
-            if message.role.value == "user":
-                turn_id = message.metadata.get("turn_id", "")
-            messages.append({
-                **self.voice.turn_details(message, turn_id),
-                "id": message.id,
-                "role": message.role.value,
-                "content": message.content,
-                "source": message.source_context.model_dump(mode="json")
-                if message.source_context
-                else None,
-            })
-        self._messages = messages
-        self._feedback_items = [
-            {
-                "original": item.original,
-                "corrected": item.corrected,
-                "explanation": item.explanation,
-            }
-            for item in session.feedback_items
-        ]
+        self.present_conversation(ConversationEvent("refresh", session=session))
 
     @staticmethod
     def _review_dtos(items: list[Any]) -> list[dict[str, str]]:
@@ -418,7 +393,7 @@ class LearningPresentation:
 
     @Property(str, notify=uiChanged)
     def errorMessage(self):
-        return self._error
+        return self.presentation.error
 
     @Property(bool, notify=uiChanged)
     def canRetryOperation(self):
@@ -527,15 +502,15 @@ class LearningPresentation:
 
     @Property(str, notify=uiChanged)
     def streamingText(self):
-        return self._streaming_text
+        return self.presentation.streaming_text
 
     @Property(str, notify=uiChanged)
     def pendingUserText(self):
-        return self._pending_user_text
+        return self.presentation.pending_user_text
 
     @Property(str, notify=uiChanged)
     def responseTiming(self):
-        return self._response_timing
+        return self.presentation.response_timing
 
     @Property(str, notify=uiChanged)
     def preparationStatus(self):
@@ -578,7 +553,7 @@ class LearningPresentation:
 
     @Property(int, notify=uiChanged)
     def recordingSeconds(self):
-        return self._recording_seconds
+        return self.presentation.recording_seconds
 
     @Property(list, notify=uiChanged)
     def inputDevices(self):

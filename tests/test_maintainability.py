@@ -53,3 +53,48 @@ def test_plain_source_and_process_boundaries_do_not_import_qt():
                 assert not any(alias.name.startswith("PySide") for alias in node.names)
             if isinstance(node, ast.ImportFrom):
                 assert not (node.module or "").startswith("PySide")
+
+
+def test_conversation_display_updates_use_the_single_facade():
+    violations = []
+    legacy = {"_messages", "_streaming_text", "_pending_user_text", "_response_timing",
+              "_recording_seconds", "_error"}
+    for path in (SOURCE / "desktop").glob("*.py"):
+        if path.name == "conversation_presentation.py":
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8-sig"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Attribute) and isinstance(node.ctx, (ast.Store, ast.Del)):
+                target = ast.unparse(node)
+                if ".presentation." in target or target.startswith("self._conversation.") or (
+                    path.name in {"viewmodel.py", "learning_presentation.py"}
+                    and ast.unparse(node.value) == "self" and node.attr in legacy
+                ):
+                    violations.append(f"{path.name}:{node.lineno}: display assignment {target}")
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+                name = ast.unparse(node.func)
+                if path.name != "conversation_view.py" and name == "self.messagesChanged.emit":
+                    violations.append(f"{path.name}:{node.lineno}: message signal outside entry point")
+                if name in {
+                    f"self.vm.{signal}.emit" for signal in
+                    ("messagesChanged", "historyChanged", "messageSent", "uiChanged", "busyChanged")
+                }:
+                    violations.append(f"{path.name}:{node.lineno}: controller emits facade signal")
+                if name in {"self.vm.refresh_session_state", "self.vm.restore_last_reply"}:
+                    violations.append(f"{path.name}:{node.lineno}: controller bypasses display event")
+                if name == "self._conversation.apply" and path.name != "conversation_view.py":
+                    violations.append(f"{path.name}:{node.lineno}: owner update outside entry point")
+            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                and node.func.id in {"setattr", "delattr"} and node.args
+                and any(name in ast.unparse(node.args[0]) for name in ("presentation", "_conversation"))):
+                violations.append(f"{path.name}:{node.lineno}: dynamic display assignment")
+    assert not violations, "\n".join(violations)
+
+
+def test_legacy_desktop_import_entrypoints_do_not_reappear():
+    removed = {"loadMaterial", "importMaterial", "startPractice"}
+    for path in (SOURCE / "desktop").glob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8-sig"))
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                assert node.name not in removed, f"{path.name}:{node.lineno}: {node.name}"

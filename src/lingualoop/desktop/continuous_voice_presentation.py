@@ -12,7 +12,7 @@ from PySide6.QtCore import (
 )
 from PySide6.QtGui import QDesktopServices
 
-from lingualoop.desktop.conversation_presentation import PresentationToken
+from lingualoop.desktop.conversation_presentation import ConversationEvent
 from lingualoop.realtime.continuous_assets import (
     VAD_PACKAGE,
     server_package,
@@ -460,8 +460,7 @@ class ContinuousVoicePresentation:
         self.componentsChanged.emit()
         self.refreshSetupStorage()
         self._connection = "off"
-        self.vm.refresh_session_state()
-        self.vm.messagesChanged.emit()
+        self.vm.present_conversation(ConversationEvent("refresh", self._presentation_token))
         return True
 
     def _turn_recognizing(self, identity, kind, generation, value):
@@ -477,31 +476,27 @@ class ContinuousVoicePresentation:
         self._attribution = ""
         self._input, self._reply = "idle", "generating"
         self._output = "synthesizing" if self.voice.speak_enabled() else "idle"
-        self._presentation_token = None
-        self.vm.presentation.invalidate()
+        self._presentation_token = self.vm.new_presentation_token(f"{identity}:{generation}")
+        self.vm.present_conversation(ConversationEvent("begin", self._presentation_token))
         return True
 
     def _turn_confirmed(self, identity, kind, generation, value):
         turn, session = value
         self._turn = turn.id
-        self._presentation_token = PresentationToken(session.id, turn.id, generation, self.vm.draft_revision)
-        self.vm.presentation.activate(self._presentation_token)
+        self._presentation_token = self.vm.confirm_presentation(
+            self._presentation_token, turn.id, session, self._sent_revision,
+        )
         self._input = "idle"
         if self._retained:
             key = self._retained[0]["utterance"]
             if turn.request_id == f"voice:{self.process.id}:{key}":
                 self._retained = None
                 self._sources.pop(key, None)
-        if self._sent_revision == (self.vm.draft_revision, self.vm.draft):
-            self.vm.draft = ""
         self._sent_revision = None
-        self.vm.refresh_session_state(session)
-        self.vm.messagesChanged.emit()
-        self.vm.historyChanged.emit()
         return True
 
     def _turn_delta(self, identity, kind, generation, value):
-        self.vm.presentation.append(self._presentation_token, value)
+        self.vm.present_conversation(ConversationEvent("delta", self._presentation_token, text=value))
         return True
 
     def _turn_attribution(self, identity, kind, generation, value):
@@ -521,10 +516,7 @@ class ContinuousVoicePresentation:
 
     def _turn_text_completed(self, identity, kind, generation, value):
         self._reply = "idle"
-        self.vm.presentation.streaming_text = ""
-        self.vm.refresh_session_state(value.session)
-        self.vm.restore_last_reply()
-        self.vm.messagesChanged.emit()
+        self.vm.present_conversation(ConversationEvent("complete", self._presentation_token, value.session))
         return True
 
     def _turn_result(self, identity, kind, generation, value):
@@ -550,9 +542,7 @@ class ContinuousVoicePresentation:
                     "Desktop", "朗读音频未能送达播放设备，文字回复已保留；可重试朗读。"
                 )
             )
-        self.vm.refresh_session_state()
-        self.vm.messagesChanged.emit()
-        self.vm.historyChanged.emit()
+        self.vm.present_conversation(ConversationEvent("settled", self._presentation_token, history_changed=True))
         return True
 
     def _turn_recognition_failed(self, identity, kind, generation, value):
@@ -570,10 +560,11 @@ class ContinuousVoicePresentation:
         self._output = "idle"
         if kind == "interrupted":
             self._reply = "idle"
-            self.vm.presentation.streaming_text = ""
+            self.vm.present_conversation(ConversationEvent("interrupt", self._presentation_token))
         return True
 
     def _turn_reply_failed(self, identity, kind, generation, value):
+        self.vm.present_conversation(ConversationEvent("fail", self._presentation_token))
         self._reply = "idle"
         self._output = "idle"
         self._error = QCoreApplication.translate(
@@ -582,8 +573,7 @@ class ContinuousVoicePresentation:
         return True
 
     def _turn_interruption_completed(self, identity, kind, generation, value):
-        self.vm.refresh_session_state()
-        self.vm.messagesChanged.emit()
+        self.vm.present_conversation(ConversationEvent("refresh", self._presentation_token))
         return True
 
     def _apply_turn_event(self, identity, kind, generation, value):
@@ -619,5 +609,3 @@ class ContinuousVoicePresentation:
         elif kind == 'interruption_completed':
             return self._turn_interruption_completed(identity, kind, generation, value)
         return True
-
-
