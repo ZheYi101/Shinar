@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from collections.abc import Awaitable, Callable
 from time import perf_counter
 
@@ -17,7 +18,8 @@ from lingualoop.core.knowledge import TurnSourceSnapshot
 from lingualoop.core.conversation import ConversationTurn
 from lingualoop.kernel import SessionStepResult
 from .learning_workbench import LearningWorkbench
-from .speech_text import SpeechTextBuffer, SpokenTextProjection
+from .speech_generation import SpeechGeneration
+from .speech_audio import SpeechPlayoutBuffer, trim_speech_padding
 
 AudioConsumer = Callable[[SpeechSegment], Awaitable[None]]
 LANGUAGES = {"chinese": "zh", "english": "en", "japanese": "ja"}
@@ -195,82 +197,22 @@ class VoiceSessionCoordinator:
         self, turn_id: str, language: str, *, replay=None, speak: bool = True
     ) -> VoiceTurnResult:
         self._stopped_speech.discard(turn_id)
-        started = perf_counter()
-        buffer, projection, changed = SpeechTextBuffer(), SpokenTextProjection(), asyncio.Event()
-        failed: tuple[str, str] | None = None
-        count = 0
-        timings: dict[str, float] = {}
+        state = SpeechGeneration(self, turn_id, language, speak)
+        started, timings = state.started, state.timings
         current = asyncio.current_task()
         self._tasks.add(current)
         self._reply_tasks[turn_id] = current
         consumer: asyncio.Task | None = None
         producer: asyncio.Task | None = None
 
-        def delta(text: str) -> None:
-            nonlocal failed
-            if self.on_text_delta:
-                try:
-                    self.on_text_delta(text)
-                except Exception:
-                    failed = ("output", "text_consumer_failed")
-            timings.setdefault("text_first_delta", (perf_counter() - started) * 1000)
-            if failed or not speak or turn_id in self._stopped_speech:
-                return
-            try:
-                buffer.append(text)
-            except ValueError:
-                failed = ("tts", "speech_text_buffer_full")
-            changed.set()
-
-        async def synthesize() -> None:
-            nonlocal count, failed
-            try:
-                backend = await self._bind(self.tts, language)
-                while not failed:
-                    changed.clear()
-                    sentence = buffer.pop_sentence()
-                    if sentence is None:
-                        if buffer.done:
-                            return
-                        await changed.wait()
-                        continue
-                    spoken = projection.project(sentence, final=buffer.done and not buffer.text)
-                    if not spoken:
-                        continue
-                    audio = await backend.synthesize(spoken)
-                    if failed:
-                        return
-                    segment = SpeechSegment.from_wav(
-                        turn_id,
-                        count,
-                        spoken,
-                        audio,
-                        attribution=getattr(backend, "attribution", ""),
-                    )
-                    timings.setdefault(
-                        "first_audio_segment_ready", (perf_counter() - started) * 1000
-                    )
-                    if self.on_audio:
-                        try:
-                            await self.on_audio(segment)
-                        except Exception:
-                            failed = ("output", "audio_consumer_failed")
-                            return
-                    count += 1
-                    timings.setdefault(
-                        "first_audio_segment_delivered", (perf_counter() - started) * 1000
-                    )
-            except Exception:
-                failed = ("tts", "speech_synthesis_failed")
-
         try:
             if speak:
-                consumer = asyncio.create_task(synthesize(), name=f"tts-{turn_id}")
+                consumer = asyncio.create_task(state.synthesize(), name=f"tts-{turn_id}")
                 self._speech_tasks[turn_id] = consumer
             # Keep speech synthesis off the LLM stream reader.
             if replay is None:
                 producer = asyncio.create_task(
-                    self.workbench.generate_reply(turn_id, on_delta=delta), name=f"reply-{turn_id}"
+                    self.workbench.generate_reply(turn_id, on_delta=state.delta), name=f"reply-{turn_id}"
                 )
                 try:
                     step = await producer
@@ -290,7 +232,7 @@ class VoiceSessionCoordinator:
                         None,
                         "failed",
                         "failed" if speak else "skipped",
-                        count,
+                        state.count,
                         "dialogue",
                         f"reply_http_{exc.status_code}"
                         if getattr(exc, "status_code", None) in {401, 402, 429}
@@ -301,13 +243,13 @@ class VoiceSessionCoordinator:
                     try:
                         self.on_text_completed(step)
                     except Exception:
-                        failed = ("output", "text_consumer_failed")
+                        state.failed = ("output", "text_consumer_failed")
             else:
                 assistant = replay
-                delta(replay.content)
+                state.delta(replay.content)
             timings["text_completed"] = (perf_counter() - started) * 1000
-            buffer.done = True
-            changed.set()
+            state.buffer.done = True
+            state.changed.set()
             if consumer:
                 # A speech-only stop is expected. Cancellation of the foreground
                 # operation still propagates through the producer/finally path.
@@ -322,11 +264,11 @@ class VoiceSessionCoordinator:
                 else "skipped"
                 if not speak
                 else "failed"
-                if failed
+                if state.failed
                 else "completed",
-                count,
-                failed[0] if failed else None,
-                failed[1] if failed else None,
+                state.count,
+                state.failed[0] if state.failed else None,
+                state.failed[1] if state.failed else None,
                 timings,
             )
         finally:

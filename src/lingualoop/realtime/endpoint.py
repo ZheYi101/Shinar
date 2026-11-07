@@ -127,3 +127,36 @@ class EndpointDetector:
             return False
         self.reset()
         return True
+
+    def pause(self) -> Utterance | None:
+        """Freeze speech, invalidate recognition, and wait for a new onset on resume."""
+        self.pre_roll.clear()
+        self.onset = self.silence = 0
+        self.speaking = False
+        if not self.id or not self.pcm:
+            return None
+        self.revision += 1
+        self.pending = True
+        return Utterance(self.id, self.revision, pcm_wav(bytes(self.pcm)), self.total_samples)
+
+    def restore(self, utterance_id: str, revision: int, audio: bytes) -> None:
+        """Restore an uncommitted claim which raced with the desktop pause gate."""
+        if self.id or not audio:
+            return
+        if not utterance_id or len(utterance_id) > 128 or not 0 < revision < 2**31:
+            raise ValueError("invalid_paused_utterance")
+        if len(audio) > min(self.MAX_BYTES, self.MAX_SAMPLES * 2) + 4096:
+            raise ValueError("invalid_paused_utterance")
+        with wave.open(io.BytesIO(audio), "rb") as wav:
+            if (
+                (wav.getframerate(), wav.getnchannels(), wav.getsampwidth()) != (16000, 1, 2)
+                or wav.getcomptype() != "NONE"
+                or not 0 < wav.getnframes() < self.MAX_SAMPLES
+            ):
+                raise ValueError("invalid_paused_utterance")
+            data = wav.readframes(wav.getnframes())
+            if len(data) != wav.getnframes() * 2:
+                raise ValueError("invalid_paused_utterance")
+        self.reset()
+        self.id, self.revision, self.pcm = utterance_id, revision, bytearray(data)
+        self.pending = True

@@ -16,13 +16,17 @@ SettingsRow {
                 readonly property bool selected: learningViewModel.preferences.themeMode === modelData.code
                 implicitWidth: 86; implicitHeight: 84
                 hoverEnabled: true
+                HoverHandler { cursorShape: Qt.PointingHandCursor }
                 Accessible.name: modelData.label
                 Accessible.role: Accessible.RadioButton
                 Accessible.checked: selected
                 onClicked: learningViewModel.preferences.setValue("themeMode", modelData.code)
                 background: Rectangle {
-                    radius: 5
-                    color: AppTheme.dark ? AppTheme.surfaceContainer : "#FCF9F1"
+                    radius: 9
+                    color: tile.down || tile.hovered ? AppTheme.surfaceContainer : AppTheme.dark ? AppTheme.surfaceContainer : "#FCF9F1"
+                    Behavior on color { ColorAnimation { duration: AppTheme.motionFast } }
+                    scale: tile.down ? 0.97 : 1
+                    Behavior on scale { NumberAnimation { duration: AppTheme.motionFast } }
                     border.color: tile.selected || tile.visualFocus ? AppTheme.primary : AppTheme.outlineVariant
                     border.width: tile.selected || tile.visualFocus ? 2 : 1
                 }

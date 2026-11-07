@@ -6,6 +6,7 @@ class DesktopPreferences(QObject):
     CHOICES = {
         "displayLanguage": ("zh_CN", "system"),
         "themeMode": ("system", "light", "dark"),
+        "closeBehavior": ("ask", "background", "quit"),
         "targetLanguage": ("japanese", "english", "chinese", "french", "germany", "spanish"),
         "nativeLanguage": ("chinese", "english", "japanese", "french", "germany", "spanish"),
         "difficulty": ("unknown", "A1", "A2", "B1", "B2", "C1", "C2"),
@@ -30,6 +31,10 @@ class DesktopPreferences(QObject):
     @Property(str, notify=changed)
     def themeMode(self):
         return self._get("themeMode")
+
+    @Property(str, notify=changed)
+    def closeBehavior(self) -> str:
+        return self._get("closeBehavior")
 
     @Property(bool, notify=changed)
     def reducedMotion(self):

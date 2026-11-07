@@ -18,6 +18,7 @@ Basic.Button {
     highlighted: false
     flat: variant === "text" || variant === "outlined"
     hoverEnabled: true
+    HoverHandler { cursorShape: control.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor }
     leftPadding: 12
     rightPadding: 12
     topPadding: 6
@@ -50,7 +51,7 @@ Basic.Button {
     }
     background: Rectangle {
         implicitHeight: 40
-        radius: 5
+        radius: 8
         color: control.flat ? "transparent" : !control.enabled ? Qt.alpha(AppTheme.colorOnSurface, 0.12) : control.Material.background
         border.width: control.variant === "outlined" || control.visualFocus ? 1 : 0
         border.color: control.visualFocus ? AppTheme.primary : AppTheme.outline
@@ -59,7 +60,7 @@ Basic.Button {
             radius: parent.radius
             color: control.Material.foreground
             opacity: !control.enabled ? 0 : control.down || control.visualFocus ? 0.12 : control.hovered ? 0.08 : 0
-            Behavior on opacity { NumberAnimation { duration: AppTheme.duration } }
+            Behavior on opacity { NumberAnimation { duration: AppTheme.motionFast } }
         }
     }
 }

@@ -181,10 +181,29 @@ def main(args, *, before_human=None):
     window.grabWindow()
     call = vm.voice.call
     call.root = args.runtime_root.resolve()
+    mock_patches = []
     if not args.human:
+        from unittest.mock import patch
         from test_desktop_continuous_voice import SyntheticBridge, SyntheticRtc
+        from test_voice_readiness import Probe
+        from lingualoop.realtime.local_server import ARCHIVE_NAME
 
         call.bridge_factory, call.process_factory = SyntheticBridge, SyntheticRtc
+        # Synthetic transport must not depend on an existing model/runtime cache.
+        call.root = root / "synthetic-runtime"
+        (call.root / "sfu").mkdir(parents=True)
+        (call.root / "sfu" / ARCHIVE_NAME).touch()
+        vad = call.root / "synthetic-vad.onnx"
+        vad.touch()
+        mock_patches = [
+            patch.object(app, "checkPermission", lambda permission: Qt.PermissionStatus.Granted),
+            patch("lingualoop.desktop.continuous_voice.managed_status", lambda *args: {"prepared": True}),
+            patch("lingualoop.desktop.continuous_voice.prepared_assets", lambda *args: True),
+            patch("lingualoop.desktop.continuous_voice.vad_path", lambda *args, **kwargs: vad),
+        ]
+        for pending_patch in mock_patches:
+            pending_patch.start()
+        vm.voice.preflight.probe_factory = lambda: Probe()
     captures = []
     report = {
         "human_mode": args.human,
@@ -203,6 +222,7 @@ def main(args, *, before_human=None):
         "qt_scale_factor": os.getenv("QT_SCALE_FACTOR", "system"),
         "theme": args.theme,
         "human_acceptance_completed": False,
+        "synthetic_permission_and_probe": not args.human,
         "captures": captures,
         "callback_errors": callback_errors,
     }
@@ -251,6 +271,8 @@ def main(args, *, before_human=None):
         for name in (
             "continuousVoiceButton",
             "muteMicrophoneButton",
+            "sendPausedInputButton",
+            "discardContinuousInput",
             "stopReplyButton",
             "sendMessageButton",
             "openMicrophoneSettingsButton",
@@ -351,14 +373,20 @@ def main(args, *, before_human=None):
 
             for width in [int(n) for n in args.widths.split(",")]:
                 window.setWidth(width)
+                wait_until(lambda: not vm.voice.preflight.busy)
                 click(window, "continuousVoiceButton")
                 wait_until(lambda: call.connectionState == "active" and not call.muted)
                 capture("listening", width)
                 enter_text(window, "messageInput", "这是下一轮独立草稿。日本語の長い文章 😀 " * 3)
+                call.process.paused_audio = ({"utterance": "one", "revision": 1}, pcm_wav())
+                calls_before_pause = provider.calls
                 click(window, "muteMicrophoneButton")
-                capture("muted-draft", width)
+                wait_until(lambda: call.canSendPausedInput)
+                assert not call.bridge.recording and provider.calls == calls_before_pause
+                capture("paused-preserved-draft", width)
                 click(window, "muteMicrophoneButton")
                 wait_until(lambda: not call.muted)
+                call.process.paused_audio = None
                 gate = False
 
                 async def transcribe(data):
@@ -407,9 +435,14 @@ def main(args, *, before_human=None):
             assert not callback_errors, callback_errors
             report["passed"] = True
     finally:
+        report["final_connection"] = call.connectionState
+        report["final_error"] = call.errorText
+        engine.lifecycle.close()
         vm.close()
         library.close()
         ws.close()
+        for pending_patch in reversed(mock_patches):
+            pending_patch.stop()
         report["mock_dialogue_calls"] = provider.calls
         report["qml_warnings"] = [
             w

@@ -12,14 +12,14 @@ from lingualoop.application import LearningWorkbench
 from lingualoop.core import FeedbackTiming, LanguageEnum, PracticeOptions, ProficiencyLevel
 from lingualoop.core import AnswerBranch, DiscussionTopic, MaterialAnalysis
 from lingualoop.infrastructure import SQLiteStore
-from lingualoop.providers import MockLearningLLMProvider
+from lingualoop.providers.mock import LegacyMockLearningLLMProvider
 from lingualoop.providers.openai_compatible import OpenAICompatibleLLMProvider, OpenAICompatibleLLMSettings
 from langchain_core.messages import AIMessage
 from pydantic import SecretStr
 
 
 def test_new_discussion_routes_only_dialogue_despite_legacy_feedback_and_failed_background(tmp_path):
-    class AuditProvider(MockLearningLLMProvider):
+    class AuditProvider(LegacyMockLearningLLMProvider):
         def __init__(self):
             self.calls = []
             self.fail_next_stream = True
@@ -36,7 +36,7 @@ def test_new_discussion_routes_only_dialogue_despite_legacy_feedback_and_failed_
         async def summarize_session(self, **kwargs):
             self.calls.append("end_summary")
             # The mock summary internally computes end-only corrections; that is allowed.
-            return await MockLearningLLMProvider().summarize_session(**kwargs)
+            return await LegacyMockLearningLLMProvider().summarize_session(**kwargs)
 
         async def stream_reply(self, **kwargs):
             self.calls.append("dialogue")
@@ -102,7 +102,7 @@ def test_long_material_topic_budget_retains_every_chapter_including_last(tmp_pat
     markers.append("最終章では、森に銀の時計を残した。")
     text = "".join(marker + "あ" * (12000-len(marker)-1) + "。" for marker in markers)
 
-    class ChapterProvider(MockLearningLLMProvider):
+    class ChapterProvider(LegacyMockLearningLLMProvider):
         async def analyze_material(self, *, material, **kwargs):
             marker = material.content.split("。", 1)[0] + "。"
             branch = AnswerBranch(user_intent="気になる", response_points=[marker], suggested_reply="気になりますね。",

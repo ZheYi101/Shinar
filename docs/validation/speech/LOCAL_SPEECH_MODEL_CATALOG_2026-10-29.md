@@ -1,5 +1,7 @@
 # 逐模型语言、大小、资源与效果报告（2026-10-29）
 
+2026-11-06 更新：用户已明确淘汰 SenseVoice 2025 / WSYue 分支，当前产品目录不再保留任何语言或用途的此模型。下文的数值、音频和旧取舍仅作历史证据；原版 2024 保留。
+
 **此前 CPU 批次选型**：STT 按热态首字算术平均 ≤500ms 留下 SenseVoice 原版 2024 和 2025/WSYue 的中、英四项，当时日语暂缺。TTS 中文保留 Melo、英语优先 Lessac、Amy 因已确认否定词错误仅备选、日语暂留 VOICEVOX；Kokoro 和 Qwen 退出本轮候选。允许按语言选择不同模型。以下历史数值与音频保留。
 
 随后实际重跑的 [SenseVoice GPU、日语 STT 与 Melo 独立英文补测](./SPEECH_GPU_JAPANESE_MELO_FOLLOWUP_2026-10-29.md)另列新运行时、精度、CPU/GPU 资源百分比及试听附件：2024 FP32 GPU 三语 52–58ms，新增日语 ReazonSpeech CPU / Kotoba GPU 通过速度线。本页仍归档原批次，不把新配置数值混写进下面的旧表。

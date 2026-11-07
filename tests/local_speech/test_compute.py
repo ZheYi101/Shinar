@@ -28,7 +28,8 @@ def hardware(free=6000):
 
 def test_gpu_first_for_measured_speedup_and_cpu_for_light_models():
     assert resolve_device(fp32(), ComputeSettings(), hardware())[0] == "cuda"
-    assert resolve_device(load_catalog()[0], ComputeSettings(), hardware())[0] == "cpu"
+    package = next(p for p in load_catalog() if p.id == "sensevoice-int8-20240717")
+    assert resolve_device(package, ComputeSettings(), hardware())[0] == "cpu"
     assert resolve_device(fp32(), ComputeSettings(stt_device="cpu"), hardware())[0] == "cpu"
 
 
@@ -122,7 +123,7 @@ def test_local_worker_reused_then_closed_and_keeps_audio_out_of_files(tmp_path, 
     )
     save_compute(tmp_path, ComputeSettings(idle_seconds=idle))
     service = LocalSpeechService(tmp_path)
-    package = load_catalog()[0]
+    package = next(p for p in load_catalog() if p.id == "sensevoice-int8-20240717")
     monkeypatch.setattr(service.store, "installed", lambda _: True)
     atomic_json(
         tmp_path / "selections.json",

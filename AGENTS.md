@@ -29,8 +29,9 @@ LinguaLoop 是一个把沉浸式输入转化为语音输出练习的开源语言
 ## 默认工程约定
 
 - 核心领域模型、Agent Kernel、Patterns、Plugins 和后端能力优先使用 Python，除非仓库后续明确选择其他主语言。
-- 当前桌面 UI 使用 PySide6 6.11.1、QML、Qt Quick Controls Material 和项目 MD3 tokens/components。Windows 使用应用内标题栏；Kirigami 是可选壳。引入其他前端栈需要明确任务或技术决策，不得把 UI/Qt 依赖泄漏到 core。
+- 当前桌面 UI 使用 PySide6 6.11.1、QML、Qt Quick Controls Material 和项目 MD3 tokens/components。Windows 使用应用内标题栏；Kirigami 是可选壳。主入口由 QApplication 承载；Qt Widgets 仅用于系统托盘菜单，关闭／隐藏／恢复策略留在桌面生命周期控制器（Decision 0041）。EPUB 阅读使用随包的 foliate-js 与 Qt Quick WebEngine（Decision 0036），只作为局部显示适配器。引入其他前端栈需要明确任务或技术决策，不得把 UI/Qt 依赖泄漏到 core。
 - 前端优先考虑可维护、可测试的组件结构；避免只为展示效果堆叠 UI。
+- 自有生产 Python／QML／JS 文件不超过 800 物理行，Python 函数（含嵌套，按 AST 起止位置）不超过 100 行；`tests/test_maintainability.py` 检查体积与控制器公开协作边界。按职责拆分，Qt 门面保持单一 QObject／状态所有者。具名阻塞进程和执行器须等待实际清理，不把取消 future 当作工作已结束（Decision 0043）。
 - 后端接口应以学习会话、材料、消息、反馈、复习项等业务对象为边界。
 - LLM provider 必须抽象成可替换模块，避免业务逻辑直接绑定某一个供应商 SDK。
 - 推理和对话是两个可独立配置的角色，不是写死的模型名称；允许两个角色使用同一模型。以本地环境配置为准，修改配置后需重启应用，不擅自恢复示例模型或凭据。
@@ -38,12 +39,24 @@ LinguaLoop 是一个把沉浸式输入转化为语音输出练习的开源语言
 - SQLite 使用 WAL、按操作连接和事务，不将同一 connection 跨线程复用。准备缓存、材料、会话与复盘保存在本地应用数据库，外观偏好使用 QSettings。
 - 所有用户生成内容和学习数据都按敏感数据处理。
 
+## 架构演进与阅读器边界
+
+- 开始跨模块改动前阅读 `docs/architecture/ARCHITECTURE.md`；阅读器改动还须阅读 `docs/architecture/READER_ARCHITECTURE.md`。总览描述当前实现，专项文档维护契约，技术决策记录取舍，路线图列未完成项；不要把规划当作现有依赖。
+- 保持单一业务入口：材料、会话、已读授权与确认消息由 Workbench／core 管理；QML 与 WebEngine 不另建会话、预算、模型调用或持久化流程。新增能力先明确数据所有者、依赖方向、异步失效条件与失败回退。
+- 规范化原文、哈希和 Python 字符区间是来源事实。DOM、CFI、页码和滚动位置只作显示定位；不能用首次引文匹配替代精确坐标，不能因升级引擎或修复排版重写历史快照。改变规范化／来源索引语义须显式版本化并说明兼容方案。
+- EPUB 解析、原件读写和显示投影留在无 Qt 的 `infrastructure/epub_reader.py`；通用来源操作留在 `application/source_document.py`。Qt profile、资源白名单与 WebChannel 只在桌面适配边界。JS 负责渲染与坐标转换，不能决定已读授权或生成对话依据。
+- WebChannel 只注册专用 `ReaderBridge`，不注册完整 workspace／viewmodel，不增加任意方法调用、文件读取或脚本执行接口。Python 对每个请求复核文档身份、代际、路由和范围；导航、关闭、换线程后的旧回调不得写入当前状态。文件／ZIP 工作在后台完成，Qt 对象留主线程。
+- foliate-js 是固定提交的第三方代码；产品逻辑放在外围适配文件，避免直接修改 vendor。升级须同步 `UPSTREAM.json`、逐文件哈希、许可证、回退与回归证据；使用时不从 CDN 下载，不增加本地 HTTP 服务。WebEngine 不能扩散成整套 UI 的另一条技术主线。
+- 新增格式、引擎或阅读状态前按专项文档中的触发条件拆分职责；不要继续向 `workspace.py` 堆解析／存储逻辑，也不为尚不存在的第二个实现先造插件框架。保持小步可验证，旧模块债务在触及对应职责时处理，避免全库重写。
+- 跨层或跨语言接口新增字段／事件时，同步更新契约、边界测试和文档。静态架构检查、Mock 交互与发行包验收分别说明，不能用其中一种替代其余证据。
+
 ## 材料、缓存与对话约束
 
 - 导入先保存原文和规范化结果，再调用模型。长材料按内容哈希和位置保存分段进度，整书汇总成功前不能把分段拼接当作完整准备。
 - EPUB 按 spine 阅读顺序抽取；XLSX 只读取单元格缓存值，不执行公式。视频导入当前只读取同名 SRT/VTT，不宣称理解画面或音轨。
 - 重复导入应复用原材料及已完成资料，保留自定义话题和历史。缓存按内容、语言/profile、推理服务/模型和格式版本隔离；密钥与文件路径不进入缓存键。显式重新分析与单纯重新导入须区分。
 - Windows 正常应用库默认为 `%LOCALAPPDATA%\LinguaLoop\lingualoop.sqlite3`，可用 `LINGUALOOP_DATA_DIR` 覆盖。测试与 Mock 使用临时库或独立目录，不向用户实际库写入示例对话。
+- EPUB 原件保存在所属数据库旁的 `<数据库名>.assets/sources/`，与数据库共同备份／迁移。它属于用户材料，不是可随意删除的浏览器缓存；缺件或内容不符时回退文本，不静默更换规范化原文或重新调用模型。
 - 前台实际回复只走对话角色，使用已准备资料和真实线程；材料准备、自定义题准备及下一轮预测由推理角色处理。后台失败、取消或过期结果不得阻断聊天或冒充 ready。
 - 预测只是候选参考，不能写成用户说过的话。材料中的指令作为内容处理；区分故事事件、叙述者声称、作者说明和评论者解释。精确引用匹配不等于解释正确。
 - 仅持久化用户确认发送的文本与完整成功的助手回复；失败的半段流不进入历史，未发送草稿不作为已确认消息保存。
@@ -63,11 +76,12 @@ LinguaLoop 是一个把沉浸式输入转化为语音输出练习的开源语言
 - 涉及 LLM 输出时，测试应覆盖 prompt 构造、结构化解析、错误回退和 provider mock。
 - 新增代码使用 4 空格、明确的业务命名和公共接口类型标注；使用 Ruff 检查，格式化只覆盖本次负责的模块，避免全库机械改写。细则见 `CONTRIBUTING.md`。
 - 保持 core/kernel 不依赖 Qt、HTTP 客户端、具体 provider 或 SQLite adapter；架构测试负责检查这些导入边界。
+- `tests/test_architecture.py` 同时约束来源处理依赖、WebEngine 使用范围和固定 vendor 完整性。阅读器位置／范围变更运行 `tests/infrastructure/test_epub_reader.py`、`tests/test_reader_workspace.py`；WebChannel／QML／JS 变更另运行可见 Windows Mock 检查 `scripts/validate_reader_workspace.py`，不能拿离屏 DOM 非空代替画面可见。
 - 普通回归显式设置 `RUN_REAL_AI_TESTS=0`；真实测试必须标记 `real_ai`，同时使用 `--run-real-ai` 和 `RUN_REAL_AI_TESTS=1`。仅 `.env` 中留有 `1` 不能触发普通 pytest 的真实调用。
 - 真实文本验收使用完整实际材料，检查预处理、预制/自定义题、多轮讨论、后台准备、复盘、历史切换和重启恢复。对话需覆盖具体情节、异议、错误前提、改口及自然结束，不能仅检查非空输出。
 - 用户要求实机验收时，通过可见软件窗口的实际导入、选题、输入和发送产出记录；不直接向数据库注入测试历史。离屏渲染、Mock 和真实服务证据分别说明。
 - 分别记录模型首字、完整回复和 UI 端到端延迟。1 秒是优化目标；保留冷启动、慢轮次和失败，不把首字低于 1 秒写成完整回复达标。
-- QML、SVG 和许可证须随安装包分发；相关改动使用 `scripts/check_wheel_resources.py` 检查构建产物。UI 检查显式加载字体，覆盖明暗主题、中文/日语长文与窄窗口。
+- QML、SVG、阅读器 JS、字体和许可证须随安装包分发；相关改动使用 `scripts/check_wheel_resources.py` 检查构建产物。Windows 发行还须用 `scripts/check_windows_distribution.py` 核对 QtWebEngineProcess、Chromium／ICU／locales 和 QML 模块，wheel 通过不代表安装器已更新。UI 检查显式加载字体，覆盖明暗主题、中文/日语长文与窄窗口。
 
 常用离线回归命令（PowerShell）：
 

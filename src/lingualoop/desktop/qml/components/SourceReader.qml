@@ -5,10 +5,13 @@ import "../design"
 
 Item {
     id: reader
+    clip: true
     property bool scopeMode: false
     property bool programmatic: false
+    readonly property bool bookVisible: workspace.readerAvailable && (scopeMode ? workspace.route === "scope" : workspace.route === "chat" && workspace.sourceOpen)
+    onVisibleChanged: if (!visible && contents && findPopup) { contents.close(); findPopup.close() }
     signal back()
-    Rectangle { anchors.fill: parent; color: AppTheme.dark ? AppTheme.surfaceContainerLow : "#F0EBDF"; Rectangle { anchors.right: parent.right; width: 1; height: parent.height; color: AppTheme.outlineVariant } }
+    Rectangle { anchors.fill: parent; color: AppTheme.surface; Rectangle { anchors.right: parent.right; width: 1; height: parent.height; color: AppTheme.outlineVariant } }
     ColumnLayout {
         anchors.fill: parent; spacing: 0
         RowLayout {
@@ -20,9 +23,20 @@ Item {
             MButton { visible: workspace.historicalSource; text: qsTr("返回当前指向"); variant: "text"; onClicked: workspace.closePreview() }
             MIconButton { visible: !reader.scopeMode; symbol: "close"; label: qsTr("返回对话"); onClicked: reader.back() }
         }
+        MLabel { visible: workspace.readerError.length > 0; Layout.fillWidth: true; Layout.leftMargin: 20; Layout.rightMargin: 20; text: workspace.readerError; role: "supporting"; font.pixelSize: 12 }
+        Loader {
+            id: bookLoader
+            objectName: "foliateLoader"
+            Layout.fillWidth: true; Layout.fillHeight: true
+            visible: reader.bookVisible; active: visible
+            source: active ? "FoliateSurface.qml" : ""
+            onStatusChanged: if (status === Loader.Error) workspace.readerFailed(workspace.readerId)
+            BusyIndicator { anchors.centerIn: parent; running: reader.bookVisible && (!bookLoader.item || !bookLoader.item.bookReady); visible: running }
+        }
         ScrollView {
             id: sourceScroll
             objectName: "sourceScroll"
+            visible: !reader.bookVisible
             Layout.fillWidth: true; Layout.fillHeight: true
             clip: true; contentWidth: availableWidth
             Column {
@@ -30,8 +44,9 @@ Item {
                 TextEdit {
                     id: document
                     objectName: "sourceDocument"
-                    width: parent.width
-                    leftPadding: 20; rightPadding: 20; topPadding: 12; bottomPadding: 24
+                    width: Math.min(parent.width, 760)
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    leftPadding: reader.width < 600 ? 20 : 40; rightPadding: leftPadding; topPadding: 24; bottomPadding: 40
                     readOnly: true; selectByMouse: true; selectByKeyboard: true; persistentSelection: true
                     enabled: workspace.documentReady || workspace.sourceStale
                     textFormat: TextEdit.PlainText; wrapMode: TextEdit.Wrap
@@ -63,6 +78,10 @@ Item {
     }
     Popup {
         id: contents
+        focus: true
+        enter: Transition { NumberAnimation { property: "opacity"; from: 0; to: 1; duration: AppTheme.motionFast } }
+        exit: Transition { NumberAnimation { property: "opacity"; from: 1; to: 0; duration: AppTheme.motionFast } }
+        objectName: "sourceContentsPopup"
         y: 36; width: Math.min(reader.width - 8, 360); height: Math.min(reader.height - 44, 420)
         background: Rectangle { color: AppTheme.surface; border.color: AppTheme.outlineVariant; radius: 5 }
         contentItem: ScrollView {
@@ -78,12 +97,15 @@ Item {
     }
     Popup {
         id: findPopup
+        focus: true
+        enter: Transition { NumberAnimation { property: "opacity"; from: 0; to: 1; duration: AppTheme.motionFast } }
+        exit: Transition { NumberAnimation { property: "opacity"; from: 1; to: 0; duration: AppTheme.motionFast } }
         x: Math.max(0, reader.width - width); y: 36
         width: Math.min(reader.width - 8, 400); height: Math.min(reader.height - 44, 400)
         background: Rectangle { color: AppTheme.surface; border.color: AppTheme.outlineVariant; radius: 5 }
         contentItem: ColumnLayout {
             RowLayout {
-                MTextField { id: searchInput; Layout.fillWidth: true; placeholderText: qsTr("查找原文"); onTextEdited: searchTimer.restart() }
+                MTextField { id: searchInput; objectName: "sourceSearchInput"; Layout.fillWidth: true; placeholderText: qsTr("查找原文"); onTextChanged: if (findPopup.visible) workspace.scheduleSourceSearch(text) }
                 MIconButton { symbol: "close"; label: qsTr("关闭查找"); onClicked: findPopup.close() }
             }
             ScrollView {
@@ -97,7 +119,6 @@ Item {
             }
         }
     }
-    Timer { id: searchTimer; interval: 200; onTriggered: workspace.searchSource(searchInput.text) }
     Shortcut { sequence: "Ctrl+F"; enabled: reader.visible; onActivated: { findPopup.open(); searchInput.forceActiveFocus() } }
     Shortcut { sequence: "Escape"; enabled: reader.visible && !contents.visible && !findPopup.visible; onActivated: { if (workspace.historicalSource) workspace.closePreview(); else if (!reader.scopeMode && workspace.hasSource) workspace.clearSource(); else reader.back() } }
     Connections {
@@ -111,6 +132,7 @@ Item {
             Qt.callLater(function() { reader.programmatic = false })
         }
     }
+    Connections { target: readerRuntime.bridge; function onSearchRequested(identity) { if (reader.bookVisible && identity === workspace.readerId) { findPopup.open(); searchInput.forceActiveFocus() } } }
     Connections { target: sourceScroll.contentItem; function onContentYChanged() { if (reader.visible && !reader.programmatic) workspace.saveSourceScroll(sourceScroll.contentItem.contentY) } }
     Component.onCompleted: document.text = workspace.sourceText
 }

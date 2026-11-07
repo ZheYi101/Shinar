@@ -3,6 +3,7 @@ from __future__ import annotations
 import threading
 import re
 from collections.abc import Callable
+from contextlib import nullcontext
 from pathlib import Path
 
 from PySide6.QtCore import QCoreApplication, QObject, Property, QTimer, QUrl, Signal, Slot
@@ -43,20 +44,15 @@ from lingualoop.local_speech.model_profile import (
     voice_choice,
     voices,
 )
+from lingualoop.local_speech.samples import benchmark_audio
+from .speech_jobs import SpeechPreparationJobs
+from lingualoop.local_speech.usage import cached_model_bytes, storage_usage
 
 
-class SpeechLibraryViewModel(QObject):
-    changed = Signal()
-    statusChanged = Signal()
-    runtimesChanged = Signal()
-    modelsChanged = Signal()
-    progressChanged = Signal()
-    _completed = Signal(object, str)
-    configurationChanged = Signal()
-    inferenceStatus = Signal(str)
-    resourcesChanged = Signal()
-    _resourcesReady = Signal(object)
-    _setupStage = Signal(str)
+from lingualoop.desktop.speech_library_operations import SpeechLibraryOperations
+
+class SpeechLibraryViewModel(QObject, SpeechLibraryOperations):
+
 
     def __init__(self, root=None, parent=None):
         super().__init__(parent)
@@ -64,6 +60,7 @@ class SpeechLibraryViewModel(QObject):
         self.catalog = load_catalog()
         self._language, self._scenario = "ja", "conversation"
         self._rows, self._hardware = [], {}
+        self._storage_usage = {}
         self._runtimes = {
             name: {"prepared": False, "downloadMiB": 0.0, "diskMiB": 0.0}
             for name in ("cpu", "cuda", "voicevox-cpu", "melo-cpu", "melo-cuda", "rtc-cpu")
@@ -97,24 +94,73 @@ class SpeechLibraryViewModel(QObject):
         self._player.errorOccurred.connect(lambda *_: self._playback_error())
         self._preview_device = None
         self._voice_active = lambda: False
+        self._downloads = SpeechPreparationJobs(self)
+        self._downloads.activityChanged.connect(self._download_activity)
+        self._downloads.finished.connect(self._download_finished)
+        self._download_revision = 0
+        self._refresh_pending = False
 
-    def configure_preview(self, device_id: Callable[[], str], voice_active: Callable[[], bool]) -> None:
+    @Property(QObject, constant=True)
+    def downloadJobs(self):
+        return self._downloads
+
+    @Property(int, notify=SpeechLibraryOperations.downloadsChanged)
+    def downloadCount(self):
+        return self._downloads.active_count
+
+    @Property(int, notify=SpeechLibraryOperations.downloadsChanged)
+    def downloadRevision(self):
+        return self._download_revision
+
+    @Property(bool, notify=SpeechLibraryOperations.changed)
+    def operationBusy(self):
+        return self._busy
+
+    @Slot(str, result=bool)
+    def hasDownload(self, model_id):
+        return self._downloads.contains_active(model_id)
+
+    @Slot()
+    def _download_activity(self):
+        self._download_revision += 1
+        self.downloadsChanged.emit()
+        self.changed.emit()
+
+    @Slot(str)
+    def _download_finished(self, job_id):
+        if self._closing:
+            return
+        if self._busy:
+            self._refresh_pending = True
+        else:
+            self.refresh()
+
+    def configure_preview(
+        self, device_id: Callable[[], str], voice_active: Callable[[], bool]
+    ) -> None:
         """GUI-only device getters; never change devices or add preview echo during a call."""
         self._preview_device, self._voice_active = device_id, voice_active
 
-    @Property("QVariantMap", notify=changed)
+    @Property("QVariantMap", notify=SpeechLibraryOperations.changed)
     def compute(self):
         return load_compute(self.store.root).model_dump()
 
-    @Property("QVariantMap", notify=changed)
+    @Property("QVariantMap", notify=SpeechLibraryOperations.changed)
     def lastSetupError(self):
-        return self._last_setup_error
+        if self._last_setup_error:
+            return self._last_setup_error
+        failed = next((r for r in reversed(self._downloads.rows()) if r["state"] == "failed"), None)
+        return {"code": failed["errorCode"], "modelId": failed["modelId"]} if failed else {}
 
-    @Property("QVariantMap", notify=runtimesChanged)
+    @Property("QVariantMap", notify=SpeechLibraryOperations.runtimesChanged)
     def runtimes(self):
         # QML reads this once for each binding/delegate, including hidden pages.
         # File verification and installation planning belong to the library worker.
         return self._runtimes
+
+    @Property("QVariantMap", notify=SpeechLibraryOperations.modelsChanged)
+    def storageUsage(self):
+        return self._storage_usage
 
     def _runtime_snapshot(self):
         values = {
@@ -129,12 +175,16 @@ class SpeechLibraryViewModel(QObject):
             if "cuda" in name and value.get("gpu_index", index) != index:
                 value["prepared"] = False
             plan = runtime_plan(self.store.root, "ort-" + name if name in {"cpu", "cuda"} else name)
-            value.update(downloadMiB=round(plan.download_bytes / 1024**2, 1),
-                         diskMiB=round(plan.disk_bytes / 1024**2, 1))
+            value.update(
+                downloadMiB=round(plan.download_bytes / 1024**2, 1),
+                diskMiB=round(plan.disk_bytes / 1024**2, 1),
+            )
         return values
 
     @Slot(str)
     def _setup_status(self, stage):
+        if self._closing:
+            return
         messages = {
             "speech_setup_bootstrap": QCoreApplication.translate(
                 "Desktop", "正在准备独立 Python 与安装工具…"
@@ -156,7 +206,7 @@ class SpeechLibraryViewModel(QObject):
         with self._progress_lock:
             self._progress = done / total if total else 0
 
-    @Property(str, notify=resourcesChanged)
+    @Property(str, notify=SpeechLibraryOperations.resourcesChanged)
     def resourceSummary(self):
         value = self._resources
         lines = [
@@ -190,6 +240,8 @@ class SpeechLibraryViewModel(QObject):
 
     @Slot(object)
     def _set_resources(self, value):
+        if self._closing:
+            return
         self._resources = value
         self.resourcesChanged.emit()
 
@@ -218,130 +270,40 @@ class SpeechLibraryViewModel(QObject):
         else:
             self._resource_timer.stop()
 
-    @Slot(str, "QVariant")
-    def setCompute(self, name, value):
-        if self._busy or name not in type(load_compute(self.store.root)).model_fields:
-            return
-        try:
-            settings = load_compute(self.store.root)
-            updated = type(settings).model_validate({**settings.model_dump(), name: value})
-        except ValueError:
-            self._status = QCoreApplication.translate("Desktop", "计算设置的数值无效。")
-            self.changed.emit()
-            return
-        save_compute(self.store.root, updated)
-        self.local_service.request_release()
-        self.configurationChanged.emit()
-        self.refresh()
 
-    @Slot(str)
-    def prepareRuntime(self, device):
-        if device not in {"cpu", "cuda", "voicevox-cpu", "melo-cpu", "melo-cuda", "rtc-cpu"}:
-            return
-        if self.local_service.pids:
-            self._status = QCoreApplication.translate(
-                "Desktop", "请先停止语音并释放已加载模型，再修复运行环境。"
-            )
-            self.changed.emit()
-            return
-
-        def operation():
-            prepare_managed_runtime(
-                self.store.root,
-                "ort-" + device if device in {"cpu", "cuda"} else device,
-                cancel=self._cancel,
-                gpu_index=load_compute(self.store.root).gpu_index,
-                repair=True,
-                progress=self._download_progress,
-                stage=self._setupStage.emit,
-            )
-            return self._snapshot()
-
-        self._start(
-            QCoreApplication.translate(
-                "Desktop", "准备独立运行环境与必要运行库（GPU 下载可能较大）…"
-            ),
-            operation,
-        )
-
-    @Slot(str)
-    def checkRuntime(self, device):
-        if device not in {"cpu", "cuda", "voicevox-cpu", "melo-cpu", "melo-cuda", "rtc-cpu"}:
-            return
-
-        def operation():
-            if device not in {"cpu", "cuda"}:
-                status = managed_status(self.store.root, device)
-                if not status.get("prepared"):
-                    raise ValueError("speech_runtime_not_ready")
-                result = probe_managed_runtime(
-                    self.store.root,
-                    device,
-                    status["python"],
-                    gpu_index=load_compute(self.store.root).gpu_index,
-                    cancel=self._cancel,
-                )
-                if result.get("ok") is not True:
-                    raise ValueError("speech_runtime_probe_failed")
-                marker = Path(status["python"]).parent.parent / "ready.json"
-                atomic_json(marker, {**read_json(marker, {}), **result})
-                return self._snapshot()
-            result = probe_runtime(
-                runtime_python(self.store.root, device),
-                device,
-                gpu_index=load_compute(self.store.root).gpu_index,
-                cancel=self._cancel,
-            )
-            atomic_json(
-                Path(runtime_python(self.store.root, device)).parent.parent / "ready.json", result
-            )
-            return self._snapshot()
-
-        self._start(
-            QCoreApplication.translate("Desktop", "检查运行环境并执行真实计算探针…"), operation
-        )
-
-    @Slot()
-    def releaseModels(self):
-        self.local_service.request_release()
-        self._status = QCoreApplication.translate(
-            "Desktop", "正在释放空闲模型；运行中的推理会先完成。"
-        )
-        self.changed.emit()
-
-    @Property("QVariantList", notify=modelsChanged)
+    @Property("QVariantList", notify=SpeechLibraryOperations.modelsChanged)
     def models(self):
         return self._rows
 
-    @Property(bool, notify=changed)
+    @Property(bool, notify=SpeechLibraryOperations.changed)
     def busy(self):
-        return self._busy
+        return self._busy or bool(self._downloads.active_count)
 
-    @Property(str, notify=statusChanged)
+    @Property(str, notify=SpeechLibraryOperations.statusChanged)
     def status(self):
         return self._status
 
-    @Property(str, notify=changed)
+    @Property(str, notify=SpeechLibraryOperations.changed)
     def language(self):
         return self._language
 
-    @Property(str, notify=changed)
+    @Property(str, notify=SpeechLibraryOperations.changed)
     def scenario(self):
         return self._scenario
 
-    @Property(str, notify=changed)
+    @Property(str, notify=SpeechLibraryOperations.changed)
     def operation(self):
         return self._operation
 
-    @Property(float, notify=progressChanged)
+    @Property(float, notify=SpeechLibraryOperations.progressChanged)
     def progress(self):
         return self._progress
 
-    @Property(str, notify=changed)
+    @Property(str, notify=SpeechLibraryOperations.changed)
     def cachePath(self):
         return str(self.store.root)
 
-    @Property(str, notify=changed)
+    @Property(str, notify=SpeechLibraryOperations.changed)
     def hardwareSummary(self):
         h = self._hardware
         if not h:
@@ -386,8 +348,12 @@ class SpeechLibraryViewModel(QObject):
             except DownloadCancelled as exc:
                 result, error = None, str(exc)
             except Exception as exc:
-                self._last_setup_error = {"type": type(exc).__name__,
-                    "code": str(exc) if re.fullmatch(r"speech_[a-z_]+", str(exc)) else "speech_setup_failed"}
+                self._last_setup_error = {
+                    "type": type(exc).__name__,
+                    "code": str(exc)
+                    if re.fullmatch(r"speech_[a-z_]+", str(exc))
+                    else "speech_setup_failed",
+                }
                 result, error = (
                     None,
                     (
@@ -399,10 +365,15 @@ class SpeechLibraryViewModel(QObject):
                     ),
                 )
                 import httpx
+
                 if isinstance(exc, httpx.TransportError):
-                    error = QCoreApplication.translate("Desktop", "下载连接中断，已下载部分保留，请重试继续。")
+                    error = QCoreApplication.translate(
+                        "Desktop", "下载连接中断，已下载部分保留，请重试继续。"
+                    )
                 elif isinstance(exc, httpx.HTTPStatusError):
-                    error = QCoreApplication.translate("Desktop", "下载源暂不可用或拒绝请求，请稍后重试。")
+                    error = QCoreApplication.translate(
+                        "Desktop", "下载源暂不可用或拒绝请求，请稍后重试。"
+                    )
             if not self._closing:
                 self._completed.emit(result, error)
 
@@ -421,6 +392,7 @@ class SpeechLibraryViewModel(QObject):
         if result:
             self._hardware = result["hardware"]
             self._rows = result["rows"]
+            self._storage_usage = result.get("storageUsage", self._storage_usage)
             if "runtimes" in result:
                 self._runtimes = result["runtimes"]
                 self.runtimesChanged.emit()
@@ -442,13 +414,19 @@ class SpeechLibraryViewModel(QObject):
                 "Desktop", "运行环境未通过实际计算验证，请检查驱动或重新准备。"
             ),
             "speech_setup_disk_insufficient": QCoreApplication.translate(
-                "Desktop", "缓存盘空间不足，请释放页面所示准备空间后重试。"
+                "Desktop", "缓存盘空间不足，请按页面的“安装需可用空间”释放空间后重试。"
             ),
             "speech_voice_invalid": QCoreApplication.translate(
                 "Desktop", "声音选项无效，请重新选择。"
             ),
             "speech_setup_cancelled": QCoreApplication.translate(
                 "Desktop", "准备已取消，已校验下载保留，可继续。"
+            ),
+            "speech_benchmark_sample_unavailable": QCoreApplication.translate(
+                "Desktop", "此语言暂未附带测速示例，请在详情中使用自己的录音测速。"
+            ),
+            "speech_benchmark_sample_invalid": QCoreApplication.translate(
+                "Desktop", "内置测速音频校验失败，请修复软件安装后重试。"
             ),
         }
         error = (
@@ -461,10 +439,21 @@ class SpeechLibraryViewModel(QObject):
             if error.startswith("speech_")
             else error
         )
-        self._status = error or QCoreApplication.translate(
-            "Desktop", "完成。测速仅含本地计算；尚未验证真人语音与完整对话延迟。"
+        self._status = error or (
+            QCoreApplication.translate("Desktop", "后台下载继续进行，可在任务列表查看每项进度。")
+            if self.downloadCount
+            else QCoreApplication.translate("Desktop", "模型状态已更新。下载后请先测速，再选用。")
         )
         self.changed.emit()
+
+        if not error and result and result.get("selectAfterBenchmark"):
+            model_id, language, scenario = result["selectAfterBenchmark"]
+            if (language, scenario) == (self._language, self._scenario):
+                self.select(model_id)
+
+        if self._refresh_pending:
+            self._refresh_pending = False
+            self.refresh()
 
     def _snapshot(self):
         hardware = detect_hardware(self.store.root)
@@ -486,6 +475,7 @@ class SpeechLibraryViewModel(QObject):
         )
         for row in rows:
             package = self._package(row["id"])
+            row["cacheMiB"] = round(cached_model_bytes(self.store.root, package.files) / 1024**2, 1)
             options = voices(package.id, self.store.root)
             row.update(
                 voices=options,
@@ -521,9 +511,16 @@ class SpeechLibraryViewModel(QObject):
                 stats = row["measurementStats"]
                 row["measurement"] = QCoreApplication.translate("Desktop", "尚未本机测速")
                 if stats:
-                    row["measurement"] = QCoreApplication.translate(
-                        "Desktop", "%1 · 热态整句合成平均 %2 / p95 %3 ms · 进程内存 %4 MiB · %5 次"
-                    ).replace("%1", row["device"].upper()).replace("%2", f"{stats['average_ms']:.0f}").replace("%3", f"{stats['p95_ms']:.0f}").replace("%4", f"{stats['peak_mib']:.0f}").replace("%5", str(stats["repeats"]))
+                    row["measurement"] = (
+                        QCoreApplication.translate(
+                            "Desktop",
+                            "%1 · 热态整句合成平均 %2 / p95 %3 ms · %4 次",
+                        )
+                        .replace("%1", row["device"].upper())
+                        .replace("%2", f"{stats['average_ms']:.0f}")
+                        .replace("%3", f"{stats['p95_ms']:.0f}")
+                        .replace("%4", str(stats["repeats"]))
+                    )
                     if stats["concurrent_p95_ms"] is not None:
                         row["measurement"] += QCoreApplication.translate(
                             "Desktop", "；并发整句合成 p95 %1 ms"
@@ -555,6 +552,7 @@ class SpeechLibraryViewModel(QObject):
             "hardware": hardware,
             "rows": rows,
             "runtimes": self._runtime_snapshot(),
+            "storageUsage": storage_usage(self.store.root),
         }
 
     @Slot()
@@ -575,264 +573,6 @@ class SpeechLibraryViewModel(QObject):
     def _package(self, id):
         return next(p for p in self.catalog if p.id == id)
 
-    @Slot(str)
-    def install(self, id):
-        def operation():
-            package = self._package(id)
-            allowed, reason = admission(package, detect_hardware(self.store.root))
-            if not allowed:
-                raise ValueError(reason)
-
-            def progress(done, total):
-                with self._progress_lock:
-                    self._progress = done / total
-
-            self.store.install(package, cancel=self._cancel, progress=progress)
-            return self._snapshot()
-
-        self._start(QCoreApplication.translate("Desktop", "下载并校验模型…"), operation)
-
-    @Slot(str)
-    def preparePackage(self, id):
-        package, language = self._package(id), self._language
-        settings = load_compute(self.store.root)
-
-        def operation():
-            if not accepted_terms(self.store.root, package):
-                raise ValueError("speech_voice_terms_required")
-            hardware = detect_hardware(self.store.root)
-            device, _ = resolve_device(package, settings, hardware)
-            plan = make_plan(self.store.root, package, language, device)
-            import shutil
-
-            self.store.root.mkdir(parents=True, exist_ok=True)
-            if shutil.disk_usage(self.store.root).free < plan.disk_bytes:
-                raise ValueError(
-                    QCoreApplication.translate("Desktop", "磁盘空间不足，无法完成环境与模型准备。")
-                )
-            prepare_managed_runtime(
-                self.store.root,
-                plan.runtime_id,
-                cancel=self._cancel,
-                progress=self._download_progress,
-                stage=self._setupStage.emit,
-                gpu_index=settings.gpu_index,
-            )
-            self._setupStage.emit("speech_setup_model")
-            self.store.install(package, cancel=self._cancel, progress=self._download_progress)
-            return self._snapshot()
-
-        self._start(QCoreApplication.translate("Desktop", "准备环境与模型…"), operation)
-
-    @Slot(str, bool)
-    def acceptVoiceTerms(self, id, accepted):
-        if self._busy:
-            return
-        package = self._package(id)
-        data = read_json(self.store.root / "voice-terms.json", {})
-        if accepted:
-            data[id] = package.fingerprint
-        else:
-            data.pop(id, None)
-        atomic_json(self.store.root / "voice-terms.json", data)
-        self.refresh()
-
-    @Slot(str, str)
-    def selectVoice(self, id, voice_id):
-        if self._busy or not any(v["id"] == voice_id for v in voices(id)):
-            return
-        data = read_json(self.store.root / "voices.json", {})
-        data[id] = voice_id
-        atomic_json(self.store.root / "voices.json", data)
-        self.refresh()
-
-    @Slot(str)
-    def uninstall(self, id):
-        def operation():
-            self.store.uninstall(self._package(id))
-            selections = read_json(self.store.root / "selections.json", {})
-            atomic_json(
-                self.store.root / "selections.json",
-                {k: v for k, v in selections.items() if v.get("id") != id},
-            )
-            return self._snapshot()
-
-        self._start(QCoreApplication.translate("Desktop", "卸载模型…"), operation)
-
-    @Slot(str)
-    def verify(self, id):
-        def operation():
-            self.store.verify(self._package(id), cancel=self._cancel)
-            return self._snapshot()
-
-        self._start(QCoreApplication.translate("Desktop", "校验本地文件…"), operation)
-
-    @Slot(str, str)
-    def runBenchmark(self, id, wav):
-        def operation():
-            package = self._package(id)
-            settings = load_compute(self.store.root)
-            device, _ = resolve_device(package, settings, detect_hardware(self.store.root))
-            python = runtime_python(self.store.root, device)
-            profiles = None
-            if package.adapter in {"voicevox", "melo_english"}:
-                profiles = {
-                    id: build_profile(
-                        self.store,
-                        package,
-                        self._language,
-                        device,
-                        gpu_index=settings.gpu_index,
-                        vram_budget_mb=settings.vram_budget_mb,
-                    )
-                }
-                python = profiles[id].python
-            if profiles is None and not runtime_status(self.store.root, device).get("prepared"):
-                if device == "cuda" or package.adapter == "sensevoice-ort":
-                    raise ValueError(
-                        QCoreApplication.translate(
-                            "Desktop", "请先在计算与加速中准备对应运行环境。"
-                        )
-                    )
-                python = None
-            benchmark(
-                self.store,
-                [self._package(id)],
-                self._language,
-                wav=QUrl(wav).toLocalFile() if wav else None,
-                cancel=self._cancel,
-                python=python,
-                devices={id: device},
-                gpu_index=settings.gpu_index,
-                vram_budget_mb=settings.vram_budget_mb,
-                profiles=profiles,
-            )
-            return self._snapshot()
-
-        self._start(
-            QCoreApplication.translate("Desktop", "独立进程测速（含预热与 5 次热态）…"), operation
-        )
-
-    @Slot(str)
-    def runPairBenchmark(self, wav):
-        def operation():
-            selections = read_json(self.store.root / "selections.json", {})
-            packages = []
-            for task in ("stt", "tts"):
-                selected = selections.get(f"{self._language}:{self._scenario}:{task}")
-                if not selected:
-                    raise ValueError(
-                        QCoreApplication.translate(
-                            "Desktop", "请先测速并保存本语言的 STT 与 TTS 候选。"
-                        )
-                    )
-                package = self._package(selected["id"])
-                if selected.get("fingerprint") != package.fingerprint:
-                    raise ValueError(
-                        QCoreApplication.translate("Desktop", "模型已更新，请重新测速选择。")
-                    )
-                if selected.get("runtime_version") != runtime_version(package):
-                    raise ValueError(
-                        QCoreApplication.translate("Desktop", "运行时已更新，请重新测速选择。")
-                    )
-                if selected.get("adapter_revision", 1) != adapter_revision(package.adapter):
-                    raise ValueError(
-                        QCoreApplication.translate(
-                            "Desktop", "模型加载配置已更新，请重新测速选择。"
-                        )
-                    )
-                packages.append(package)
-            settings = load_compute(self.store.root)
-            hardware = detect_hardware(self.store.root)
-            devices = {p.id: resolve_device(p, settings, hardware)[0] for p in packages}
-            device = "cuda" if "cuda" in devices.values() else "cpu"
-            python = runtime_python(self.store.root, device)
-            if not any(
-                p.adapter in {"voicevox", "melo_english"} for p in packages
-            ) and not runtime_status(self.store.root, device).get("prepared"):
-                raise ValueError(
-                    QCoreApplication.translate("Desktop", "请先准备所选计算设备的运行环境。")
-                )
-            benchmark(
-                self.store,
-                packages,
-                self._language,
-                wav=QUrl(wav).toLocalFile(),
-                cancel=self._cancel,
-                python=python,
-                devices=devices,
-                gpu_index=settings.gpu_index,
-                vram_budget_mb=settings.vram_budget_mb,
-                profiles={
-                    p.id: build_profile(
-                        self.store,
-                        p,
-                        self._language,
-                        devices[p.id],
-                        gpu_index=settings.gpu_index,
-                        vram_budget_mb=settings.vram_budget_mb,
-                    )
-                    for p in packages
-                },
-            )
-            return self._snapshot()
-
-        self._start(QCoreApplication.translate("Desktop", "STT + TTS 同时运行测速…"), operation)
-
-    @Slot(str)
-    def select(self, id):
-        if self._busy:
-            return
-        package = self._package(id)
-        row = next((r for r in self._rows if r["id"] == id), {})
-        if not row.get("measured") or not row.get("installed"):
-            return
-        if row.get("excluded"):
-            self._status = QCoreApplication.translate(
-                "Desktop", "此配置已在严格评测与试听中排除，请选择其他模型。"
-            )
-            self.changed.emit()
-            return
-        if (
-            package.task == "stt"
-            and self._scenario == "conversation"
-            and not row.get("withinRealtimeBudget")
-        ):
-            self._status = QCoreApplication.translate(
-                "Desktop", "此模型在当前设备上平均超过 500 ms，请改用 GPU 测速或选择其他识别模型。"
-            )
-            self.changed.emit()
-            return
-        selected = read_json(self.store.root / "selections.json", {})
-        selected[f"{self._language}:{self._scenario}:{package.task}"] = {
-            "id": id,
-            "fingerprint": package.fingerprint,
-            "runtime_version": runtime_version(package),
-            "adapter_revision": adapter_revision(package.adapter),
-            "voice_id": voice_choice(self.store.root, id).get("id"),
-            **{
-                k: v
-                for k, v in voice_choice(self.store.root, id).items()
-                if k in {"speaker_id", "style_id"}
-            },
-        }
-        atomic_json(self.store.root / "selections.json", selected)
-        if self._scenario == "conversation":
-            settings = load_compute(self.store.root)
-            save_compute(
-                self.store.root, settings.model_copy(update={f"local_{package.task}": True})
-            )
-            self.local_service.request_release()
-            self.configurationChanged.emit()
-        for item in self._rows:
-            if item["task"].lower() == package.task:
-                item["selected"] = item["id"] == id
-        self.modelsChanged.emit()
-        self._status = QCoreApplication.translate(
-            "Desktop",
-            "已保存本语言的模型；后续语音按计算设置绑定，当前轮次保留原配置，连续语音需重新开始。",
-        )
-        self.changed.emit()
 
     @Slot(str)
     def preview(self, id):
@@ -847,8 +587,10 @@ class SpeechLibraryViewModel(QObject):
         ):
             if self._preview_device:
                 selected = self._preview_device()
-                device = next((d for d in QMediaDevices.audioOutputs()
-                               if bytes(d.id()).hex() == selected), None)
+                device = next(
+                    (d for d in QMediaDevices.audioOutputs() if bytes(d.id()).hex() == selected),
+                    None,
+                )
                 if device is None:
                     self._status = QCoreApplication.translate(
                         "Desktop", "所选播放设备不可用，请在音频设置中重新选择。"
@@ -878,11 +620,21 @@ class SpeechLibraryViewModel(QObject):
         self._cancel.set()
 
     @Slot()
-    def close(self):
+    def begin_shutdown(self):
         self._closing = True
+        self._downloads.begin_shutdown()
         self._cancel.set()
         self._timer.stop()
         self._resource_timer.stop()
         self._player.stop()
-        if self._thread:
-            self._thread.join(timeout=0.3)
+
+    def finish_shutdown(self) -> bool:
+        threads = (self._thread, self._resource_thread)
+        return self._downloads.finish_shutdown() and all(thread is None or not thread.is_alive() for thread in threads)
+
+    def close(self):
+        self.begin_shutdown()
+        self._downloads.close()
+        for thread in (self._thread, self._resource_thread):
+            if thread:
+                thread.join(timeout=0.3)

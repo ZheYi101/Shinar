@@ -15,7 +15,7 @@ from lingualoop.core import (
 )
 from lingualoop.infrastructure import SQLiteStore
 from lingualoop.infrastructure.material_import import import_material_file
-from lingualoop.providers import MockLearningLLMProvider
+from lingualoop.providers.mock import LegacyMockLearningLLMProvider
 from lingualoop.providers.openai_compatible import OpenAICompatibleLLMProvider, OpenAICompatibleLLMSettings
 
 
@@ -26,7 +26,7 @@ async def load(workbench, text="昨日、駅で友達に会いました。旅行
 
 
 def test_saved_material_survives_failed_analysis_and_retries_without_duplicates(tmp_path):
-    class FailsOnce(MockLearningLLMProvider):
+    class FailsOnce(LegacyMockLearningLLMProvider):
         calls = 0
         async def analyze_material(self, **kwargs):
             self.calls += 1
@@ -38,7 +38,7 @@ def test_saved_material_survives_failed_analysis_and_retries_without_duplicates(
         work = LearningWorkbench(FailsOnce(), event_store=store)
         with pytest.raises(RuntimeError):
             await load(work)
-        restored = LearningWorkbench(MockLearningLLMProvider(), event_store=store)
+        restored = LearningWorkbench(LegacyMockLearningLLMProvider(), event_store=store)
         assert restored.material.raw_content == work.material.raw_content
         assert restored.profile.target_language is LanguageEnum.JAPANESE
         identity = work.material.id
@@ -50,7 +50,7 @@ def test_saved_material_survives_failed_analysis_and_retries_without_duplicates(
 
 
 def test_natural_discussion_defers_correction_and_no_output_creates_no_cards(tmp_path):
-    class NoPerTurn(MockLearningLLMProvider):
+    class NoPerTurn(LegacyMockLearningLLMProvider):
         async def correct_answer(self, **kwargs):
             raise AssertionError("default discussion must not call per-turn correction")
     async def run():
@@ -75,7 +75,7 @@ def test_natural_discussion_defers_correction_and_no_output_creates_no_cards(tmp
 
 
 def test_roleplay_is_explicit_and_correction_failure_does_not_block_reply(tmp_path):
-    class BrokenFeedback(MockLearningLLMProvider):
+    class BrokenFeedback(LegacyMockLearningLLMProvider):
         async def correct_answer(self, **kwargs):
             raise RuntimeError("correction unavailable")
     async def run():
@@ -108,7 +108,7 @@ def test_legacy_session_payload_keeps_original_semantics():
 def test_feedback_strength_bounds_grounded_review(tmp_path, intensity, limit):
     from lingualoop.core import FeedbackItem, SessionReview
 
-    class RichReview(MockLearningLLMProvider):
+    class RichReview(LegacyMockLearningLLMProvider):
         async def summarize_session(self, *, session, **kwargs):
             source_id = session.messages[1].id
             return SessionReview(summary="Focused feedback", feedback_items=[
@@ -128,7 +128,7 @@ def test_feedback_strength_bounds_grounded_review(tmp_path, intensity, limit):
 
 def test_custom_native_topic_gets_target_language_opening(tmp_path):
     async def run():
-        work = LearningWorkbench(MockLearningLLMProvider(), event_store=SQLiteStore(tmp_path / "custom.sqlite3"))
+        work = LearningWorkbench(LegacyMockLearningLLMProvider(), event_store=SQLiteStore(tmp_path / "custom.sqlite3"))
         await load(work)
         started = await work.start_session(custom_topic="聊聊类似的经历")
         assert started.session.topic.title == "聊聊类似的经历"

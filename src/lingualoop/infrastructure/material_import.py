@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import zipfile
+from io import BytesIO
 from html.parser import HTMLParser
 from xml.etree import ElementTree
 from posixpath import dirname, join, normpath
@@ -23,6 +24,7 @@ class ImportedMaterial:
     diagnostics: list[str]
     subtitle_cues: list[SubtitleCue] = field(default_factory=list)
     source_sections: list[SourceSection] = field(default_factory=list)
+    epub_content: bytes | None = field(default=None, repr=False)
 
 
 def import_material_file(path: Path | str) -> ImportedMaterial:
@@ -46,6 +48,7 @@ def import_material_file(path: Path | str) -> ImportedMaterial:
     cues: list[SubtitleCue] = []
     metadata_title = None
     headings: list[tuple[str, int]] = []
+    epub_content = None
     if suffix in {".md", ".markdown", ".txt", ".srt", ".vtt"}:
         data = file_path.read_bytes()
         raw = data.decode("utf-16" if data.startswith((b"\xff\xfe", b"\xfe\xff")) else "utf-8-sig")
@@ -61,7 +64,10 @@ def import_material_file(path: Path | str) -> ImportedMaterial:
         raw = _read_docx(file_path, headings)
         source_type = MaterialSourceType.NOTE
     elif suffix == ".epub":
-        raw, metadata_title = _read_epub(file_path, headings)
+        epub_content = file_path.read_bytes()
+        if len(epub_content) > 60 * 1024 * 1024:
+            raise ValueError("导入文件超过 60 MiB，请按卷拆分后导入。")
+        raw, metadata_title = _read_epub(BytesIO(epub_content), headings)
         source_type = MaterialSourceType.ARTICLE
     elif suffix == ".xlsx":
         raw = _read_xlsx(file_path)
@@ -92,6 +98,7 @@ def import_material_file(path: Path | str) -> ImportedMaterial:
         diagnostics=diagnostics,
         subtitle_cues=cues,
         source_sections=sections_from_titles(normalized, headings),
+        epub_content=epub_content,
     )
 
 
@@ -158,13 +165,13 @@ def _read_xlsx(path: Path) -> str:
     return "\n\n".join(blocks)
 
 
-def _check_archive(path: Path) -> None:
+def _check_archive(path: Path | BytesIO) -> None:
     with zipfile.ZipFile(path) as archive:
         if sum(item.file_size for item in archive.infolist()) > 120 * 1024 * 1024:
             raise ValueError("解压后的导入材料超过 120 MiB，请拆分文件。")
 
 
-class _ReadableHTML(HTMLParser):
+class ReadableHTML(HTMLParser):
     def __init__(self):
         super().__init__()
         self.parts = []
@@ -195,7 +202,7 @@ class _ReadableHTML(HTMLParser):
             self.parts.append(data)
 
 
-def _read_epub(path: Path, headings: list[tuple[str, int]] | None = None) -> tuple[str, str | None]:
+def _read_epub(path: Path | BytesIO, headings: list[tuple[str, int]] | None = None) -> tuple[str, str | None]:
     _check_archive(path)
     with zipfile.ZipFile(path) as archive:
         root = ElementTree.fromstring(archive.read("META-INF/container.xml"))
@@ -215,7 +222,7 @@ def _read_epub(path: Path, headings: list[tuple[str, int]] | None = None) -> tup
             if not href:
                 continue
             member = normpath(join(dirname(rootfile), href.split("#")[0]))
-            parser = _ReadableHTML()
+            parser = ReadableHTML()
             parser.feed(archive.read(member).decode("utf-8-sig"))
             if headings is not None:
                 headings.extend(parser.headings)

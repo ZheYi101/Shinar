@@ -46,7 +46,32 @@ def parse_args(argv: Sequence[str] | None = None) -> DesktopRuntimeConfig:
 def create_workbench(*, use_mock: bool = False) -> LearningWorkbench:
     load_dotenv(dotenv_path=Path.cwd() / ".env")
     try:
-        provider = build_provider(use_mock)
+        if use_mock:
+            provider = build_provider(True)
+        else:
+            from lingualoop.infrastructure.ai_configuration import AIConfigurationStore
+            from lingualoop.infrastructure.sqlite_store import default_database_path
+            from lingualoop.providers.openai_compatible import (
+                OpenAICompatibleLLMProvider, OpenAICompatibleLLMSettings,
+            )
+            connection = AIConfigurationStore(
+                default_database_path().parent / "ai-services.json"
+            ).load()
+            if connection is None:
+                provider = build_provider(False)
+            else:
+                try:
+                    environment_settings = OpenAICompatibleLLMSettings.from_env()
+                    options = (
+                        environment_settings.model_dump()
+                        if environment_settings.base_url == connection.base_url else {}
+                    )
+                except (ValueError, RuntimeError):
+                    options = {}
+                options.update(base_url=connection.base_url, api_key=connection.api_key,
+                               reasoning_model=connection.reasoning_model,
+                               dialogue_model=connection.dialogue_model)
+                provider = OpenAICompatibleLLMProvider(OpenAICompatibleLLMSettings(**options))
     except Exception:
         if use_mock:
             raise
@@ -67,14 +92,19 @@ def _load_qt() -> dict[str, Any]:
     try:
         from PySide6.QtCore import QLibraryInfo, QUrl
         from PySide6.QtGui import QFont, QGuiApplication
+        from PySide6.QtWidgets import QApplication
         from PySide6.QtQml import QQmlApplicationEngine
+        from PySide6.QtWebEngineQuick import QtWebEngineQuick
     except ImportError as exc:
         raise ImportError(
             "桌面端依赖尚未安装。请运行 `uv sync --extra desktop` 安装 PySide6。"
         ) from exc
+    if QGuiApplication.instance() is None:
+        QtWebEngineQuick.initialize()
     return {
         "QFont": QFont,
         "QGuiApplication": QGuiApplication,
+        "QApplication": QApplication,
         "QQmlApplicationEngine": QQmlApplicationEngine,
         "QUrl": QUrl,
         "QLibraryInfo": QLibraryInfo,
@@ -146,6 +176,8 @@ def _is_same_or_child(path: Path, root: Path) -> bool:
 def create_engine(viewmodel: Any, *, window_settings=None, initial_visible: bool = True,
                   speech_library=None) -> Any:
     qt = _load_qt()
+    from lingualoop.desktop.identity import configure_application_identity
+    configure_application_identity(qt["QGuiApplication"].instance())
     from PySide6.QtQuickControls2 import QQuickStyle
     if QQuickStyle.name() != "Material":
         QQuickStyle.setStyle("Material")
@@ -180,11 +212,32 @@ def create_engine(viewmodel: Any, *, window_settings=None, initial_visible: bool
     qt["QGuiApplication"].instance().aboutToQuit.connect(library.close)
     from lingualoop.desktop.window import DesktopWindowController
     controller = DesktopWindowController(window_settings, engine)
+    from lingualoop.desktop.lifecycle import DesktopLifecycleController
+    engine.lifecycle = DesktopLifecycleController(viewmodel.preferences, controller, engine)
+    engine.rootContext().setContextProperty("desktopLifecycle", engine.lifecycle)
     from lingualoop.desktop.workspace import DesktopWorkspaceController
     workspace = DesktopWorkspaceController(viewmodel, window_settings, engine)
     engine.workspace = workspace
+    from lingualoop.desktop.ai_services import AIServiceSettingsController
+    engine.ai_services = AIServiceSettingsController(viewmodel, engine)
+    engine.rootContext().setContextProperty("aiServices", engine.ai_services)
+    qt["QGuiApplication"].instance().aboutToQuit.connect(engine.ai_services.close)
+    if getattr(viewmodel.workbench.provider, "offline_read_only", False):
+        workspace.setCategory("services")
+        workspace.navigate("settings")
     engine.rootContext().setContextProperty("workspace", workspace)
+    from lingualoop.desktop.reader_runtime import ReaderRuntime
+    engine.reader_runtime = ReaderRuntime(workspace, engine)
+    engine.rootContext().setContextProperty("readerRuntime", engine.reader_runtime)
     qt["QGuiApplication"].instance().aboutToQuit.connect(workspace.close)
+    from lingualoop.desktop.shutdown import ShutdownCoordinator
+    engine.shutdown = ShutdownCoordinator(qt["QGuiApplication"].instance(), engine)
+    engine.shutdown.register("connection-settings", engine.ai_services.close, lambda: True)
+    for name, participant in (("workspace", workspace), ("learning", viewmodel), ("speech-library", library)):
+        engine.shutdown.register(name, participant.begin_shutdown, participant.finish_shutdown)
+    engine.lifecycle.set_quit_handler(engine.shutdown.quit)
+    engine.shutdown.finished.connect(engine.lifecycle.close)
+    engine.rootContext().setContextProperty("desktopShutdown", engine.shutdown)
     engine.rootContext().setContextProperty("learningViewModel", viewmodel)
     engine.rootContext().setContextProperty("desktopWindow", controller)
     engine.rootContext().setContextProperty("initialWindowVisible", initial_visible)
@@ -199,6 +252,7 @@ def create_engine(viewmodel: Any, *, window_settings=None, initial_visible: bool
     if not engine.rootObjects():
         raise RuntimeError("QML 页面加载失败，请参考 docs/desktop/QML_RUNTIME.md 配置 Qt runtime。")
     controller.attach(engine.rootObjects()[0])
+    engine.lifecycle.attach(engine.rootObjects()[0])
     engine.window_controller = controller
     return engine
 
@@ -249,7 +303,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         qt = _load_qt()
         os.environ.setdefault("QT_QUICK_CONTROLS_STYLE", "Material")
         os.environ.setdefault("QT_QUICK_CONTROLS_MATERIAL_THEME", "Light")
-        app = qt["QGuiApplication"](["lingualoop-desktop", *list(argv or sys.argv[1:])])
+        from lingualoop.desktop.identity import set_windows_app_id
+        set_windows_app_id()
+        app = qt["QApplication"](["lingualoop-desktop", *list(argv or sys.argv[1:])])
         from lingualoop.desktop.viewmodel import LearningViewModel
 
         viewmodel = LearningViewModel(create_workbench(use_mock=config.use_mock), config.provider_label)

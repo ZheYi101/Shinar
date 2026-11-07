@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lingualoop"
-version = "0.1.0"
+version = "0.1.3"
 description = "A conversational language learning platform built around reviewable learning loops."
 requires-python = ">=3.11"
 dependencies = [
@@ -79,8 +79,8 @@ dev = [
 where = ["src"]
 
 [tool.setuptools.package-data]
-"lingualoop.local_speech" = ["catalog.json", "runtime_resources/**/*", "runtime_resources/*"]
-"lingualoop.desktop" = ["qml/*.qml", "qml/*/*.qml", "qml/*/qmldir", "qml/assets/*.svg", "qml/assets/LICENSE", "qml/assets/fonts/*", "qml/assets/illustrated/*", "translations/*.ts", "translations/*.qm"]
+"lingualoop.local_speech" = ["catalog.json", "runtime_resources/**/*", "runtime_resources/*", "benchmark_samples/*"]
+"lingualoop.desktop" = ["assets/*", "reader/*", "reader/foliate/*", "reader/foliate/vendor/*", "qml/*.qml", "qml/*/*.qml", "qml/*/qmldir", "qml/assets/*.svg", "qml/assets/LICENSE", "qml/assets/fonts/*", "qml/assets/illustrated/*", "qml/assets/decorative/*", "translations/*.ts", "translations/*.qm"]
 
 [project.scripts]
 lingualoop = "lingualoop.cli:main"

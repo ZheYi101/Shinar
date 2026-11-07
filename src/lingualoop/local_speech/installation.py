@@ -179,7 +179,7 @@ def _uv(store: ModelStore, cancel, progress) -> Path:
 
 
 @contextmanager
-def _model_leases(root: Path, runtime_id: str):
+def _model_leases(root: Path, runtime_id: str, *, wait=False, cancel=None, on_wait=lambda: None):
     """Inference holds these same locks, including in another app instance."""
     with ExitStack() as leases:
         for package in load_catalog():
@@ -188,7 +188,9 @@ def _model_leases(root: Path, runtime_id: str):
             except SpeechSetupError:
                 matches = False
             if package.files and matches:
-                leases.enter_context(package_lock(root, package))
+                leases.enter_context(
+                    package_lock(root, package, wait=wait, cancel=cancel, on_wait=on_wait)
+                )
         yield
 
 
@@ -201,16 +203,33 @@ def prepare_managed_runtime(
     stage=lambda value: None,
     gpu_index: int = 0,
     repair: bool = False,
+    wait_for_locks: bool = False,
+    on_transfer=lambda event: None,
 ) -> dict:
     _check_platform()
     root = root.resolve()
-    store, spec = ModelStore(root), runtime_spec(runtime_id)
+    store, spec = (
+        ModelStore(root, wait_for_locks=wait_for_locks, on_transfer=on_transfer),
+        runtime_spec(runtime_id),
+    )
     old = managed_status(root, runtime_id)
     if old["prepared"] and not repair:
         return old
     with (
-        package_lock(root, SimpleNamespace(id="runtime-" + runtime_id)),
-        _model_leases(root, runtime_id),
+        package_lock(
+            root,
+            SimpleNamespace(id="runtime-" + runtime_id),
+            wait=wait_for_locks,
+            cancel=cancel,
+            on_wait=lambda: stage("speech_setup_waiting"),
+        ),
+        _model_leases(
+            root,
+            runtime_id,
+            wait=wait_for_locks,
+            cancel=cancel,
+            on_wait=lambda: stage("speech_setup_waiting"),
+        ),
     ):
         old = managed_status(root, runtime_id)
         if old["prepared"] and not repair:
@@ -224,112 +243,14 @@ def prepare_managed_runtime(
         for name in spec.resources:
             stage("speech_setup_resources")
             store.install(resource_package(name), cancel=cancel, progress=progress)
-        wheelhouse = root / "wheelhouses" / spec.fingerprint
-        wheelhouse.mkdir(parents=True, exist_ok=True)
-        stage("speech_setup_wheels")
-        for item in spec.wheels:
-            _check_cancel(cancel)
-            target = wheelhouse / item["path"]
-            if item.get("resource"):
-                source = files(__package__).joinpath("runtime_resources", item["resource"])
-                content = source.read_bytes()
-                if (
-                    len(content) != item["size"]
-                    or hashlib.sha256(content).hexdigest() != item["sha256"]
-                ):
-                    raise SpeechSetupError("speech_runtime_resource_corrupt")
-                target.write_bytes(content)
-            else:
-                blob = store.fetch_artifact(
-                    Artifact.model_validate(item), cancel=cancel, progress=progress
-                )
-                # A corrupt hard link may have outlived replacement of its cache blob.
-                # Reuse only the exact file whose bytes fetch_artifact just verified.
-                if target.exists() and target.samefile(blob):
-                    continue
-                target.unlink(missing_ok=True)
-                try:
-                    os.link(blob, target)
-                except OSError:
-                    shutil.copyfile(blob, target)
+        wheelhouse = _prepare_wheelhouse(store, spec, cancel, progress, stage)
         folder = root / "runtimes" / (runtime_id + "-" + uuid4().hex)
         folder.parent.mkdir(parents=True, exist_ok=True)
         try:
             stage("speech_setup_installing")
-            run_bounded(
-                [
-                    str(uv),
-                    "--no-config",
-                    "--no-python-downloads",
-                    "venv",
-                    "--python",
-                    str(python_home / "python.exe"),
-                    str(folder),
-                ],
-                cancel=cancel,
-                timeout=120,
-            )
-            python = folder / "Scripts/python.exe"
-            run_bounded(
-                [
-                    str(uv),
-                    "--no-config",
-                    "--offline",
-                    "--cache-dir",
-                    str(root / "installer-cache"),
-                    "pip",
-                    "install",
-                    "--python",
-                    str(python),
-                    "--no-deps",
-                    "--no-index",
-                    *(str(wheelhouse / w["path"]) for w in spec.wheels),
-                ],
-                cancel=cancel,
-                timeout=900,
-            )
+            python = _install_environment(root, uv, python_home, folder, wheelhouse, spec, cancel)
             if runtime_id.startswith("melo-"):
-                support = folder / "support"
-                import io
-
-                content = (
-                    files(__package__).joinpath("runtime_resources/melo_support.zip").read_bytes()
-                )
-                if (
-                    hashlib.sha256(content).hexdigest()
-                    != manifest()["support_sha256"]["melo_support.zip"]
-                ):
-                    raise SpeechSetupError("speech_runtime_resource_corrupt")
-                with zipfile.ZipFile(io.BytesIO(content)) as archive:
-                    for name, expected in manifest()["support_files"].items():
-                        content = archive.read(name)
-                        if hashlib.sha256(content).hexdigest() != expected:
-                            raise SpeechSetupError("speech_runtime_resource_corrupt")
-                        target = support / name
-                        target.parent.mkdir(parents=True, exist_ok=True)
-                        target.write_bytes(content)
-                nlp = store.model_path(resource_package("nltk"))
-                from .catalog import safe_relative
-
-                for blob in nlp.rglob("*.zip"):
-                    parent = support / "nltk_data" / blob.parent.relative_to(nlp)
-                    with zipfile.ZipFile(blob) as archive:
-                        total = 0
-                        for info in archive.infolist():
-                            _check_cancel(cancel)
-                            relative = safe_relative(info.filename.rstrip("/"))
-                            if info.is_dir():
-                                continue
-                            total += info.file_size
-                            if (
-                                total > 64 * 1024**2
-                                or ((info.external_attr >> 16) & 0o170000) == 0o120000
-                            ):
-                                raise SpeechSetupError("speech_runtime_resource_corrupt")
-                            target = parent / relative
-                            target.parent.mkdir(parents=True, exist_ok=True)
-                            with archive.open(info) as source, target.open("xb") as output:
-                                shutil.copyfileobj(source, output)
+                _install_melo_support(root, folder, cancel)
             _check_cancel(cancel)
             stage("speech_setup_probing")
             result = probe_managed_runtime(
@@ -376,3 +297,117 @@ def probe_managed_runtime(
         return result
     except (ValueError, IndexError):
         raise SpeechSetupError("speech_runtime_probe_failed") from None
+
+
+def _prepare_wheelhouse(store, spec, cancel, progress, stage):
+    root = store.root
+    wheelhouse = root / "wheelhouses" / spec.fingerprint
+    wheelhouse.mkdir(parents=True, exist_ok=True)
+    stage("speech_setup_wheels")
+    for item in spec.wheels:
+        _check_cancel(cancel)
+        target = wheelhouse / item["path"]
+        if item.get("resource"):
+            source = files(__package__).joinpath("runtime_resources", item["resource"])
+            content = source.read_bytes()
+            if (
+                len(content) != item["size"]
+                or hashlib.sha256(content).hexdigest() != item["sha256"]
+            ):
+                raise SpeechSetupError("speech_runtime_resource_corrupt")
+            target.write_bytes(content)
+        else:
+            blob = store.fetch_artifact(
+                Artifact.model_validate(item), cancel=cancel, progress=progress
+            )
+            # A corrupt hard link may have outlived replacement of its cache blob.
+            # Reuse only the exact file whose bytes fetch_artifact just verified.
+            if target.exists() and target.samefile(blob):
+                continue
+            target.unlink(missing_ok=True)
+            try:
+                os.link(blob, target)
+            except OSError:
+                shutil.copyfile(blob, target)
+    return wheelhouse
+
+
+def _install_melo_support(root, folder, cancel):
+    store = ModelStore(root)
+    support = folder / "support"
+    import io
+
+    content = (
+        files(__package__).joinpath("runtime_resources/melo_support.zip").read_bytes()
+    )
+    if (
+        hashlib.sha256(content).hexdigest()
+        != manifest()["support_sha256"]["melo_support.zip"]
+    ):
+        raise SpeechSetupError("speech_runtime_resource_corrupt")
+    with zipfile.ZipFile(io.BytesIO(content)) as archive:
+        for name, expected in manifest()["support_files"].items():
+            content = archive.read(name)
+            if hashlib.sha256(content).hexdigest() != expected:
+                raise SpeechSetupError("speech_runtime_resource_corrupt")
+            target = support / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(content)
+    nlp = store.model_path(resource_package("nltk"))
+    from .catalog import safe_relative
+
+    for blob in nlp.rglob("*.zip"):
+        parent = support / "nltk_data" / blob.parent.relative_to(nlp)
+        with zipfile.ZipFile(blob) as archive:
+            total = 0
+            for info in archive.infolist():
+                _check_cancel(cancel)
+                relative = safe_relative(info.filename.rstrip("/"))
+                if info.is_dir():
+                    continue
+                total += info.file_size
+                if (
+                    total > 64 * 1024**2
+                    or ((info.external_attr >> 16) & 0o170000) == 0o120000
+                ):
+                    raise SpeechSetupError("speech_runtime_resource_corrupt")
+                target = parent / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                with archive.open(info) as source, target.open("xb") as output:
+                    shutil.copyfileobj(source, output)
+
+
+def _install_environment(root, uv, python_home, folder, wheelhouse, spec, cancel):
+    run_bounded(
+        [
+            str(uv),
+            "--no-config",
+            "--no-python-downloads",
+            "venv",
+            "--python",
+            str(python_home / "python.exe"),
+            str(folder),
+        ],
+        cancel=cancel,
+        timeout=120,
+    )
+    python = folder / "Scripts/python.exe"
+    run_bounded(
+        [
+            str(uv),
+            "--no-config",
+            "--offline",
+            "--cache-dir",
+            str(root / "installer-cache"),
+            "pip",
+            "install",
+            "--python",
+            str(python),
+            "--no-deps",
+            "--no-index",
+            *(str(wheelhouse / w["path"]) for w in spec.wheels),
+        ],
+        cancel=cancel,
+        timeout=900,
+    )
+    return python

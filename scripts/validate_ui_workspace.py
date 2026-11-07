@@ -206,6 +206,7 @@ def main():
     parser.add_argument("--visible", action="store_true")
     parser.add_argument("--widths", default="360,600,800,1180,1440")
     parser.add_argument("--height", type=int, default=900)
+    parser.add_argument("--theme", choices=("light", "dark"), default="light")
     parser.add_argument("--voice-states", action="store_true", help="Capture automatic speech and recovery states.")
     parser.add_argument(
         "--review-fixture",
@@ -220,7 +221,7 @@ def main():
     qInstallMessageHandler(lambda kind, context, message: warnings.append(message))
     app = QGuiApplication([])
     if os.name == "nt":
-        for name in ("msyh.ttc", "msyhbd.ttc", "YuGothR.ttc"):
+        for name in ("msyh.ttc", "msyhbd.ttc", "YuGothR.ttc", "seguisym.ttf", "seguiemj.ttf"):
             QFontDatabase.addApplicationFont(
                 str(Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts" / name)
             )
@@ -229,7 +230,7 @@ def main():
         prefs = DesktopPreferences(
             QSettings(str(root / "preferences.ini"), QSettings.Format.IniFormat)
         )
-        prefs.setValue("themeMode", "light")
+        prefs.setValue("themeMode", args.theme)
         if args.review_fixture:
             prefs.setValue("targetLanguage", "english")
         speech, audio = SyntheticSpeech(), SyntheticAudio()
@@ -434,6 +435,9 @@ def main():
                 capture("library", width)
                 ws.browseMaterial(material_id)
                 capture("material", width)
+                ws.navigate("reference")
+                capture("reference", width)
+                ws.browseMaterial(material_id)
                 ws.newThreadPage()
                 capture("new", width)
                 ws.openThread(thread_id)
@@ -545,6 +549,7 @@ def main():
                 "visible": args.visible,
                 "platform": app.platformName(),
                 "scale": os.getenv("QT_SCALE_FACTOR", "system"),
+                "theme": args.theme,
                 "captures": captures,
                 "warnings": list(dict.fromkeys(warnings)),
                 "real_ai": False,

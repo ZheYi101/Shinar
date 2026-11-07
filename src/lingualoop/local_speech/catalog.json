@@ -1,49 +1,5 @@
 [
   {
-    "id": "sensevoice-int8-20250909",
-    "revision": "355f4d4884d8afd08aef04b9007a8556d7b463b2",
-    "name": "SenseVoice Small INT8",
-    "task": "stt",
-    "languages": [
-      "zh",
-      "en",
-      "ja",
-      "ko",
-      "yue"
-    ],
-    "scenarios": [
-      "conversation",
-      "import"
-    ],
-    "streaming": "整段识别；连续输入需另接 VAD，不提供原生 partial",
-    "license_note": "代码与权重许可不同：权重遵循 FunASR 模型许可，发布前须保留署名并复核当前条款。",
-    "sources": [
-      "https://github.com/QwenAudio/SenseVoice",
-      "https://k2-fsa.github.io/sherpa/onnx/sense-voice/pretrained.html"
-    ],
-    "adapter": "sensevoice",
-    "evaluation_budget_mb": 2048,
-    "files": [
-      {
-        "path": "model.int8.onnx",
-        "url": "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2025-09-09/resolve/355f4d4884d8afd08aef04b9007a8556d7b463b2/model.int8.onnx",
-        "size": 237115547,
-        "sha256": "12ca1a2ae7ecf3e0019ef2822307ee0b5cadc9196569e379b4c4026f8205276d"
-      },
-      {
-        "path": "tokens.txt",
-        "url": "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2025-09-09/resolve/355f4d4884d8afd08aef04b9007a8556d7b463b2/tokens.txt",
-        "size": 315894,
-        "sha256": "f449eb28dc567533d7fa59be34e2abca8784f771850c78a47fb731a31429a1dc"
-      }
-    ],
-    "required_files": [
-      "model.int8.onnx",
-      "tokens.txt"
-    ],
-    "notes": "CPU ONNX；中英日共用同一包。短语音结束后才运行整段识别会增加尾延迟，RTF 不能代替实际停顿测量。"
-  },
-  {
     "id": "zipformer-small-zhen-20230216",
     "revision": "sha256-2b7c63322b32",
     "name": "Zipformer Small 中英流式",
@@ -315,6 +271,9 @@
       "zh",
       "en"
     ],
+    "disabled_languages": [
+      "en"
+    ],
     "scenarios": [
       "conversation",
       "reading"
@@ -517,7 +476,7 @@
       "tokens.txt"
     ],
     "evaluation_budget_mb": 2048,
-    "notes": "GPU 不可用时的中/英 CPU 备选；原版识别质量优于 2025 微调包的英文/日文表现，仍需本机平均 ≤500 ms。原批次日语 CPU 未通过，日语优先 Reazon 或 FP32 GPU。"
+    "notes": "GPU 不可用时的中/英 CPU 备选，仍需本机平均 ≤500 ms。原批次日语 CPU 未通过，日语优先 Reazon 或 FP32 GPU。"
   },
   {
     "id": "melo-english-en",

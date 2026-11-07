@@ -59,9 +59,10 @@ def vad_path(root: Path, *, verify: bool = False) -> Path:
     return folder / "silero_vad.onnx"
 
 
-def prepare_assets(root: Path, *, cancel=None, progress=lambda done, total: None) -> Path:
+def prepare_assets(root: Path, *, cancel=None, progress=lambda done, total: None,
+                   on_transfer=lambda event: None) -> Path:
     root.mkdir(parents=True, exist_ok=True)
-    return ModelStore(root).install(VAD_PACKAGE, cancel=cancel, progress=progress)
+    return ModelStore(root, on_transfer=on_transfer).install(VAD_PACKAGE, cancel=cancel, progress=progress)
 
 
 def server_package() -> ModelPackage:

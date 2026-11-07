@@ -117,6 +117,12 @@ class LocalSpeechProvider:
         await self.service._request(self.task, self.profile.language,
                                     _profile=self.profile, prepare=True)
 
+    async def verify(self) -> None:
+        """Test a loaded local model without user audio, playback or persistence."""
+        if self.profile is None:
+            raise ValueError("speech_provider_requires_binding")
+        await self.service.verify(self.profile)
+
     async def synthesize(self, text: str) -> bytes:
         if self.task != "tts" or self.profile is None:
             raise ValueError("speech_provider_requires_tts_binding")

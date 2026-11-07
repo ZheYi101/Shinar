@@ -1,0 +1,83 @@
+﻿; Project translation of the installer pages used by LinguaLoop.
+; Other error messages fall back to compiler:Default.isl.
+[LangOptions]
+LanguageName=简体中文
+LanguageID=$0804
+LanguageCodePage=936
+DialogFontName=Microsoft YaHei UI
+DialogFontSize=9
+WelcomeFontName=Microsoft YaHei UI
+WelcomeFontSize=14
+
+[Messages]
+SetupAppTitle=安装
+SetupWindowTitle=安装 %1
+UninstallAppTitle=卸载
+UninstallAppFullTitle=卸载 %1
+InformationTitle=提示
+ConfirmTitle=确认
+ErrorTitle=错误
+SetupLdrStartupMessage=即将安装 %1，是否继续？
+SetupFileCorrupt=安装文件已损坏，请重新获取安装程序。
+SetupAlreadyRunning=安装程序已在运行。
+WindowsVersionNotSupported=此应用不支持当前 Windows 版本。
+ExitSetupTitle=退出安装
+ExitSetupMessage=安装尚未完成，现在退出将不会安装应用。%n%n是否退出安装？
+ButtonBack=< 上一步(&B)
+ButtonNext=下一步(&N) >
+ButtonInstall=安装(&I)
+ButtonOK=确定
+ButtonCancel=取消
+ButtonYes=是(&Y)
+ButtonNo=否(&N)
+ButtonFinish=完成(&F)
+ButtonBrowse=浏览(&B)...
+ButtonWizardBrowse=浏览(&R)...
+ButtonNewFolder=新建文件夹(&M)
+SelectLanguageTitle=选择安装语言
+SelectLanguageLabel=请选择安装程序使用的语言。
+ClickNext=点击“下一步”继续，或点击“取消”退出。
+BrowseDialogTitle=选择文件夹
+BrowseDialogLabel=请选择文件夹，然后点击“确定”。
+NewFolderName=新建文件夹
+WelcomeLabel1=欢迎安装 [name]
+WelcomeLabel2=将在此电脑安装 [name/ver]。%n%n更新前请先退出旧版 LinguaLoop。
+WizardSelectDir=选择安装位置
+SelectDirDesc=将 [name] 安装到哪里？
+SelectDirLabel3=应用将安装到以下文件夹。
+SelectDirBrowseLabel=点击“下一步”继续，或点击“浏览”选择其他位置。
+DiskSpaceGBLabel=至少需要 [gb] GB 可用空间。
+DiskSpaceMBLabel=至少需要 [mb] MB 可用空间。
+DirExistsTitle=文件夹已存在
+DirExists=以下文件夹已存在：%n%n%1%n%n是否安装到此文件夹？
+WizardSelectTasks=快捷方式
+SelectTasksDesc=选择需要的快捷方式
+SelectTasksLabel2=选择安装时需要创建的快捷方式，然后点击“下一步”。
+WizardReady=准备安装
+ReadyLabel1=即将安装 [name]。
+ReadyLabel2a=点击“安装”继续，或点击“上一步”修改设置。
+ReadyLabel2b=点击“安装”继续。
+ReadyMemoDir=安装位置：
+ReadyMemoTasks=附加操作：
+WizardPreparing=准备安装
+PreparingDesc=正在准备安装 [name]。
+CannotContinue=无法继续安装，请点击“取消”退出。
+WizardInstalling=正在安装
+InstallingLabel=正在安装 [name]，请稍候。
+StatusExtractFiles=正在解压文件...
+StatusCreateIcons=正在创建快捷方式...
+StatusCreateIniEntries=正在保存配置...
+StatusCreateRegistryEntries=正在登记卸载信息...
+StatusSavingUninstall=正在保存卸载信息...
+FinishedHeadingLabel=[name] 安装完成
+FinishedLabelNoIcons=应用已安装到此电脑。
+FinishedLabel=应用已安装到此电脑，可以通过开始菜单启动。
+ClickFinish=点击“完成”退出安装。
+ConfirmUninstall=确定卸载 %1 及其程序组件吗？
+UninstallStatusLabel=正在卸载 %1，请稍候。
+UninstalledAll=%1 已成功卸载。
+UninstalledMost=%1 已卸载。部分程序文件需要手动删除。
+
+[CustomMessages]
+CreateDesktopShortcut=创建桌面快捷方式
+LaunchLinguaLoop=打开 LinguaLoop

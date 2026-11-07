@@ -3,7 +3,7 @@
 import hashlib
 import os
 from pathlib import Path
-from threading import get_ident
+from threading import get_ident, Event
 
 import httpx
 import pytest
@@ -47,7 +47,7 @@ def library_desktop(tmp_path, monkeypatch):
         "gpus": [],
     }
     monkeypatch.setattr(module, "detect_hardware", lambda _: hardware)
-    monkeypatch.setattr(module, "prepare_managed_runtime", lambda *args, **kwargs: {"prepared": True})
+    monkeypatch.setattr("lingualoop.desktop.speech_library_operations.prepare_managed_runtime", lambda *args, **kwargs: {"prepared": True})
     monkeypatch.setattr(module, "runtime_status", lambda *args, **kwargs: {"prepared": True})
     library = SpeechLibraryViewModel(tmp_path / "speech")
     artifact = Artifact(
@@ -56,7 +56,7 @@ def library_desktop(tmp_path, monkeypatch):
         size=5,
         sha256=hashlib.sha256(b"model").hexdigest(),
     )
-    package = load_catalog()[2].model_copy(
+    package = next(p for p in load_catalog() if p.id == "kokoro-int8-zhen-v11").model_copy(
         update={
             "id": "test-tts",
             "revision": "test",
@@ -93,7 +93,7 @@ def library_desktop(tmp_path, monkeypatch):
             },
         )
 
-    monkeypatch.setattr(module, "benchmark", benchmark)
+    monkeypatch.setattr("lingualoop.desktop.speech_library_operations.benchmark", benchmark)
     workbench = LearningWorkbench(
         MockLearningLLMProvider(), event_store=SQLiteStore(tmp_path / "app.sqlite3")
     )
@@ -145,7 +145,8 @@ def test_library_download_benchmark_select_and_restart(library_desktop):
     click(window, "speechBenchmark-test-tts", scroll="speechModelsPage")
     until(lambda: not library.busy)
     assert library.models[0]["measured"]
-    click(window, "speechSelect-test-tts", scroll="speechModelsPage")
+    assert library.models[0]["selected"]
+    assert not item(window, "speechSelect-test-tts").isEnabled()
     assert read_json(root / "speech/selections.json")["en:conversation:tts"]["id"] == "test-tts"
     restored = SpeechLibraryViewModel(root / "speech")
     restored.catalog = library.catalog
@@ -168,8 +169,76 @@ def test_progress_does_not_recreate_model_cards(library_desktop):
     QTest.qWait(400)
     assert library.busy and models.count() == 0
     assert progress.count() >= 2
-    click(window, "speechCancel", scroll="speechModelsPage")
+    click(window, "speechCancel")
     until(lambda: not library.busy)
+
+
+@pytest.mark.parametrize("failure", [None, "slow", "cancelled"])
+def test_default_stt_demo_benchmarks_and_selects_same_service_without_file_picker(
+    library_desktop, monkeypatch, failure
+):
+    import asyncio
+    import sys
+    from types import SimpleNamespace
+    import lingualoop.desktop.speech_library as module
+    import lingualoop.local_speech.service as service_module
+    import lingualoop.local_speech.model_profile as profiles
+    from lingualoop.local_speech.downloads import DownloadCancelled
+    from lingualoop.local_speech.samples import benchmark_audio
+
+    _, library, vm, window, _, root = library_desktop
+    package = next(p for p in load_catalog() if p.id == "sensevoice-int8-20240717")
+    library.catalog = [package]
+    monkeypatch.setattr(library.store, "installed", lambda _: True)
+    monkeypatch.setattr(library.local_service.store, "installed", lambda _: True)
+    monkeypatch.setattr(service_module, "detect_hardware", module.detect_hardware)
+    monkeypatch.setattr(service_module, "runtime_status", lambda *a, **k: {"prepared": True})
+    monkeypatch.setattr(service_module, "runtime_python", lambda *a: sys.executable)
+    monkeypatch.setattr(profiles, "build_profile", lambda store, p, lang, device, **k:
+                        SimpleNamespace(package_id=p.id, task=p.task, language=lang))
+    observed = []
+
+    def benchmark(store, packages, language, **kwargs):
+        with benchmark_audio(language) as expected:
+            assert Path(kwargs["wav"]).read_bytes() == expected.read_bytes()
+        observed.append((packages[0].id, language))
+        if failure == "cancelled":
+            raise DownloadCancelled("测速已取消。")
+        atomic_json(store.root / "reports/demo.json", {
+            "schema": 1, "language": language, "hardware": module.detect_hardware(store.root),
+            "model_fingerprints": {package.id: package.fingerprint}, "repeats": 5,
+            "metrics": {"runtime_version": RUNTIME_VERSION, "provider": "cpu",
+                        "threads_per_model": 2, "sequential": {"stt": [
+                            {"compute_ms": 900 if failure == "slow" else 150,
+                             "finalization_compute_ms": 900 if failure == "slow" else 150,
+                             "nonempty": True}
+                        ]}},
+        })
+
+    monkeypatch.setattr("lingualoop.desktop.speech_library_operations.benchmark", benchmark)
+    library.setFilter("en", "conversation")
+    until(lambda: not library.busy)
+    click(window, "speechBenchmark-" + package.id, scroll="speechModelsPage")
+    until(lambda: bool(observed) and not library.busy)
+    dialog = window.findChild(QObject, "speechBenchmarkFile")
+    assert not dialog.property("visible")
+    assert observed == [(package.id, "en")]
+    selected = read_json(root / "speech/selections.json", {})
+    if failure:
+        assert "en:conversation:stt" not in selected
+        assert not library.models[0]["selected"]
+        assert "500 ms" in library.status if failure == "slow" else "取消" in library.status
+    else:
+        assert selected["en:conversation:stt"]["id"] == package.id
+        assert library.models[0]["selected"]
+        assert library.local_service is vm._local_speech
+        assert library.local_service.enabled("stt")
+        bound = asyncio.run(vm._local_speech.resolve("stt", "en"))
+        assert (bound.package_id, bound.language) == (package.id, "en")
+        # A page filter never changes what an actual English conversation resolves.
+        library.setFilter("ja", "reading")
+        until(lambda: not library.busy)
+        assert asyncio.run(vm._local_speech.resolve("stt", "en")).package_id == package.id
 
 
 def test_preview_cannot_echo_into_active_voice_or_fall_back_from_a_removed_device(library_desktop, monkeypatch):
@@ -202,6 +271,7 @@ def test_voicevox_terms_and_style_are_explicit_and_do_not_replace_a_model_id(lib
     library.setFilter("ja", "conversation")
     until(lambda: not library.busy)
     assert not accepted_terms(library.store.root, package)
+    click(window, "speechDetails-" + package.id, scroll="speechModelsPage")
     click(window, "speechTerms-" + package.id, scroll="speechModelsPage")
     until(lambda: not library.busy)
     assert accepted_terms(library.store.root, package)
@@ -280,7 +350,7 @@ def test_library_responsive_geometry(library_desktop, width):
     install = item(window, "speechInstall-test-tts")
     assert install.width() <= scroll.width()
     # Dialog keeps every action scrollable at narrow sizes.
-    click(window, "speechRefresh", scroll="speechModelsPage")
+    click(window, "speechRefresh")
     until(lambda: not library.busy)
 
 
@@ -310,3 +380,55 @@ def test_inference_status_does_not_run_installation_checks_on_gui_thread(
     until(lambda: not library.busy)
     assert snapshots and all(thread != gui_thread for thread in snapshots)
     assert runtime_changes.count() == 1
+
+
+def test_stt_and_tts_download_together_with_live_component_progress(library_desktop, monkeypatch):
+    from lingualoop.local_speech.downloads import DownloadCancelled, TransferEvent
+    app, library, vm, window, engine, root = library_desktop
+    base = library.catalog[0]
+    stt = base.model_copy(update={"id": "fixture-stt", "name": "Fixture STT", "task": "stt"})
+    tts = base.model_copy(update={"id": "fixture-tts", "name": "Fixture TTS"})
+    library.catalog = [stt, tts]
+    library.setFilter("en", "conversation")
+    until(lambda: not library.busy)
+    gates = {stt.id: Event(), tts.id: Event()}
+    original = library.store.install
+
+    def install(package, **kwargs):
+        transfer = kwargs["on_transfer"]
+        transfer(TransferEvent(package.id + ".onnx", "downloading", 128, 1024))
+        while not gates[package.id].wait(0.01):
+            if kwargs["cancel"].is_set():
+                raise DownloadCancelled()
+        return original(package, **kwargs)
+
+    monkeypatch.setattr(library.store, "install", install)
+    try:
+        click(window, "speechTabSTT")
+        click(window, "speechInstall-" + stt.id, scroll="speechModelsPage")
+        until(lambda: library.downloadJobs.rows()[0]["completedBytes"] == 128)
+        click(window, "speechTabTTS")
+        click(window, "speechInstall-" + tts.id, scroll="speechModelsPage")
+        until(lambda: library.downloadCount == 2 and all(r["component"] for r in library.downloadJobs.rows()))
+        assert library.busy and not library.operationBusy
+        assert item(window, "speechLanguage").isEnabled()
+        rows = library.downloadJobs.rows()
+        assert {r["task"] for r in rows} == {"STT", "TTS"}
+        assert {r["component"] for r in rows} == {stt.id + ".onnx", tts.id + ".onnx"}
+        assert all(r["language"] == "en" and r["progress"] == 0.125 for r in rows)
+        changes = QSignalSpy(library.modelsChanged)
+        QTest.qWait(350)
+        assert changes.count() == 0
+        click(window, "cancelDownload-" + rows[0]["jobId"])
+        until(lambda: library.downloadJobs.rows()[0]["state"] == "cancelled")
+        assert library.downloadJobs.rows()[1]["state"] == "running"
+        gates[tts.id].set()
+        until(lambda: not library.busy)
+        gates[stt.id].set()
+        click(window, "retryDownload-" + rows[0]["jobId"])
+        until(lambda: not library.busy)
+        assert all(r["state"] == "completed" for r in library.downloadJobs.rows())
+        assert library.store.installed(stt) and library.store.installed(tts)
+    finally:
+        for gate in gates.values():
+            gate.set()

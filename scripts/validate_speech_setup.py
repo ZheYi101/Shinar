@@ -66,7 +66,7 @@ def main(args):
     window.grabWindow()
     report = {
         "root": str(root),
-        "real_downloads": True,
+        "real_asset_preparation_requested": bool(args.runtimes or args.continuous),
         "paid_model_calls": 0,
         "human_device_acceptance": False,
         "qt_platform": app.platformName(),
@@ -119,7 +119,10 @@ def main(args):
             choice = find_item(window, "compute-tts_device")
             choice.forceActiveFocus()
             QTest.keyClick(window, Qt.Key.Key_Home)
+            app.processEvents()
+            wait(lambda: not library.busy)
             for _ in range({"auto": 0, "cpu": 1, "cuda": 2}[args.device]):
+                choice.forceActiveFocus()
                 QTest.keyClick(window, Qt.Key.Key_Down)
                 app.processEvents()
                 wait(lambda: not library.busy)
@@ -141,6 +144,10 @@ def main(args):
                 QTest.keyClick(window, Qt.Key.Key_Down)
                 QTest.qWait(120)
                 wait(lambda: not library.busy)
+            row = next(r for r in library.models if r["id"] == package_id)
+            click(window, "speechTab" + row["task"])
+            if package_id == "voicevox-japanese" or args.voice_index:
+                click(window, "speechDetails-" + package_id, "speechModelsPage")
             if package_id == "voicevox-japanese":
                 if not next(r for r in library.models if r["id"] == package_id)["termsAccepted"]:
                     click(window, "speechTerms-" + package_id, "speechModelsPage")
@@ -159,6 +166,7 @@ def main(args):
             start = monotonic()
             row = next(r for r in library.models if r["id"] == package_id)
             if not row["installed"] or not row["runtimeReady"]:
+                report["real_asset_preparation_requested"] = True
                 click(window, "speechInstall-" + package_id, "speechModelsPage")
                 done("prepare-package-" + package_id, start)
             row = next(r for r in library.models if r["id"] == package_id)
@@ -171,9 +179,12 @@ def main(args):
                 row = next(r for r in library.models if r["id"] == package_id)
                 assert row["benchmarkable"], row["reason"]
             start = monotonic()
-            click(window, "speechBenchmark-" + package_id, "speechModelsPage")
-            if row["task"] == "STT":
-                assert args.wav and args.wav.is_file(), "STT requires --wav with a permitted sample"
+            if row["task"] == "STT" and args.wav:
+                assert args.wav.is_file(), "The optional custom sample must exist"
+                details = find_item(window, "speechModel-" + package_id)
+                if not details.property("expanded"):
+                    click(window, "speechDetails-" + package_id, "speechModelsPage")
+                click(window, "speechCustomBenchmark-" + package_id, "speechModelsPage")
                 dialog = window.findChild(QObject, "speechBenchmarkFile")
                 assert dialog is not None
                 assert dialog.setProperty(
@@ -191,11 +202,15 @@ def main(args):
                 report["file_selection_method"] = (
                     "Qt FileDialog selectedFile and accepted signal; native picker not tested"
                 )
+            else:
+                click(window, "speechBenchmark-" + package_id, "speechModelsPage")
+                report["file_selection_method"] = "bundled language demo; no file picker"
             done("benchmark-" + package_id, start)
             assert next(r for r in library.models if r["id"] == package_id)["measured"], (
                 library.status
             )
-            click(window, "speechSelect-" + package_id, "speechModelsPage")
+            if not next(r for r in library.models if r["id"] == package_id)["selected"]:
+                click(window, "speechSelect-" + package_id, "speechModelsPage")
             assert next(r for r in library.models if r["id"] == package_id)["selected"]
             if args.preview and row["task"] == "TTS":
                 start = monotonic()

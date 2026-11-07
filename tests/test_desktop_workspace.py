@@ -9,6 +9,7 @@ from test_desktop_workflow import (  # noqa: F401
     item,
     until,
     load_and_start,
+    load_material,
     workspace_of,
 )
 from lingualoop.application.source_document import python_to_utf16
@@ -161,7 +162,7 @@ def test_chapter_selection_search_clear_and_large_document(desktop):
     vm, window, *_ = desktop
     vm._stt = vm._tts = None
     text = "Chapter One\n\n" + ("A readable sentence 😀.\n\n" * 3000) + "Chapter Two\n\n終わり。"
-    vm.loadMaterial("Long", text, "english", "english", "chinese", "B1")
+    load_material(vm, "Long", text, "english", "english", "chinese", "B1")
     until(lambda: not vm.busy, timeout=30000)
     ws = workspace_of(window)
     ws.browseMaterial(vm.selectedMaterialId)

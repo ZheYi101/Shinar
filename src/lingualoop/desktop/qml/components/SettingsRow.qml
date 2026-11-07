@@ -8,9 +8,9 @@ Item {
     property string label: ""
     property bool divider: true
     property bool inlineControl: false
-    readonly property bool compact: width < 480 && !inlineControl
+    readonly property bool compact: width < 520 && !inlineControl
     Layout.fillWidth: true
-    implicitHeight: Math.max(60, content.implicitHeight + 24)
+    implicitHeight: Math.max(68, content.implicitHeight + 28)
     GridLayout {
         id: content
         width: root.width
@@ -26,5 +26,5 @@ Item {
             spacing: 8
         }
     }
-    Rectangle { visible: root.divider; anchors.bottom: parent.bottom; width: parent.width; height: 1; color: AppTheme.outlineVariant; opacity: 0.7 }
+    Rectangle { visible: root.divider; anchors.bottom: parent.bottom; width: parent.width; height: 1; color: AppTheme.outlineVariant; opacity: 0.45 }
 }

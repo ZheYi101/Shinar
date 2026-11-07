@@ -145,6 +145,38 @@ def test_continuation_cancels_stt_without_a_user_message(tmp_path):
     asyncio.run(run())
 
 
+def test_pause_cancels_even_late_recognition_but_keeps_uncommitted_audio_for_resume(tmp_path):
+    async def run():
+        work, provider = await make_work(tmp_path / "db")
+        entered, speech = asyncio.Event(), Speech()
+        async def late(audio):
+            entered.set()
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                # Some inference backends can finish despite cancellation.
+                return "A late transcription."
+        speech.transcribe = late
+        events = []
+        runner = ContinuousConversation(work, AudioProcess(), lambda *e: events.append(e))
+        header, audio = {"utterance": "one", "revision": 1}, wav_bytes()
+        await runner.input_started("one", 1)
+        old = asyncio.create_task(runner.receive(header, audio, None, speech, Speech(), False))
+        await entered.wait()
+        runner.input_allowed = False
+        await runner.cancel_input()
+        assert old.done() and provider.calls == 0 and len(work.session.messages) == 1
+        assert runner.pending_input == (header, audio, None)
+        assert not any(kind == "recognition_failed" for kind, *_ in events)
+        await runner.receive(header, audio, None, Speech(), Speech(), False, manual_retry=True)
+        assert provider.calls == 1 and runner.pending_input is None
+        assert sum(m.role == MessageRole.USER for m in work.session.messages) == 1
+        await runner.close()
+        assert runner.pending_input is None
+        await work.aclose()
+    asyncio.run(run())
+
+
 def test_new_final_waits_for_slow_cancelled_stt_cleanup(tmp_path):
     async def run():
         work, provider = await make_work(tmp_path / "db")

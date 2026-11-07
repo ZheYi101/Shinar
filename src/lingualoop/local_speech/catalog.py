@@ -84,6 +84,8 @@ class ModelPackage(BaseModel):
     notes: str
     # A conservative admission budget, NOT a claimed model minimum or measurement.
     evaluation_budget_mb: int = 2048
+    # Product availability is separate from the upstream model's capabilities.
+    disabled_languages: list[str] = Field(default_factory=list)
 
     @field_validator("required_files")
     @classmethod
@@ -99,15 +101,24 @@ class ModelPackage(BaseModel):
         paths = [f.path for f in self.files]
         if len(paths) != len(set(paths)):
             raise ValueError("重复模型文件。")
+        if not set(self.disabled_languages).issubset(self.languages):
+            raise ValueError("禁用语言必须属于模型声明的语言。")
         return self
+
+    @property
+    def available_languages(self) -> list[str]:
+        return [language for language in self.languages if language not in self.disabled_languages]
 
     @property
     def download_bytes(self):
         return sum(f.size for f in self.files)
 
     @property
-    def fingerprint(self):
-        return hashlib.sha256(self.model_dump_json().encode()).hexdigest()
+    def fingerprint(self) -> str:
+        # Availability changes must not invalidate installed assets, measurements
+        # or selections for languages that remain available. Keep legacy hashes.
+        content = self.model_dump_json(exclude={"disabled_languages"})
+        return hashlib.sha256(content.encode()).hexdigest()
 
 
 def load_catalog() -> list[ModelPackage]:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import hashlib
+import json
 from pathlib import Path
 import subprocess
 import sys
@@ -22,6 +23,25 @@ def main():
         if path.is_file()
     }
     expected.add("lingualoop/local_speech/catalog.json")
+    reader = source.parent / "reader"
+    upstream = json.loads((reader / "foliate/UPSTREAM.json").read_text(encoding="utf-8"))
+    for name, checksum in upstream["files"].items():
+        if hashlib.sha256((reader / "foliate" / name).read_bytes()).hexdigest() != checksum:
+            raise SystemExit(f"Changed pinned reader dependency: {name}")
+    expected.update(
+        "lingualoop/desktop/reader/" + path.relative_to(reader).as_posix()
+        for path in reader.rglob("*") if path.is_file()
+    )
+    samples = source.parents[1] / "local_speech/benchmark_samples"
+    expected.update(
+        "lingualoop/local_speech/benchmark_samples/" + path.name
+        for path in samples.glob("*") if path.is_file()
+    )
+    expected.update(
+        "lingualoop/desktop/assets/" + path.name
+        for path in (source.parent / "assets").glob("*")
+        if path.is_file()
+    )
     runtime_resources = source.parents[1] / "local_speech/runtime_resources"
     expected.update(
         "lingualoop/local_speech/runtime_resources/"
@@ -70,6 +90,7 @@ sys.path.insert(0, sys.argv[1])
 from PySide6.QtCore import QObject, QSettings, Qt
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQuick import QQuickWindow
+from PySide6.QtWebEngineQuick import QtWebEngineQuick
 from lingualoop.desktop import app as desktop
 from lingualoop.application import LearningWorkbench
 from lingualoop.infrastructure import SQLiteStore
@@ -80,15 +101,24 @@ from lingualoop.desktop.window import DesktopWindowController
 from lingualoop.local_speech.catalog import load_catalog
 from lingualoop.local_speech.installation import manifest, runtime_spec
 from lingualoop.local_speech.model_profile import voices
+from lingualoop.local_speech.samples import benchmark_audio
 import lingualoop.desktop.window as window_module
 root = Path(sys.argv[1])
 assert Path(desktop.__file__).is_relative_to(root)
 assert Path(window_module.__file__).is_relative_to(root)
-assert any(package.id == 'sensevoice-int8-20250909' for package in load_catalog())
+catalog_ids = {package.id for package in load_catalog()}
+assert 'sensevoice-int8-20240717' in catalog_ids
+assert 'sensevoice-int8-20250909' not in catalog_ids
+melo_onnx = next(package for package in load_catalog() if package.id == 'melo-zhen-onnx')
+assert melo_onnx.available_languages == ['zh']
 assert len(voices('melo-english-en')) == 5
 assert voices('voicevox-japanese')[0]['style_id'] == 3
 assert len(runtime_spec('rtc-cpu').fingerprint) == 64
 assert manifest()['runtimes']['melo-cuda']['device'] == 'cuda'
+for language in ('en', 'ja', 'zh'):
+    with benchmark_audio(language) as sample:
+        assert sample.is_file() and sample.stat().st_size > 1000
+QtWebEngineQuick.initialize()
 app = QGuiApplication([])
 prefs = DesktopPreferences(QSettings(str(root / 'settings.ini'), QSettings.Format.IniFormat))
 vm = LearningViewModel(LearningWorkbench(MockLearningLLMProvider(), event_store=SQLiteStore(root / 'smoke.sqlite3')), 'Mock', preferences=prefs)
@@ -96,6 +126,8 @@ engine = desktop.create_engine(vm,
     window_settings=QSettings(str(root / 'window.ini'), QSettings.Format.IniFormat),
     initial_visible=False)
 assert engine.rootObjects()
+assert engine.reader_runtime.profile.isOffTheRecord()
+assert not app.windowIcon().isNull()
 app.processEvents()
 window = engine.rootObjects()[0]
 assert not window.isVisible()
@@ -110,6 +142,9 @@ while pending:
 for name in ('windowMinimizeButton', 'windowMaximizeButton', 'windowCloseButton',
              'windowDragArea', 'resize_topLeft', 'resize_bottomRight'):
     assert name in objects, name
+engine.lifecycle.close()
+engine.workspace.close()
+engine.speech_library.close()
 vm.close()
 window.close()
 print('Installed-wheel QML, WindowController and frameless controls smoke passed')

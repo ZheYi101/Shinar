@@ -7,6 +7,7 @@ Rectangle {
     id: bar
     signal navigate(int page)
     signal toggleSidebar()
+    property bool compactNavigation: false
     implicitHeight: AppTheme.topBarHeight
     color: AppTheme.surface
     MouseArea {
@@ -19,9 +20,9 @@ Rectangle {
     RowLayout {
         anchors.fill: parent; anchors.leftMargin: 0; anchors.rightMargin: 4
         spacing: 0
-        MIconButton { objectName: "sidebarToggle"; symbol: "menu"; label: qsTr("侧栏"); implicitHeight: AppTheme.topBarHeight; onClicked: bar.toggleSidebar() }
+        MIconButton { objectName: "sidebarToggle"; symbol: bar.compactNavigation || workspace.collapsed ? "panel_open" : "panel_left"; label: bar.compactNavigation ? qsTr("打开导航") : workspace.collapsed ? qsTr("展开侧栏") : qsTr("收起侧栏"); implicitHeight: AppTheme.topBarHeight; onClicked: bar.toggleSidebar() }
         Item { Layout.fillWidth: true }
-        MLabel { visible: bar.width > 850 && learningViewModel.providerLabel.indexOf("Mock") >= 0; text: qsTr("离线预览"); role: "supporting"; Layout.fillWidth: false; Layout.rightMargin: 12 }
+        MLabel { objectName: "mockDialogueNotice"; visible: learningViewModel.providerLabel.indexOf("Mock") >= 0; text: bar.width < 600 ? "Mock" : qsTr("Mock 对话"); role: "supporting"; font.pixelSize: 11; Layout.fillWidth: false; Layout.rightMargin: 12; ToolTip.visible: mockHover.hovered; ToolTip.text: qsTr("离线测试语料，未调用对话模型。"); ToolTip.delay: 650; HoverHandler { id: mockHover } }
         MButton { objectName: "openSourceButton"; visible: workspace.route === "chat"; text: qsTr("原文"); variant: "text"; implicitHeight: AppTheme.topBarHeight; enabled: learningViewModel.hasSession; onClicked: workspace.toggleSource() }
         WindowAction { visible: workspace.route === "chat"; glyph: "more"; label: qsTr("对话操作"); objectName: "conversationMenuButton"; onClicked: secondaryMenu.open() }
         WindowAction { visible: workspace.route !== "chat"; glyph: "more"; label: qsTr("更多：复盘和设置"); objectName: "secondaryMenuButton"; onClicked: secondaryMenu.open() }
@@ -36,9 +37,11 @@ Rectangle {
         MenuItem { objectName: "openHistoryButton"; visible: workspace.route === "chat"; text: qsTr("本材料的对话"); onTriggered: workspace.browseMaterial(learningViewModel.selectedMaterialId) }
         MenuItem { visible: workspace.route === "chat"; text: qsTr("本轮信息"); onTriggered: turnInfo.open() }
         MenuItem { text: qsTr("复盘") + (learningViewModel.dueReviewCount > 0 ? " · " + learningViewModel.dueReviewCount : ""); onTriggered: bar.navigate(2) }
+        MenuItem { text: qsTr("表达复习"); onTriggered: workspace.navigate("queue") }
         MenuItem { text: qsTr("设置"); onTriggered: bar.navigate(3) }
         MenuSeparator {}
         MenuItem { text: qsTr("还原窗口"); enabled: desktopWindow.maximized; onTriggered: desktopWindow.restore() }
+        MenuItem { objectName: "exitApplicationMenuItem"; text: qsTr("退出 LinguaLoop"); onTriggered: desktopLifecycle.quit() }
     }
     Popup {
         id: turnInfo

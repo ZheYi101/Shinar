@@ -15,8 +15,9 @@ ScrollView {
     ColumnLayout {
         width: page.availableWidth
         spacing: AppTheme.sectionGap
-        RowLayout { visible: !page.queueOnly
-            MButton { text: qsTr("‹ 对话"); variant: "text"; onClicked: workspace.navigate("chat") }
+        RowLayout {
+            MButton { text: page.queueOnly ? qsTr("‹ 材料库") : qsTr("‹ 对话"); variant: "text"; onClicked: workspace.navigate(page.queueOnly ? "library" : "chat") }
+            MLabel { visible: page.queueOnly; text: qsTr("表达复习"); role: "title" }
         }
         MCard {
             visible: !page.queueOnly

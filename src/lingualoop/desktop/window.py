@@ -1,6 +1,8 @@
 """Frameless desktop window actions and bounded, DPI-independent restoration."""
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from PySide6.QtCore import QObject, Property, QEvent, QRect, QSettings, Qt, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 from shiboken6 import isValid
@@ -14,6 +16,11 @@ class DesktopWindowController(QObject):
         self._settings = settings if settings is not None else QSettings("LinguaLoop", "Window")
         self._window = None
         self._normal_geometry = QRect()
+        self._close_handler: Callable[[], bool] | None = None
+
+    def set_close_handler(self, handler: Callable[[], bool]) -> None:
+        """Let the desktop lifecycle consume a close request before Qt exits."""
+        self._close_handler = handler
 
     def attach(self, window):
         self._window = window
@@ -92,4 +99,7 @@ class DesktopWindowController(QObject):
                     self._normal_geometry = self._window.geometry()
             elif event.type() == QEvent.Type.Close:
                 self.save()
+                if self._close_handler and self._close_handler():
+                    event.ignore()
+                    return True
         return super().eventFilter(watched, event)

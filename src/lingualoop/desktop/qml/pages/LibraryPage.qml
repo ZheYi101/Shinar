@@ -8,38 +8,56 @@ ColumnLayout {
     spacing: 12
     RowLayout {
         Layout.fillWidth: true
+        MButton { objectName: "nav2"; text: qsTr("表达复习") + (learningViewModel.dueReviewCount ? " · " + learningViewModel.dueReviewCount : ""); variant: "text"; onClicked: workspace.navigate("queue") }
         Item { Layout.fillWidth: true }
         MTextField { id: search; Layout.preferredWidth: 220; Layout.minimumWidth: 100; Layout.fillWidth: true; Layout.maximumWidth: 220; placeholderText: qsTr("查找材料") }
         MButton { text: qsTr("+ 导入材料"); onClicked: workspace.navigate("import") }
     }
     ScrollView {
+        id: libraryScroll
         Layout.fillWidth: true; Layout.fillHeight: true; clip: true; contentWidth: availableWidth
         ColumnLayout {
             width: parent.width; spacing: 0
-            RowLayout { Layout.fillWidth: true; Layout.preferredHeight: 32
-                MLabel { text: qsTr("材料"); role: "supporting"; Layout.fillWidth: true }
-                MLabel { visible: parent.width > 540; text: qsTr("语言与类型"); role: "supporting"; Layout.preferredWidth: 150; Layout.fillWidth: false }
-                MLabel { text: qsTr("已读范围"); role: "supporting"; Layout.preferredWidth: 100; Layout.fillWidth: false }
-                MLabel { visible: parent.width > 420; text: qsTr("对话"); role: "supporting"; Layout.preferredWidth: 60; Layout.fillWidth: false }
-            }
-            Repeater {
-                model: workspace.materials
-                ItemDelegate {
-                    required property var modelData
-                    Layout.fillWidth: true; implicitHeight: 52
-                    visible: modelData.title.toLowerCase().indexOf(search.text.toLowerCase()) >= 0
-                    Accessible.name: modelData.title
-                    background: Rectangle { color: parent.hovered ? AppTheme.surfaceContainerLow : "transparent"; Rectangle { width: parent.width; height: 1; color: AppTheme.outlineVariant; opacity: 0.55 } }
-                    contentItem: RowLayout {
-                        MLabel { text: modelData.title; font.family: AppTheme.readingFont; font.pixelSize: 17; elide: Text.ElideRight; maximumLineCount: 1 }
-                        MLabel { visible: parent.width > 520; text: modelData.language + " · " + modelData.type; role: "supporting"; Layout.preferredWidth: 150; Layout.fillWidth: false }
-                        MLabel { text: modelData.range; role: "supporting"; Layout.preferredWidth: 100; Layout.fillWidth: false }
-                        MLabel { visible: parent.width > 400; text: modelData.threads.length; role: "supporting"; Layout.preferredWidth: 44; Layout.fillWidth: false }
+            ColumnLayout {
+                id: materialRows
+                Layout.fillWidth: true
+                spacing: 0
+                RowLayout { Layout.fillWidth: true; Layout.preferredHeight: 32
+                    MLabel { text: qsTr("材料"); role: "supporting"; Layout.fillWidth: true }
+                    MLabel { visible: parent.width > 540; text: qsTr("语言与类型"); role: "supporting"; Layout.preferredWidth: 150; Layout.fillWidth: false }
+                    MLabel { text: qsTr("已读范围"); role: "supporting"; Layout.preferredWidth: 100; Layout.fillWidth: false }
+                    MLabel { visible: parent.width > 420; text: qsTr("对话"); role: "supporting"; Layout.preferredWidth: 60; Layout.fillWidth: false }
+                }
+                Repeater {
+                    model: workspace.materials
+                    ItemDelegate {
+                        required property var modelData
+                        Layout.fillWidth: true; implicitHeight: 52
+                        visible: modelData.title.toLowerCase().indexOf(search.text.toLowerCase()) >= 0
+                        Accessible.name: modelData.title
+                        background: Rectangle { color: parent.hovered ? AppTheme.surfaceContainerLow : "transparent"; Rectangle { width: parent.width; height: 1; color: AppTheme.outlineVariant; opacity: 0.55 } }
+                        contentItem: RowLayout {
+                            MLabel { text: modelData.title; font.family: AppTheme.readingFont; font.pixelSize: 17; elide: Text.ElideRight; maximumLineCount: 1 }
+                            MLabel { visible: parent.width > 520; text: modelData.language + " · " + modelData.type; role: "supporting"; Layout.preferredWidth: 150; Layout.fillWidth: false }
+                            MLabel { text: modelData.range; role: "supporting"; Layout.preferredWidth: 100; Layout.fillWidth: false }
+                            MLabel { visible: parent.width > 400; text: modelData.threads.length; role: "supporting"; Layout.preferredWidth: 44; Layout.fillWidth: false }
+                        }
+                        onClicked: workspace.browseMaterial(modelData.id)
                     }
-                    onClicked: workspace.browseMaterial(modelData.id)
+                }
+                MLabel { visible: workspace.materials.length === 0; text: qsTr("还没有材料"); role: "supporting"; Layout.topMargin: 36 }
+            }
+            Item {
+                Layout.fillWidth: true
+                visible: libraryScroll.availableWidth >= 720 && libraryScroll.availableHeight - materialRows.implicitHeight >= 220
+                Layout.preferredHeight: Math.max(0, libraryScroll.availableHeight - materialRows.implicitHeight)
+                InkDecoration {
+                    motif: "cloth-book"
+                    anchors.right: parent.right; anchors.bottom: parent.bottom
+                    anchors.rightMargin: 28; anchors.bottomMargin: 28
+                    width: 240; height: 160
                 }
             }
-            MLabel { visible: workspace.materials.length === 0; text: qsTr("还没有材料"); role: "supporting"; Layout.topMargin: 36 }
         }
     }
 }

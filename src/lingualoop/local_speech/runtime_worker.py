@@ -93,50 +93,7 @@ def load_model(spec, threads):
             enable_endpoint_detection=False,
             provider="cpu",
         )
-    if adapter == "kokoro":
-        config = sherpa.OfflineTtsConfig()
-        config.model.kokoro.model = str(path / "model.int8.onnx")
-        config.model.kokoro.voices = str(path / "voices.bin")
-        config.model.kokoro.tokens = str(path / "tokens.txt")
-        config.model.kokoro.data_dir = str(path / "espeak-ng-data")
-        config.model.kokoro.dict_dir = str(path / "dict")
-        config.model.kokoro.lexicon = ",".join(
-            str(path / f"lexicon-{name}.txt") for name in ("us-en", "zh")
-        )
-        config.rule_fsts = ",".join(
-            str(path / name) for name in ("date-zh.fst", "number-zh.fst", "phone-zh.fst")
-        )
-        config.model.num_threads = threads
-        config.model.provider = "cpu"
-        config.max_num_sentences = 1
-        if not config.validate():
-            raise ValueError("TTS 模型配置无效。")
-        return sherpa.OfflineTts(config)
-    if adapter == "vits":
-        config = sherpa.OfflineTtsConfig()
-        piper = not (path / "model.onnx").exists()
-        models = list(path.glob("*.onnx")) if piper else [path / "model.onnx"]
-        if len(models) != 1:
-            raise ValueError("VITS 模型主文件不唯一。")
-        config.model.vits.model = str(models[0])
-        config.model.vits.tokens = str(path / "tokens.txt")
-        if piper:
-            config.model.vits.data_dir = str(path / "espeak-ng-data")
-        else:
-            config.model.vits.lexicon = str(path / "lexicon.txt")
-            config.model.vits.dict_dir = str(path / "dict")
-        config.rule_fsts = ",".join(
-            str(path / name)
-            for name in ("date.fst", "number.fst", "phone.fst", "new_heteronym.fst")
-            if (path / name).exists()
-        )
-        config.model.num_threads = threads
-        config.model.provider = "cpu"
-        config.max_num_sentences = 1
-        if not config.validate():
-            raise ValueError("VITS 模型配置无效。")
-        return sherpa.OfflineTts(config)
-    raise ValueError("模型运行适配器尚未实现。")
+    return _load_tts(sherpa, path, adapter, threads)
 
 
 def recognize(model, adapter, audio, *, include_text=False):
@@ -336,6 +293,55 @@ def main():
         )
         return 1
     return 0
+
+
+
+
+def _load_tts(sherpa, path, adapter, threads):
+    if adapter == "kokoro":
+        config = sherpa.OfflineTtsConfig()
+        config.model.kokoro.model = str(path / "model.int8.onnx")
+        config.model.kokoro.voices = str(path / "voices.bin")
+        config.model.kokoro.tokens = str(path / "tokens.txt")
+        config.model.kokoro.data_dir = str(path / "espeak-ng-data")
+        config.model.kokoro.dict_dir = str(path / "dict")
+        config.model.kokoro.lexicon = ",".join(
+            str(path / f"lexicon-{name}.txt") for name in ("us-en", "zh")
+        )
+        config.rule_fsts = ",".join(
+            str(path / name) for name in ("date-zh.fst", "number-zh.fst", "phone-zh.fst")
+        )
+        config.model.num_threads = threads
+        config.model.provider = "cpu"
+        config.max_num_sentences = 1
+        if not config.validate():
+            raise ValueError("TTS 模型配置无效。")
+        return sherpa.OfflineTts(config)
+    if adapter == "vits":
+        config = sherpa.OfflineTtsConfig()
+        piper = not (path / "model.onnx").exists()
+        models = list(path.glob("*.onnx")) if piper else [path / "model.onnx"]
+        if len(models) != 1:
+            raise ValueError("VITS 模型主文件不唯一。")
+        config.model.vits.model = str(models[0])
+        config.model.vits.tokens = str(path / "tokens.txt")
+        if piper:
+            config.model.vits.data_dir = str(path / "espeak-ng-data")
+        else:
+            config.model.vits.lexicon = str(path / "lexicon.txt")
+            config.model.vits.dict_dir = str(path / "dict")
+        config.rule_fsts = ",".join(
+            str(path / name)
+            for name in ("date.fst", "number.fst", "phone.fst", "new_heteronym.fst")
+            if (path / name).exists()
+        )
+        config.model.num_threads = threads
+        config.model.provider = "cpu"
+        config.max_num_sentences = 1
+        if not config.validate():
+            raise ValueError("VITS 模型配置无效。")
+        return sherpa.OfflineTts(config)
+    raise ValueError("模型运行适配器尚未实现。")
 
 
 if __name__ == "__main__":

@@ -50,7 +50,7 @@ def test_desktop_missing_env_keeps_local_library_readable(monkeypatch, tmp_path)
 
     work = app.create_workbench(use_mock=False)
     assert work._provider.display_label == '本地资料 · AI 未配置'
-    with pytest.raises(RuntimeError, match='AI 服务尚未配置'):
+    with pytest.raises(RuntimeError, match='ai_service_unconfigured'):
         asyncio.run(work._provider.generate_reply())
 
 

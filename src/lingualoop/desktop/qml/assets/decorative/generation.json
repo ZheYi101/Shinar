@@ -1,0 +1,14 @@
+{
+  "date": "2026-10-30",
+  "style": "warm-paper-ink/v1",
+  "tool": "builtin_image_gen",
+  "reference": "docs/product/assets/visual-style/warm-paper-ink-reference-v1.png",
+  "assets": [
+    {
+      "file": "cloth-book.png",
+      "sha256": "1fc993396c17f5acfd04b67acf0dd720ce71d6432569632fe07fe477712dc5c2",
+      "transparent_background": true,
+      "prompt": "Use case: illustration-story.\nAsset type: one transparent auxiliary illustration for the LinguaLoop desktop app, NOT an icon and NOT a UI mockup.\nInput image: the supplied file is the user's accepted warm-paper-and-ink visual reference. Use it as the authoritative style and object reference, especially the CLOSED SAGE CLOTH-BOUND BOOK AND SMALL SPRIG in its lower-right. Do not copy the interface layout, text, frames, quote or paper background.\nPrimary request: produce a faithful standalone recreation of that small closed cloth-bound book with cream page edges, one warm-brown ribbon bookmark and the delicate botanical sprig beside it. Match its angle, proportions, fine walnut ink contours, lightly worn muted sage cloth cover and restrained pencil/watercolor wash. It must feel like the very same drawing family as the accepted reference. The sprig is small and secondary, exactly as in the reference, not a large separate plant.\nComposition: one complete book and its small companion sprig, centered with only 8-12% transparent margin. Three-quarter slightly top-down view as in the reference. Mature literary stationery illustration, precise fine ink and soft natural pigment.\nColors: sage #78816B and deep olive #56634F cover, cream #EEE8DC page edges, walnut #3F382F lines, ribbon and tiny plant seeds in muted brown #9C775E.\nBackground: actual transparent alpha everywhere outside the object. Surface texture belongs inside the book and pigment only. No paper rectangle, opaque white background, checkerboard, ground plane or large shadow. No open book, no circular stamp, no decorative border, no additional objects, no text, readable letters, logos, labels or watermark. Do not simplify into flat vector outlines or a thick functional icon. Do not create a new composition or visual style."
+    }
+  ]
+}

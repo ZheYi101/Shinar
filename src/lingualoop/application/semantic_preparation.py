@@ -34,25 +34,21 @@ from lingualoop.core.knowledge_context import (
     source_units,
 )
 
+
+
+
+
+
+
+
+
+
+from lingualoop.application.preparation_requests import (
+    PreparationRequests, PreparationFailure, PreparationTruncated, parse_object,
+)
+
+
 T = TypeVar("T")
-
-
-class PreparationFailure(ValueError):
-    """Safe diagnostic: no raw model output or source material in error messages."""
-
-
-class PreparationTruncated(PreparationFailure):
-    """A different, smaller source request is needed; never raise its token cap."""
-
-
-def parse_object(content: str) -> dict[str, Any]:
-    text = content.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
-    value = json.loads(text)
-    if not isinstance(value, dict):
-        raise ValueError("Expected a JSON object")
-    return value
 
 
 class SemanticPreparation:
@@ -62,7 +58,7 @@ class SemanticPreparation:
         self.provider = provider
         self.store = store
         self.foreground_active = foreground_active or (lambda: False)
-        self._locks: dict[str, asyncio.Lock] = {}
+        self.requests = PreparationRequests(provider, store, self.foreground_active)
 
     @property
     def supported(self) -> bool:
@@ -172,51 +168,7 @@ class SemanticPreparation:
         deadline: float = 150,
         metadata: dict[str, Any] | None = None,
     ) -> T:
-        """Reserve before sending; unknown failed/cancelled usage keeps its reservation."""
-        call_id = new_id("call")
-        if hasattr(self.store, "reserve_model_call"):
-            self.store.reserve_model_call(
-                call_id,
-                owner,
-                workload,
-                fingerprint,
-                input_tokens,
-                output_tokens,
-                lease_seconds=deadline + 15,
-                metadata=metadata,
-            )
-        usage: dict[str, Any] = {}
-        token = model_call_usage.set(usage)
-        started = perf_counter()
-        status = "unknown"
-        try:
-            result = await operation()
-            if isinstance(result, ReasoningResponse):
-                usage.update(
-                    {
-                        key: value
-                        for key, value in result.usage.items()
-                        if key
-                        in {
-                            "input_tokens",
-                            "output_tokens",
-                            "total_tokens",
-                            "reasoning_tokens",
-                            "finish_reason",
-                        }
-                    }
-                )
-            status = "truncated" if usage.get("finish_reason") == "length" else "completed"
-            return result
-        except BaseException:
-            status = "failed" if "input_tokens" in usage and "output_tokens" in usage else "unknown"
-            raise
-        finally:
-            model_call_usage.reset(token)
-            if hasattr(self.store, "settle_model_call"):
-                self.store.settle_model_call(
-                    call_id, usage, status, elapsed_ms=(perf_counter() - started) * 1000
-                )
+        return await self.requests.account(owner, workload, fingerprint, input_tokens, output_tokens, operation, deadline=deadline, metadata=metadata)
 
     async def request(
         self,
@@ -231,88 +183,7 @@ class SemanticPreparation:
         deadline: float = 120,
         background: bool = False,
     ) -> T:
-        lock = self._locks.setdefault(cache_key, asyncio.Lock())
-        async with lock:
-            last = (
-                self.store.latest_model_call(owner, method, cache_key)
-                if hasattr(self.store, "latest_model_call")
-                else None
-            )
-            if last and last["status"] == "truncated":
-                raise PreparationTruncated("该输入曾达到输出预算，需要缩小输入后继续。")
-            failure = (
-                self.store.get_knowledge_artifact("failed:" + cache_key)
-                if hasattr(self.store, "get_knowledge_artifact")
-                else None
-            )
-            if failure and failure.get("reason") == "length":
-                raise PreparationTruncated("该输入曾达到输出预算，需要缩小输入后继续。")
-            cached = (
-                self.store.get_knowledge_artifact(cache_key)
-                if hasattr(self.store, "get_knowledge_artifact")
-                else None
-            )
-            if cached:
-                try:
-                    result = validate(cached)
-                except (ValueError, TypeError, KeyError):
-                    pass
-                else:
-                    if hasattr(self.store, "record_knowledge_cache_hit"):
-                        self.store.record_knowledge_cache_hit(cache_key, source_hash, method)
-                    return result
-            for attempt in range(2):
-                while background and self.foreground_active():
-                    await asyncio.sleep(0.05)
-                request_payload = dict(payload)
-                if attempt:
-                    request_payload["repair"] = (
-                        "Previous structure or evidence IDs were invalid. Return the compact requested schema using only supplied IDs."
-                    )
-                request = ReasoningRequest(
-                    payload=request_payload, max_tokens=max_tokens, deadline_seconds=deadline
-                )
-                response = await self.account(
-                    owner,
-                    method,
-                    cache_key + f":{attempt}",
-                    estimate_tokens(json.dumps(request_payload, ensure_ascii=False)) + 1000,
-                    max_tokens,
-                    lambda: asyncio.wait_for(
-                        getattr(self.provider, method)(request), timeout=deadline
-                    ),
-                    deadline=deadline,
-                    metadata={
-                        "source_hash": source_hash,
-                        "source_revision": cache_key,
-                        "source_ids": [item["id"] for item in payload.get("paragraphs", [])],
-                        "message_ids": [
-                            item["id"]
-                            for item in payload.get("recent", payload.get("messages", []))
-                        ],
-                    },
-                )
-                if response.usage.get("finish_reason") == "length":
-                    if hasattr(self.store, "save_knowledge_artifact"):
-                        self.store.save_knowledge_artifact(
-                            "failed:" + cache_key, source_hash, "failure", {"reason": "length"}
-                        )
-                    raise PreparationTruncated(
-                        "模型输出达到预算，当前资料未记为成功；可保留进度后重试。"
-                    )
-                try:
-                    data = parse_object(response.content)
-                    result = validate(data)
-                except (ValueError, TypeError, KeyError):
-                    if attempt:
-                        raise PreparationFailure(
-                            "资料结构或来源验证失败，原文与已完成进度保留。"
-                        ) from None
-                    continue
-                if hasattr(self.store, "save_knowledge_artifact"):
-                    self.store.save_knowledge_artifact(cache_key, source_hash, method, data)
-                return result
-        raise AssertionError("unreachable")
+        return await self.requests.request(method, payload, owner=owner, cache_key=cache_key, source_hash=source_hash, validate=validate, max_tokens=max_tokens, deadline=deadline, background=background)
 
     def initial(self, material: LearningMaterial) -> MaterialKnowledge:
         end = material.read_through if material.read_through is not None else len(material.content)
@@ -498,33 +369,7 @@ class SemanticPreparation:
                 # Original auxiliary material stays local and separately tagged;
                 # it is not a default paid workload for story discussion.
                 continue
-            previous_unit = knowledge.units[unit_index - 1] if unit_index else None
-            preceding = (
-                material.content[
-                    max(previous_unit.start_char, unit.start_char - 350) : unit.start_char
-                ]
-                if previous_unit and previous_unit.source_kind == unit.source_kind
-                else ""
-            )
-            while preceding and estimate_tokens(preceding) > 300:
-                preceding = preceding[max(1, len(preceding) // 8) :]
-            dependencies = [previous_unit.id] if preceding and previous_unit else []
-            payload = {
-                "source_language": material.source_language.value,
-                "source_kind": unit.source_kind,
-                "section": unit.section_path,
-                "preceding_context": preceding,
-                "paragraphs": [
-                    {"id": span.id, "text": material.content[span.start_char : span.end_char]}
-                    for span in unit.paragraphs
-                ],
-            }
-            key = digest(
-                json.dumps(
-                    [knowledge.generation_identity, unit.model_dump(), digest(preceding)],
-                    sort_keys=True,
-                )
-            )
+            payload, key, dependencies = _unit_request(material, knowledge, unit_index, unit)
             try:
                 values = await self.request(
                     "prepare_source_unit",
@@ -894,3 +739,34 @@ def analysis_with_knowledge(
             "overview_complete": knowledge.brief is not None,
         }
     )
+
+
+def _unit_request(material, knowledge, unit_index, unit):
+    previous_unit = knowledge.units[unit_index - 1] if unit_index else None
+    preceding = (
+        material.content[
+            max(previous_unit.start_char, unit.start_char - 350) : unit.start_char
+        ]
+        if previous_unit and previous_unit.source_kind == unit.source_kind
+        else ""
+    )
+    while preceding and estimate_tokens(preceding) > 300:
+        preceding = preceding[max(1, len(preceding) // 8) :]
+    dependencies = [previous_unit.id] if preceding and previous_unit else []
+    payload = {
+        "source_language": material.source_language.value,
+        "source_kind": unit.source_kind,
+        "section": unit.section_path,
+        "preceding_context": preceding,
+        "paragraphs": [
+            {"id": span.id, "text": material.content[span.start_char : span.end_char]}
+            for span in unit.paragraphs
+        ],
+    }
+    key = digest(
+        json.dumps(
+            [knowledge.generation_identity, unit.model_dump(), digest(preceding)],
+            sort_keys=True,
+        )
+    )
+    return payload, key, dependencies

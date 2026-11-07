@@ -14,7 +14,7 @@
 
 后续[GPU、日语 STT 与独立 Melo 英文补测](../validation/speech/SPEECH_GPU_JAPANESE_MELO_FOLLOWUP_2026-10-29.md)已完成 STT：2024 SenseVoice FP32 GPU 三语平均首字 52–58ms；新增日语 ReazonSpeech CPU 平均 323ms、Kotoba GPU 平均 346ms，也过 500ms 线。此前“日语暂缺”指旧批次；新配置、运行时和准确率分别记录。其中 SenseVoice 2024 FP32 与 ReazonSpeech CPU 已进入产品目录与分轮语音；Kotoba、独立 Melo 英文和 VOICEVOX 的产品适配待完成，不把评测可运行写成产品可用。
 
-用户提出 2025 SenseVoice 的大小写疑问后，已完成[格式复核](../validation/speech/SENSEVOICE_2025_FORMAT_AUDIT_2026-10-29.md)：主 WER 本来就忽略大小写，进一步数字/缩写等规范化后英文 WER 为 28.53%，原版为 6.23%；此辅助指标不替换主结果。2025 中文继续保留，英语保留可选备份，优先原版；显示格式处理与实际识别修复分别验证，不用自动改写覆盖用户原始表达。
+用户提出 2025 SenseVoice 的大小写疑问后，已完成[格式复核](../validation/speech/SENSEVOICE_2025_FORMAT_AUDIT_2026-10-29.md)：主 WER 本来就忽略大小写，进一步数字/缩写等规范化后英文 WER 为 28.53%，原版为 6.23%；此辅助指标不替换主结果。2026-11-06 用户明确淘汰 2025 / WSYue 分支，现已从全部语言和用途的产品目录删除，不再保留备选；原版 2024 保留。旧选择需重新选用现有模型，历史评测和学习记录不改写。
 
 ## 使用
 
@@ -44,11 +44,11 @@ uv run lingualoop-desktop --mock
 
 | 模型 / 路径 | 本轮状态 | 已声明语言 | 增量能力 / 限制 |
 |---|---|---|---|
-| SenseVoice Small INT8 2025-09-09 | 可下载、本机已测 | 中、英、日、韩、粤 | 整段识别；VAD 分块另做；不是原生 partial |
+| SenseVoice 2024 INT8（CPU） | 可下载、本机已测 | 中、英、日；日语优先 Reazon 或 FP32 GPU | 整段识别；VAD 分块另做；不是原生 partial |
 | SenseVoice 原版 2024 FP32 / INT8，ORT GPU | FP32 可下载并用于分轮语音；INT8 保留评测 | 本轮中、英、日 | FP32 GPU 三语均值 52–58ms；INT8 混合执行、未显示加速优势 |
 | Zipformer Small 2023-02-16 | 可下载、本机已测 | 中、英 | 原生增量 ASR；端点等待未测；模型包缺完整许可说明，现阶段仅技术评估 |
 | Kokoro v1.1-zh INT8 | 本轮排除，默认列表隐藏 | 中、英 | 当前 sherpa 前端不支持日语；句子合成后回调 PCM |
-| MeloTTS 中英 ONNX | 可下载、本机已测 | 中、英 | 英文依赖词典覆盖；短句合成，不是增量文本流 |
+| MeloTTS 中英 ONNX | 可下载、本机已测；仅保留中文用途 | 中文 | 英语已按用户试听结论移除；短句合成，不是增量文本流 |
 | VOICEVOX CORE / Kokoro + misaki 日语 | 评测资产已固定，未开放产品下载 | 日 | 已测 ずんだもん style 3；Kokoro 分别比较 pyopenjtalk / Cutlet 前端，见严格报告 |
 | Vosk Small 各语言包 | 已做三语公开真人录音评测，未开放产品下载 | 中、英、日及部分欧洲语言 | 原生 partial；每种语言独立包，准确率与首字另列 |
 | Whisper Small + faster-whisper | 候选，未开放下载 | 中、英、日等 | 离线转录优先；窗口重识别不能直接当成流式 ASR |
@@ -77,8 +77,8 @@ uv run lingualoop-desktop --mock
 ```powershell
 uv run python -m lingualoop.local_speech hardware
 uv run python -m lingualoop.local_speech list --language ja
-uv run python -m lingualoop.local_speech install sensevoice-int8-20250909
-uv run python -m lingualoop.local_speech benchmark sensevoice-int8-20250909 --language ja --wav D:/audio/sample.wav
+uv run python -m lingualoop.local_speech install sensevoice-int8-20240717
+uv run python -m lingualoop.local_speech benchmark sensevoice-int8-20240717 --language en --wav D:/audio/sample.wav
 uv run python -m lingualoop.local_speech benchmark zipformer-small-zhen-20230216 melo-zhen-onnx --language zh --wav D:/audio/sample.wav
 ```
 

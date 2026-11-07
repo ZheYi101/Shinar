@@ -7,7 +7,13 @@ import "../components"
 ColumnLayout {
     id: shell
     property int section: 0
-    spacing: 16
+    spacing: 20
+    MLabel {
+        Layout.fillWidth: true; Layout.maximumWidth: 720; Layout.alignment: Qt.AlignHCenter
+        text: shell.section > 0 ? qsTr("计算与加速") : ({appearance:qsTr("外观"),learning:qsTr("学习偏好"),services:qsTr("模型与服务"),audio:qsTr("音频设备"),local:qsTr("本地语音模型"),data:qsTr("数据与隐私")})[workspace.settingsCategory] || qsTr("设置")
+        font.pixelSize: 22; font.weight: Font.DemiBold
+        Layout.topMargin: 4; Layout.bottomMargin: 4
+    }
     RowLayout { visible: shell.section > 0
         MButton { objectName: "speechSettingsBack"; text: qsTr("‹ 本地语音模型"); variant: "text"; onClicked: shell.section = 0 }
         MLabel { text: qsTr("计算与加速"); role: "supporting" }
@@ -20,12 +26,14 @@ ColumnLayout {
             objectName: "settingsOverview"
             contentWidth: availableWidth; clip: true
             ColumnLayout {
-                width: Math.min(overview.availableWidth,944); x: (overview.availableWidth-width)/2
+                width: Math.min(overview.availableWidth,720); x: (overview.availableWidth-width)/2
                 spacing: 24
                 ColumnLayout {
                     visible: workspace.settingsCategory === "appearance"; Layout.fillWidth: true; spacing: 0
                     PreferenceChoice { label: qsTr("显示语言"); preferenceKey: "displayLanguage"; choices: [qsTr("简体中文"), qsTr("跟随系统（当前仅支持中文）")]; values: ["zh_CN", "system"] }
                     ThemeChoice { }
+                    PreferenceChoice { label: qsTr("关闭主窗口时"); preferenceKey: "closeBehavior"; choices: [qsTr("每次询问"), qsTr("后台运行"), qsTr("退出程序")]; values: ["ask", "background", "quit"] }
+                    MLabel { Layout.fillWidth: true; visible: !desktopLifecycle.backgroundAvailable; text: qsTr("当前系统托盘不可用，关闭窗口将退出程序。"); role: "supporting" }
                     SettingsRow { label: qsTr("减少动效"); divider: false; inlineControl: true; MSwitch { objectName: "reducedMotionSwitch"; Accessible.name: qsTr("减少动效"); checked: learningViewModel.preferences.reducedMotion; onToggled: learningViewModel.preferences.setValue("reducedMotion", checked) } }
                 }
                 ColumnLayout {
@@ -38,23 +46,15 @@ ColumnLayout {
                 }
                 ColumnLayout {
                     visible: workspace.settingsCategory === "services"; Layout.fillWidth: true; spacing: 0
+                    AIServiceSettings { controller: aiServices; Layout.bottomMargin: 20 }
                     SettingsValue { label: qsTr("对话模型"); value: learningViewModel.modelServices.dialogue }
                     SettingsValue { label: qsTr("推理模型"); value: learningViewModel.modelServices.reasoning }
                     SettingsValue { label: qsTr("语音服务"); value: learningViewModel.speechStatus }
-                    SettingsValue { label: qsTr("配置来源"); value: qsTr("连接配置从本地环境读取，修改后重启生效。"); divider: false }
                     MButton { text: qsTr("本地语音模型"); variant: "outlined"; onClicked: workspace.setCategory("local") }
                 }
                 ColumnLayout {
                     visible: workspace.settingsCategory === "audio"; Layout.fillWidth: true; spacing: 0
-                    SettingsValue { label: qsTr("连续语音组件"); value: learningViewModel.voiceController.continuous.assetsReady && learningViewModel.voiceController.continuous.environmentReady ? qsTr("已准备，开始语音后才开启麦克风。") : qsTr("首次使用需准备独立运行环境及本机组件；准备期间不开麦。") }
-                    MLabel { text: learningViewModel.voiceController.continuous.setupSizeText; role: "supporting" }
-                    RowLayout {
-                        Layout.fillWidth: true
-                        MButton { objectName: "prepareContinuousVoice"; text: qsTr("准备连续语音组件"); variant: "outlined"; enabled: !learningViewModel.busy; onClicked: learningViewModel.voiceController.continuous.prepare() }
-                        MButton { visible: learningViewModel.voiceController.continuous.connectionState === "preparing"; text: qsTr("取消"); variant: "text"; onClicked: learningViewModel.voiceController.continuous.stop() }
-                    }
-                    MLabel { text: learningViewModel.voiceController.continuous.noticeText; visible: text.length > 0; role: "supporting" }
-                    MLabel { text: learningViewModel.voiceController.continuous.errorText; visible: text.length > 0; color: AppTheme.error; role: "supporting" }
+                    ContinuousVoiceSetup { controller: learningViewModel.voiceController.continuous; Layout.bottomMargin: 16 }
                     SettingsRow { label: qsTr("发言停顿"); MComboBox { objectName: "voicePauseChoice"; model: [qsTr("650 毫秒 · 普通停顿"), qsTr("1000 毫秒 · 较长停顿")]; currentIndex: learningViewModel.preferences.voicePauseMs === "1000" ? 1 : 0; enabled: !learningViewModel.voiceController.continuous.active; onActivated: learningViewModel.preferences.setValue("voicePauseMs", currentIndex === 1 ? "1000" : "650") } }
                     SettingsRow { label: qsTr("自动朗读回复"); inlineControl: true; MSwitch { objectName: "autoReadRepliesSwitch"; Accessible.name: qsTr("自动朗读回复"); checked: learningViewModel.preferences.autoReadReplies; onToggled: learningViewModel.preferences.setValue("autoReadReplies", checked) } }
                     SettingsRow { label: qsTr("麦克风"); MComboBox { objectName: "inputDeviceChoice"; Layout.preferredWidth: Math.min(300,shell.width-24); model: learningViewModel.inputDevices; textRole: "name"; currentIndex: model.findIndex(d => d.id === learningViewModel.selectedInputDeviceId); Accessible.name: qsTr("麦克风"); onActivated: learningViewModel.selectAudioDevice(model[currentIndex].id, false) } }

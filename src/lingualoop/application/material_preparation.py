@@ -72,22 +72,7 @@ async def _prepare_material(provider, material: LearningMaterial, profile: Sessi
     section_analyzer = getattr(provider, "analyze_material_section", None) if len(sections) > 1 else None
     # Seed every reusable section before saving any progress. Otherwise retrying
     # an early missing section could overwrite later paid-for sections on disk.
-    for index, (start, end, content) in enumerate(sections):
-        prior = cached.get((start, end, sha256(content.encode('utf-8')).hexdigest()))
-        if not prior or not prior.analysis_payload:
-            continue
-        try:
-            analysis = MaterialAnalysis.model_validate(prior.analysis_payload)
-            topics = []
-            for topic in analysis.topics:
-                try:
-                    topics.append(validate_prepared_topic(topic, content))
-                except ValueError:
-                    continue
-            if topics:
-                completed[index] = analysis.model_copy(update={'topics': topics}), prior
-        except (ValueError, TypeError):
-            continue
+    completed = _reusable_sections(sections, cached)
     all_cached = len(completed) == len(sections)
 
     def snapshot():
@@ -194,3 +179,24 @@ def _merge_analyses(analyses, chunks, material, *, complete):
         "topics": list(topics.values())[:MAX_TOPICS],
         "keywords": list(dict.fromkeys(item for analysis in analyses for item in analysis.keywords))[:30],
     })
+
+
+def _reusable_sections(sections, cached):
+    completed = {}
+    for index, (start, end, content) in enumerate(sections):
+        prior = cached.get((start, end, sha256(content.encode('utf-8')).hexdigest()))
+        if not prior or not prior.analysis_payload:
+            continue
+        try:
+            analysis = MaterialAnalysis.model_validate(prior.analysis_payload)
+            topics = []
+            for topic in analysis.topics:
+                try:
+                    topics.append(validate_prepared_topic(topic, content))
+                except ValueError:
+                    continue
+            if topics:
+                completed[index] = analysis.model_copy(update={'topics': topics}), prior
+        except (ValueError, TypeError):
+            continue
+    return completed

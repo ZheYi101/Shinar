@@ -49,6 +49,9 @@ def main():
                                "device_pixel_ratio": window.devicePixelRatio()})
             print(json.dumps(report, ensure_ascii=False))
         finally:
+            engine.lifecycle.close()
+            engine.workspace.close()
+            engine.speech_library.close()
             vm.close()
             window.close()
             engine.deleteLater()

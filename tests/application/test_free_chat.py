@@ -155,7 +155,7 @@ def test_failed_reference_attempts_are_capped_across_restart(tmp_path, monkeypat
         async def prepare_dialogue(self, **kwargs):
             self.background += 1
             raise RuntimeError("service unavailable")
-    monkeypatch.setattr("lingualoop.application.learning_workbench.dialogue_knowledge",
+    monkeypatch.setattr("lingualoop.application.workbench_materials.dialogue_knowledge",
                         lambda material, query: [{"section": query}])
     async def run():
         path = tmp_path / "budget.sqlite3"

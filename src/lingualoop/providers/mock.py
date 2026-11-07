@@ -27,6 +27,7 @@ from lingualoop.core.knowledge import ReasoningRequest, ReasoningResponse
 
 class MockLearningLLMProvider(LearningLLMProvider):
     supports_semantic_preparation = True
+    supports_free_chat = True
 
     @staticmethod
     def _knowledge_response(value):
@@ -303,3 +304,9 @@ def _first_sentence(text: str) -> str:
         return ""
     match = re.split(r"(?<=[.!?])\s+", stripped, maxsplit=1)
     return match[0].strip()
+
+
+class LegacyMockLearningLLMProvider(MockLearningLLMProvider):
+    """Explicit fixture for providers using the persisted topic-bank contract."""
+
+    supports_free_chat = False

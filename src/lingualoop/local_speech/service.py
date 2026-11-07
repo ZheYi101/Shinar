@@ -34,6 +34,7 @@ class LocalSpeechService:
         self._package_locks = {}
         self._actual_pids = {}
         self._registered = {}
+        self._verified = {}
         self._admission_lock = asyncio.Lock()
         self.last_metrics = {}
 
@@ -100,6 +101,7 @@ class LocalSpeechService:
         ]
 
     async def _stop(self, task: str) -> None:
+        self._verified.pop(task, None)
         process = self._processes.pop(task, None)
         self._actual_pids.pop(task, None)
         self._specs.pop(task, None)
@@ -161,14 +163,16 @@ class LocalSpeechService:
             f"{language}:conversation:{task}", {}
         )
         package = self.catalog.get(choice.get("id"))
+        if not choice:
+            raise ValueError("speech_model_not_selected")
         if (
             not package
             or choice.get("fingerprint") != package.fingerprint
-            or language not in package.languages
+            or language not in package.available_languages
             or not self.store.installed(package)
             or choice.get("adapter_revision", 1) != adapter_revision(package.adapter)
         ):
-            raise ValueError("请在语音模型设置中为当前对话语言选择已安装、已测速的模型。")
+            raise ValueError("speech_model_selection_stale")
         old = self._specs.get(task)
         occupied = sum(
             self._vram(s)
@@ -199,13 +203,13 @@ class LocalSpeechService:
                     "GPU 运行环境未准备，当前使用 CPU。",
                 )
             else:
-                raise ValueError("请先在“计算与加速”中准备所选设备的运行环境。")
+                raise ValueError("speech_runtime_not_ready")
         report_args = {"voice_id": choice.get("voice_id")} if native else {}
         reports = matching_reports(
             self.store, package, language, hardware, device, settings.gpu_index, **report_args
         )
         if not reports:
-            raise ValueError("当前模型、语言与计算设备尚未完成本机测速，请在语音模型中先测速。")
+            raise ValueError("speech_model_benchmark_required")
         if task == "stt":
             rows = reports[0].get("metrics", {}).get("sequential", {}).get(task, [])
             values = [
@@ -217,9 +221,7 @@ class LocalSpeechService:
                 or sum(values) / len(values) > 500
                 or not all(r.get("nonempty") for r in rows)
             ):
-                raise ValueError(
-                    "当前设备上的识别平均延迟未通过 500 ms 筛选，请选择其他模型或 GPU。"
-                )
+                raise ValueError("speech_model_too_slow")
         from .model_profile import build_profile
         from .model_profile import voices
         selected_voice = next((v for v in voices(package.id) if v["id"] == choice.get("voice_id")), None)
@@ -241,6 +243,36 @@ class LocalSpeechService:
         else:
             raise ValueError("speech_request_task_mismatch")
         return await self._request(profile.task, profile.language, _profile=profile, **payload)
+
+    async def verify(self, profile: LocalSpeechProfile) -> None:
+        """Check actual inference once per resident process and frozen profile."""
+        from lingualoop.core.voice import SpeechSegment
+        from .samples import benchmark_audio
+
+        identity = (profile.model_json, self.worker_pid(profile.task))
+        if identity[1] is not None and self._verified.get(profile.task) == identity:
+            return
+        if profile.task == "stt":
+            with benchmark_audio(profile.language) as sample:
+                result = await self.execute(profile, audio=sample.read_bytes())
+            text = result.get("text")
+            if not isinstance(text, str) or not text.strip():
+                raise ValueError("speech_model_verification_failed")
+        else:
+            text = {
+                "en": "This is a voice check.",
+                "ja": "音声の準備を確認します。",
+                "zh": "语音准备检查。",
+            }.get(profile.language, "Voice check.")
+            result = await self.execute(profile, text=text)
+            try:
+                audio = base64.b64decode(result["audio"], validate=True)
+                SpeechSegment.from_wav("preflight", 0, text, audio)
+            except (KeyError, ValueError, TypeError) as error:
+                raise ValueError("speech_model_verification_failed") from error
+        pid = self.worker_pid(profile.task)
+        if pid is not None:
+            self._verified[profile.task] = (profile.model_json, pid)
 
     async def _request(self, task: str, language: str, *, _profile=None, **payload) -> dict:
         async with self._locks.setdefault(task, asyncio.Lock()):

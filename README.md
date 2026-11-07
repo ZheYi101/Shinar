@@ -6,13 +6,17 @@ LinguaLoop 是一个把沉浸式输入转化为语音输出练习的开源语言
 
 项目处于早期 MVP 阶段。当前开发先验证纯文本：材料本地保存 → 确认已读位置 → 后台完成全范围精简理解与短概述 → 自由聊天时本地选择依据 → 推理角色按信息缺口补充。准备未完成也可提前聊天。已有暖纸与墨迹风格的 PySide6/QML 工作区、SQLite 恢复与分轮语音适配器；基础本地 STT/TTS 和 LiveKit 已独立接通。连续收音、自然插话与真人语音仍须独立验收。桌面页面与原文对照见[工作区指南](./docs/desktop/WORKSPACE.md)。
 
-文本服务通过 OpenAI-compatible provider 接入，推理与对话是独立配置的两个角色。仓库示例使用 `deepseek-v4-pro` 思考模式按需整理参考，使用 `deepseek-flash` 非思考模式回复实际发言；也允许两个角色使用同一模型。运行时以本地 `.env` 或系统环境变量为准，模型名不是业务约束。预测只作参考，不能成为“用户说过的话”。
+文本服务通过 OpenAI-compatible provider 接入，推理与对话是独立配置的两个角色。仓库示例使用 `deepseek-v4-pro` 思考模式按需整理参考，使用 `deepseek-flash` 非思考模式回复实际发言；也允许两个角色使用同一模型。桌面显式保存的 API 设置优先，未保存时读取本地 `.env` 或系统环境；CLI 保持环境配置。模型名不是业务约束。预测只作参考，不能成为“用户说过的话”。
 
 2026-10-28 新方案在隔离的可见 Windows 窗口完成完整《Lolita》语义准备：39 个授权来源单元、193 条基础笔记、短整体认识，不生成批量题库。全书 8 轮和部分阅读 6 轮实际讨论、两次复盘与重启恢复已保存；另完成 12 场景三条件回放及中日文短材料检查。达到 100 次真实请求上限后停止调用。**事实质量门禁未通过**，完整回复也未稳定低于一秒；检索修正后的真实复验待新预算。详见[语义准备实测](./docs/validation/text/SEMANTIC_PREPARATION_2026-10-28.md)。原文、实际历史和截图只留本机；旧题库、资料和历史继续兼容读取。
 
 **1 秒仍是优化目标，完整回复尚未稳定达到。** 模型首字、完整回复和 UI 端到端耗时分别测量，慢轮次也计入结果。真实连续语音、麦克风与云端 STT/TTS 仍待独立验收。开发过程和历史限制见[路线图](./docs/planning/ROADMAP.md)、[小说阶段记录](./docs/validation/text/NOVEL_ACCEPTANCE_2026-10-28.md)与[初版记录](./docs/validation/mvp/INITIAL_VERSION_2026-10-24.md)；其中较早的余额不足和未完成记录不代表当前服务状态。
 
 ## 快速开始（Windows）
+
+Windows 安装包无需预装 Python 或 uv。首次打开，在「设置 → 模型与服务」填写 API 基础地址和 API Key，点击「读取模型列表」，再从下拉列表分别选择推理和对话模型；也可让对话沿用推理模型。保存后重新打开软件生效，密钥使用 Windows 用户级加密保存。纯文本讨论不依赖语音模型。安装与免安装包的使用、配置优先级和构建方式见 [Windows 分发指南](./docs/desktop/WINDOWS_DISTRIBUTION.md)。以下命令面向源码开发；`.env` 作为兼容配置方式保留。
+
+Windows 0.1.3 起按实际依赖裁剪私有运行时，去除 Qt 调试资源、开发工具与未用模块，保留 EPUB、音频和离线字体。安装器在升级成功后清理明确退役的旧文件；ZIP 应解压到新目录。裁剪清单和验证边界见分发指南，已下载的语音模型及学习库保持在用户数据目录。
 
 连续语音开发环境额外安装 `--extra continuous-voice`，再在「设置 → 音频设备」显式准备本机连接与 VAD 组件。连续模式支持停顿发送、静音和停止回复；真实设备验收仍单列。使用及零付费验证命令见[连续语音指南](./docs/desktop/CONTINUOUS_VOICE.md)。
 
@@ -47,13 +51,16 @@ Prompt、检索与成本的最新结果见[语义准备实测](docs/validation/t
 | --- | --- |
 | Core / 应用层 | Python、Pydantic 2、deterministic runner |
 | 桌面 | PySide6 6.11.1、QML、Qt Quick Controls Material、统一 MD3 组件与 tokens |
+| EPUB 原文对照 | 随包的 foliate-js（固定提交）与 Qt Quick WebEngine／WebChannel；其他格式保留原生文本回退 |
 | 后台与网络 | 长期运行的 asyncio worker、可替换文本 provider、HTTPX |
-| 本地数据 | 标准库 SQLite（WAL、按操作连接/事务）、QSettings 外观偏好 |
+| 本地数据 | 标准库 SQLite（WAL、按操作连接/事务）、相邻 `.assets/sources/` 原件、QSettings 外观偏好 |
 | 导入 | TXT/Markdown、DOCX、SRT/VTT、EPUB、XLSX；视频读取旁挂字幕 |
 | 已有语音接口 | Qt Multimedia WAV 录制/播放、独立 STT/TTS adapter |
 | 语音基础 | Python 协调器已接 QML 自动发送分轮与逐句朗读；真实本机 LiveKit 传输独立通过，连续设备/真人交互仍待验收 |
 
 Core 不依赖 Qt 或具体供应商 SDK。默认桌面壳是 ApplicationWindow，使用应用内标题栏；Kirigami 可选。LangGraph 保留独立实验入口，不是当前桌面编排主线。
+
+WebEngine 仅承担 EPUB 显示，沿用 `desktop` 依赖，无需另装浏览器、Node.js 或网络阅读服务。原文投影由无 Qt 的 Python 适配器生成，专用 WebChannel 传递文档身份与字符范围；会话、已读授权、来源快照和模型请求仍走现有 Python 业务入口。当前依赖图、模块所有权和已知债务见[系统架构](./docs/architecture/ARCHITECTURE.md)；阅读器契约、升级规则与扩展顺序见[阅读器架构](./docs/architecture/READER_ARCHITECTURE.md)。
 
 ## 产品方向
 
@@ -75,7 +82,8 @@ LinguaLoop 面向已经在进行沉浸输入、希望把熟悉内容转化为口
 - [docs/README.md](./docs/README.md): 文档目录入口和分类导航
 - [docs/product/PROJECT_BRIEF.md](./docs/product/PROJECT_BRIEF.md): 项目愿景、用户和产品原则
 - [docs/product/MVP_SPEC.md](./docs/product/MVP_SPEC.md): 第一版 MVP 范围和验收标准
-- [docs/architecture/ARCHITECTURE.md](./docs/architecture/ARCHITECTURE.md): 初始系统架构和模块边界
+- [docs/architecture/ARCHITECTURE.md](./docs/architecture/ARCHITECTURE.md): 当前系统依赖、数据所有权、扩展边界与已知债务
+- [阅读器架构](./docs/architecture/READER_ARCHITECTURE.md): foliate-js／WebEngine 契约、生命周期、依赖升级与后续拆分条件
 - [docs/architecture/CORE_CONCEPTS.md](./docs/architecture/CORE_CONCEPTS.md): Core 领域对象、Provider、EventStore 和 Python/Pydantic 基础概念
 - [docs/architecture/PLUGIN_ARCHITECTURE.md](./docs/architecture/PLUGIN_ARCHITECTURE.md): Core / Plugins / Patterns 三层扩展架构
 - [docs/architecture/AGENT_CORE_ARCHITECTURE.md](./docs/architecture/AGENT_CORE_ARCHITECTURE.md): Python-first Agent Kernel、LangGraph adapter 和 typed LLM 调用规划
@@ -96,7 +104,7 @@ uv run --locked ruff check src tests scripts
 .venv\Scripts\python.exe -m pytest -q
 ```
 
-代码规范、检查范围和按模块整理的方法见[贡献指南](./CONTRIBUTING.md)。CI 在 Windows 的 Python 3.11/3.13 上运行静态检查和离线测试；工作流已配置，远端运行结果以实际 CI 为准。
+代码规范、检查范围和按模块整理的方法见[贡献指南](./CONTRIBUTING.md)。普通 pytest 中的 `tests/test_architecture.py` 检查内层导入边界、无 Qt 来源处理、WebEngine 使用范围和固定阅读器依赖哈希。CI 在 Windows 的 Python 3.11/3.13 上运行静态检查和离线测试；工作流已配置，远端运行结果以实际 CI 为准。
 
 生成带显式字体加载的演示截图：
 
@@ -113,7 +121,16 @@ uv run --locked ruff check src tests scripts
 .venv\Scripts\python.exe scripts\validate_ui_workspace.py --visible --output build/ui-workspace-visible
 ```
 
-默认离屏渲染；`--visible` 在可见窗口中执行。可用进程级 `QT_SCALE_FACTOR=1.25` 或 `1.5` 核对缩放，不更改 Windows 全局设置。
+默认离屏渲染；`--visible` 在可见窗口中执行，`--theme dark` 采集深色主题（默认 `light`）。可用进程级 `QT_SCALE_FACTOR=1.25` 或 `1.5` 核对缩放，不更改 Windows 全局设置。
+
+EPUB 原文对照现使用随包的 foliate-js／Qt WebEngine，保留章节、选段聊天、已读边界与历史快照；原件保存在数据库旁的 `.assets/`，缺件或不匹配时使用文本回退。说明见[阅读器指南](./docs/desktop/READER.md)。独立的可见 Windows Mock 检查：
+
+```powershell
+$env:RUN_REAL_AI_TESTS='0'
+.venv\Scripts\python.exe scripts/validate_reader_workspace.py
+```
+
+它不访问实际材料库、麦克风或真实 AI；生成合成 EPUB，并检查鼠标／键盘选区、原生复制、发送和历史回看。截图与报告位于 `build/reader-workspace/`；本机 WebEngine 离屏截图可能空白，阅读区视觉检查使用原生 Windows 窗口。
 
 与修订 3 页面稿做视觉复核时，可用 `--review-fixture --height 960` 通过真实 QML 建立三份合成材料与多线程，然后运行 `scripts/compare_ui_screens.py` 生成设计稿／修正前／修正后的图组。脚本默认读取 `build/ui-plan-audit/visible-100-final/` 和 `build/ui-visual-review/final/`；也可用 `--before`、`--after` 指定已有截图。明确设定 `QT_SCALE_FACTOR=1` 后采集 100% 基线，避免不同显示器的系统 DPR 混入对比。
 
@@ -180,7 +197,8 @@ uv run lingualoop
 
 常用命令：
 
-- `load`：加载并分析材料
+- `load`：先保存材料，再显式确认已读百分比；留空保持未确认，不隐式授权全文
+- `scope <1–100>`：确认已读范围；随后可直接 `start` 开聊，参考资料在后台整理
 - `import`：导入 `.txt`、`.md`、`.markdown`、`.docx`、`.srt`、`.vtt`、`.epub` 或 `.xlsx` 材料，并确认标题、track 与 normalized preview
 - `start`：开始一次练习会话
 - `say`：发送用户回答
@@ -225,6 +243,11 @@ try {
 
 界面默认跟随系统主题，可切换浅色、深色及减少动效。主要围绕材料和对话；复盘、设置作为辅助入口。宽度小于 600 使用底部导航；600–1199 使用 80px 导航 rail；1200 起对话页可显示 320px 语境面板。
 
+关闭窗口默认询问「后台运行」或「退出程序」，可记住选择，并在「设置 → 外观 → 关闭主窗口时」修改。
+后台运行保留会话、草稿、下载和当前语音；可从系统托盘恢复，托盘及窗口更多菜单都提供彻底退出。
+系统托盘不可用时关闭直接退出。启用新的模型配置或更新软件时需实际退出后重新启动。
+隔离的 Windows 可见检查与命令见[桌面关闭行为](docs/desktop/WORKSPACE.md#关闭窗口与系统托盘)。
+
 ## 材料与本地持久化
 
 当前桌面自由聊天使用前文所述的本地索引和已读范围。下面的整书分段／题库预算及 `validate_novel.py` 选题命令属于**旧版显式准备工具和兼容路径**，不描述默认桌面，也不是新 AI 设计的预算。
@@ -252,6 +275,8 @@ EPUB 按书内 spine 阅读顺序抽取文字并去除 ruby 注音、脚本与�
 Windows 默认路径为 `%LOCALAPPDATA%\LinguaLoop\lingualoop.sqlite3`。SQLite 使用 WAL 和按操作连接，保存原文、整理资料、已确认消息、复盘及事件。缓存按原文 SHA256、标题、源语言、学习语言/水平、推理服务/模型和准备版本隔离，不含密钥或文件路径。相同标题、内容、源语言与学习配置的材料重复导入复用原记录；已经完成的资料在切换模型后也会保留，不自动重复付费分析，显式重新分析才按当前模型查找或生成对应缓存。不完整缓存先展示，再由“继续整理”恢复。完整缓存不被较旧的部分进度覆盖，自定义题与历史不会被旧缓存覆盖。EPUB 标题优先读取书内元数据。
 
 对话页“历史对话”按当前材料显示全部已保存会话，可恢复旧线程；完成的会话只读。正常重启恢复最近会话并显示对话页。当前草稿在页面/线程切换间保留于内存，未发送草稿不写数据库。数据库及相邻 `-wal`、`-shm` 文件均含本地敏感数据，备份或迁移前先关闭软件。
+
+EPUB 的受管原件位于数据库旁的 `<数据库名>.assets/sources/`，备份／迁移需连同该目录。原件与规范化文本必须完全对应才启用书籍排版；旧原件缺失或变动时回退文本，不改已有原文、缓存或历史。该目录包含用户材料，不能作为临时渲染缓存随意清理；详见[阅读器指南](./docs/desktop/READER.md)。
 
 ### 旧版显式准备与实机验证工具
 
@@ -284,7 +309,7 @@ $env:RUN_REAL_AI_TESTS='1'
 
 ## 打包检查
 
-当前分发产物是 Python wheel，独立 Windows 安装器尚未交付。修改 QML、SVG 或许可证后，核对它们已进入安装包：
+Windows 分发支持免安装 ZIP 和当前用户安装 EXE，包含私有 Python、应用图标和锁定依赖，无需用户预装 Python。构建、配置位置与验证边界见 [Windows 分发指南](./docs/desktop/WINDOWS_DISTRIBUTION.md)。当前产物是开发预览快照，UI／语音仍在独立验收。Python wheel 继续保留；修改 QML、图标或许可证后，核对它们已进入 wheel：
 
 ```powershell
 uv build --wheel --out-dir build/package-check
@@ -293,6 +318,8 @@ $linguaWheel = Get-ChildItem build/package-check/*.whl | Sort-Object LastWriteTi
 ```
 
 该检查从隔离目录加载安装包资源，不替代真实服务、交互质量和真人语音验收。
+
+2026-11-06 的图标、对话使用体验、Windows ZIP 与安装器验证见[交付记录](./docs/validation/engineering/WINDOWS_UI_DISTRIBUTION_2026-11-06.md)。
 
 ## 语音配置与使用
 
@@ -330,4 +357,4 @@ uv sync --dev --extra desktop --extra realtime
 
 逐模型的中英日严格评测见[语音评测记录](./docs/validation/speech/LOCAL_SPEECH_STRICT_EVALUATION_2026-10-28.md)：公开真人语料的 CER/WER、冷/热首结果、首 PCM、合成/播报字速、独立候选环境及匿名听评包分开记录。评测脚本与模型资产放在独立目录，不切换正常应用的语音 provider；未取得人工评分的听感项目保持未验收。
 
-本地语音的普通下载、分类型环境和声音选择见[设置闭环指南](docs/desktop/LOCAL_SPEECH_SETUP.md)；真人设备证据单独记录。
+本地语音的普通下载、分类型环境和声音选择见[设置闭环指南](docs/desktop/LOCAL_SPEECH_SETUP.md)；Windows 安装与免安装分发见[分发指南](docs/desktop/WINDOWS_DISTRIBUTION.md)，真人设备与安装证据分别记录。

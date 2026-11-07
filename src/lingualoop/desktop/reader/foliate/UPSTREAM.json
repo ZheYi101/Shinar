@@ -1,0 +1,23 @@
+{
+  "repository": "https://github.com/johnfactotum/foliate-js",
+  "commit": "78914aef4466eb960965702401634c2cb348e9b1",
+  "files": {
+    "view.js": "9560990d1b903d091b18614c6b48e3bbd64b8c074ea1f3182345cd27452d31c6",
+    "epub.js": "cd3858a2171231c94b05e73d8d4c1e7de60d726312540724ab04e74868a2edf8",
+    "epubcfi.js": "8f652c1c7c4913161f75559c626e166b5425fff240064903963239808e7b27dc",
+    "paginator.js": "81ed6ba98e0b1555476a7be9c6021266f5e9e001cbdbc77db6c6ccf2d40fa725",
+    "fixed-layout.js": "fca458178b49ee77be50a2d09fe3e68f891733745e9b72ca529ba310312bab3b",
+    "overlayer.js": "9fd0b8338daa2ccc0aea27cc8ac212581dd44dba427491a0ea82ba609b827225",
+    "progress.js": "2997f57bd3e8d28cef20a6c4cb269295737e87a8695676583664bf6f99b38a7c",
+    "text-walker.js": "4c7df0f905d92dbfeb5d23df935feda8e8b3df1a820143b8119dfe68bcdd5241",
+    "search.js": "2904a88de33c2d28fde57409b40cfcecedcd8442089933828e21ce8489113d45",
+    "vendor/zip.js": "0550b9f155506a214796e14ff0be5fd24a2a3d9b0f712161975087cf2396ad46",
+    "LICENSE": "0740957f70db5da0a21f4332abca301b4dfe038970af398db70c7990173bc74d"
+  },
+  "vendor_licenses": {
+    "vendor/ZIP-LICENSE": {
+      "url": "https://raw.githubusercontent.com/gildas-lormeau/zip.js/master/LICENSE",
+      "sha256": "1b7ebc8d7889ed25491484ab2b102370742ca6c0b26650a0c62cc2269b579b84"
+    }
+  }
+}

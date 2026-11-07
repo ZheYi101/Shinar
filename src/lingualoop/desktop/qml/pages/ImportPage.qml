@@ -30,6 +30,7 @@ ColumnLayout {
             Layout.preferredHeight: workspace.importFile ? 100 : page.width < 600 ? 220 : 280
             color: drop.containsDrag ? AppTheme.primaryContainer : AppTheme.surfaceContainerLow
             radius: 5; border.color: AppTheme.outlineVariant
+            PaperTexture { anchors.fill: parent }
             RowLayout {
                 anchors.centerIn: parent; width: Math.min(parent.width-32, implicitWidth); spacing: 16
                 MLabel { visible: workspace.importFile.length > 0; text: workspace.importFile; maximumLineCount: 2; elide: Text.ElideMiddle }

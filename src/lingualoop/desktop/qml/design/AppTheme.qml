@@ -4,21 +4,22 @@ import QtQuick
 QtObject {
     readonly property bool dark: learningViewModel.preferences.themeMode === "dark" || (learningViewModel.preferences.themeMode === "system" && learningViewModel.systemDark)
     readonly property bool reducedMotion: learningViewModel.preferences.reducedMotion
-    readonly property int duration: reducedMotion ? 0 : 200
-    readonly property color primary: dark ? "#D0BCFF" : "#56634F"
-    readonly property color colorOnPrimary: dark ? "#381E72" : "#FAF7EF"
-    readonly property color primaryContainer: dark ? "#4F378B" : "#E1E4D7"
-    readonly property color colorOnPrimaryContainer: dark ? "#EADDFF" : "#35412F"
-    readonly property color secondaryContainer: dark ? "#4A4458" : "#E8E3D7"
-    readonly property color colorOnSecondaryContainer: dark ? "#E8DEF8" : "#3F382F"
-    readonly property color surface: dark ? "#141218" : "#F7F3E9"
-    readonly property color surfaceContainerLow: dark ? "#1D1B20" : "#EEE8DC"
-    readonly property color surfaceContainer: dark ? "#211F26" : "#EFEADE"
-    readonly property color surfaceContainerHigh: dark ? "#2B2930" : "#E8E1D4"
-    readonly property color colorOnSurface: dark ? "#E6E0E9" : "#3F382F"
-    readonly property color colorOnSurfaceVariant: dark ? "#CAC4D0" : "#6B6257"
-    readonly property color outline: dark ? "#938F99" : "#887A67"
-    readonly property color outlineVariant: dark ? "#49454F" : "#D9CEBD"
+    readonly property int duration: reducedMotion ? 0 : 180
+    readonly property int motionFast: reducedMotion ? 0 : 110
+    readonly property color primary: dark ? "#B8C8AA" : "#56634F"
+    readonly property color colorOnPrimary: dark ? "#23301E" : "#FAF7EF"
+    readonly property color primaryContainer: dark ? "#34412F" : "#E1E4D7"
+    readonly property color colorOnPrimaryContainer: dark ? "#E0E8D8" : "#35412F"
+    readonly property color secondaryContainer: dark ? "#373B32" : "#E8E3D7"
+    readonly property color colorOnSecondaryContainer: dark ? "#E0E2D7" : "#3F382F"
+    readonly property color surface: dark ? "#1B1D19" : "#F7F3E9"
+    readonly property color surfaceContainerLow: dark ? "#22251F" : "#EEE8DC"
+    readonly property color surfaceContainer: dark ? "#292C25" : "#EFEADE"
+    readonly property color surfaceContainerHigh: dark ? "#34382F" : "#E8E1D4"
+    readonly property color colorOnSurface: dark ? "#E5E5DC" : "#3F382F"
+    readonly property color colorOnSurfaceVariant: dark ? "#B5B9AA" : "#6B6257"
+    readonly property color outline: dark ? "#89907F" : "#887A67"
+    readonly property color outlineVariant: dark ? "#41463B" : "#D9CEBD"
     readonly property color error: dark ? "#F2B8B5" : "#B3261E"
     readonly property color errorContainer: dark ? "#8C1D18" : "#F9DEDC"
     readonly property color colorOnErrorContainer: dark ? "#F9DEDC" : "#410E0B"

@@ -6,7 +6,7 @@
 
 1. [项目主旨](./product/PROJECT_BRIEF.md)：为谁解决什么问题。
 2. [MVP 范围](./product/MVP_SPEC.md)：第一版边界与验收要求。
-3. [适量材料预处理与双模型协作方案](./architecture/ai/PREPARATION_AND_DIALOGUE.md)：已落地的机制与质量验收边界；不包含 UI 重做。
+3. [系统架构](./architecture/ARCHITECTURE.md)：当前依赖与数据所有权；涉及 AI 时继续看[材料预处理与模型协作](./architecture/ai/PREPARATION_AND_DIALOGUE.md)。
 4. [路线图](./planning/ROADMAP.md)：当前实现、下一步和待验证项。
 5. [验收记录目录](./validation/README.md)：实际运行证据与限制。
 
@@ -38,7 +38,8 @@
 
 ## 架构与专项设计
 
-- [系统架构](./architecture/ARCHITECTURE.md)：当前实现、兼容路径与目标架构的边界。
+- [系统架构](./architecture/ARCHITECTURE.md)：当前实现、数据所有权、执行与依赖边界；规划扩展和已知耦合明确区分。
+- [原文阅读器架构](./architecture/READER_ARCHITECTURE.md)：EPUB／foliate-js／WebEngine 的模块与桥接契约、失效／回退、上游维护和后续拆分条件。
 - [AI：适量材料预处理与模型协作](./architecture/ai/PREPARATION_AND_DIALOGUE.md)：资料契约、流程、预算、有效期、阅读边界和验收。
 - [TTS / STT 实际接入方案](./architecture/voice/SPEECH_INTEGRATION.md)：基础 Python 已实现、连续交互仍为提案；按语言路由、连续音频、分轮/分句、打断、确认事务、CPU/GPU 资源、故障恢复、代码落点和验收顺序。
 - [Agent Kernel 设计](./architecture/AGENT_CORE_ARCHITECTURE.md)：含规划中的 adapter，不代表当前桌面已经采用。
@@ -57,6 +58,7 @@
 ## 运行与开发指南
 
 - [桌面工作区与原文对照](./desktop/WORKSPACE.md)
+- [EPUB 阅读器使用与备份](./desktop/READER.md)
 - [QML 运行环境](./desktop/QML_RUNTIME.md)
 - [分轮语音配置](./desktop/VOICE.md)
 - [Python 基础语音服务](./desktop/VOICE_PYTHON.md)：确认事务、双角色复用、分句合成、冻结本地后端、WAV/RTC 输入输出和显式集成测试；未接 QML。

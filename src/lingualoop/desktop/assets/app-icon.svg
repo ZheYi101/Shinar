@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <title>LinguaLoop — a conversation continues</title>
+  <rect x="8" y="8" width="240" height="240" rx="56" fill="#56634F"/>
+  <path d="M78 61h56c20 0 34 14 34 33v18c0 19-14 33-34 33h-27l-29 22v-22c-18 0-32-14-32-33V94c0-19 14-33 32-33Z" fill="#F7F3E9"/>
+  <path d="M129 105h48c19 0 33 14 33 32v17c0 18-14 32-33 32v20l-28-20h-20c-19 0-33-14-33-32v-17c0-18 14-32 33-32Z" fill="#56634F" stroke="#56634F" stroke-width="20" stroke-linejoin="round"/>
+  <path d="M129 105h48c19 0 33 14 33 32v17c0 18-14 32-33 32v20l-28-20h-20c-19 0-33-14-33-32v-17c0-18 14-32 33-32Z" fill="#56634F" stroke="#F7F3E9" stroke-width="12" stroke-linejoin="round"/>
+</svg>

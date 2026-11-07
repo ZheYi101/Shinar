@@ -9,21 +9,27 @@ Rectangle {
     signal activated()
     color: AppTheme.surfaceContainerLow
     function go(route) { workspace.navigate(route); activated() }
+    PaperTexture { anchors.fill: parent }
     ColumnLayout {
         anchors.fill: parent; anchors.margins: sidebar.collapsed ? 6 : 10
-        spacing: 4
-        MLabel { visible: !sidebar.collapsed; text: "LinguaLoop"; font.family: AppTheme.readingFont; font.pixelSize: 23; Layout.topMargin: 2; Layout.bottomMargin: 14 }
-        MButton {
+        spacing: 3
+        RowLayout {
+            Layout.fillWidth: true; Layout.preferredHeight: 46; Layout.bottomMargin: 10
+            Image { source: "../../assets/app-icon.svg"; Layout.preferredWidth: 26; Layout.preferredHeight: 26; Layout.leftMargin: 6 }
+            MLabel { visible: !sidebar.collapsed; text: "LinguaLoop"; font.pixelSize: 16; font.weight: Font.DemiBold }
+        }
+        SidebarItem {
             objectName: "nav0"
             Layout.fillWidth: true
-            horizontalAlignment: sidebar.collapsed ? Text.AlignHCenter : Text.AlignLeft
-            text: sidebar.collapsed ? "‹" : workspace.route === "settings" ? qsTr("‹  返回工作区") : qsTr("材料库")
-            variant: workspace.route === "library" ? "tonal" : "text"
-            icon.source: sidebar.collapsed || workspace.route !== "settings" ? "../assets/illustrated/book.png" : ""
+            collapsed: sidebar.collapsed
+            text: workspace.route === "settings" ? qsTr("返回工作区") : qsTr("材料库")
+            selected: workspace.route === "library"
+            symbol: workspace.route === "settings" ? "arrow_back" : "library_books"
             onClicked: sidebar.go("library")
             Accessible.name: qsTr("材料库")
         }
-        MButton { visible: workspace.route !== "settings"; text: sidebar.collapsed ? "+" : qsTr("+  导入材料"); Layout.fillWidth: true; horizontalAlignment: sidebar.collapsed ? Text.AlignHCenter : Text.AlignLeft; variant: workspace.route === "import" ? "tonal" : "text"; onClicked: sidebar.go("import"); Accessible.name: qsTr("导入材料") }
+        SidebarItem { visible: workspace.route !== "settings"; text: qsTr("导入材料"); symbol: "add"; collapsed: sidebar.collapsed; Layout.fillWidth: true; selected: workspace.route === "import"; onClicked: sidebar.go("import") }
+        MLabel { visible: !sidebar.collapsed; text: workspace.route === "settings" ? qsTr("设置") : qsTr("材料与对话"); role: "supporting"; font.pixelSize: 11; Layout.leftMargin: 10; Layout.topMargin: 18; Layout.bottomMargin: 6 }
         ScrollView {
             Layout.fillWidth: true; Layout.fillHeight: true
             contentWidth: availableWidth; clip: true
@@ -34,13 +40,14 @@ Rectangle {
                         {key:"appearance", label:qsTr("外观")}, {key:"learning", label:qsTr("学习偏好")},
                         {key:"services", label:qsTr("模型与服务")}, {key:"audio", label:qsTr("音频设备")},
                         {key:"local", label:qsTr("本地语音模型")}, {key:"data", label:qsTr("数据与隐私")}] : []
-                    MButton {
+                    SidebarItem {
                         required property var modelData
                         objectName: "settings-" + modelData.key
                         Layout.fillWidth: true
-                        horizontalAlignment: sidebar.collapsed ? Text.AlignHCenter : Text.AlignLeft
-                        text: sidebar.collapsed ? modelData.label.slice(0,1) : modelData.label
-                        variant: workspace.settingsCategory === modelData.key ? "tonal" : "text"
+                        collapsed: sidebar.collapsed
+                        text: modelData.label
+                        symbol: ({appearance:"settings",learning:"library_books",services:"chat_bubble",audio:"mic",local:"play_arrow",data:"history"})[modelData.key]
+                        selected: workspace.settingsCategory === modelData.key
                         onClicked: { workspace.setCategory(modelData.key); sidebar.activated() }
                     }
                 }
@@ -58,7 +65,7 @@ Rectangle {
                                 text: materialNode.modelData.title; variant: "text"; leftPadding: 3; rightPadding: 3
                                 contentItem: Text { text: parent.text; font: parent.font; color: AppTheme.colorOnSurface; elide: Text.ElideRight; verticalAlignment: Text.AlignVCenter }
                                 onClicked: { workspace.browseMaterial(materialNode.modelData.id); sidebar.activated() }
-                                ToolTip.visible: hovered; ToolTip.text: text
+                                ToolTip.visible: hovered; ToolTip.text: text; ToolTip.delay: 650
                             }
                         }
                         Repeater {
@@ -70,11 +77,11 @@ Rectangle {
                                 leftPadding: 8; rightPadding: 6; font.pixelSize: 13; implicitHeight: 32
                                 enabled: !workspace.threadLocked
                                 contentItem: Text { text: parent.text; font: parent.font; color: AppTheme.colorOnSurface; elide: Text.ElideRight; verticalAlignment: Text.AlignVCenter }
-                                ToolTip.visible: hovered; ToolTip.text: text
+                                ToolTip.visible: hovered; ToolTip.text: text; ToolTip.delay: 650
                                 background: Rectangle {
-                                    radius: 4
-                                    color: parent.variant === "tonal" ? AppTheme.primaryContainer : parent.hovered ? AppTheme.surfaceContainer : "transparent"
-                                    Rectangle { x: -4; y: 7; width: 2; height: parent.height-14; visible: parent.parent.variant === "tonal"; color: AppTheme.primary }
+                                    radius: 7
+                                    color: parent.variant === "tonal" ? Qt.alpha(AppTheme.primary,0.13) : parent.down ? Qt.alpha(AppTheme.colorOnSurface,0.13) : parent.hovered ? Qt.alpha(AppTheme.colorOnSurface,0.065) : "transparent"
+                                    Behavior on color { ColorAnimation { duration: AppTheme.motionFast } }
                                 }
                                 onClicked: { workspace.openThread(modelData.id); sidebar.activated() }
                             }
@@ -84,9 +91,6 @@ Rectangle {
                 }
             }
         }
-        Rectangle { Layout.fillWidth: true; height: 1; color: AppTheme.outlineVariant; Layout.bottomMargin: 8 }
-        MButton { objectName: "nav2"; Layout.fillWidth: true; horizontalAlignment: sidebar.collapsed ? Text.AlignHCenter : Text.AlignLeft; text: sidebar.collapsed ? "" : qsTr("表达复习"); icon.source: "../assets/illustrated/review.png"; variant: workspace.route === "queue" ? "tonal" : "text"; onClicked: sidebar.go("queue"); Accessible.name: qsTr("表达复习") }
-        MButton { Layout.fillWidth: true; horizontalAlignment: sidebar.collapsed ? Text.AlignHCenter : Text.AlignLeft; text: sidebar.collapsed ? "···" : qsTr("更多"); variant: "text"; onClicked: sidebar.go("more"); Accessible.name: qsTr("更多") }
-        MButton { objectName: "nav3"; Layout.fillWidth: true; horizontalAlignment: sidebar.collapsed ? Text.AlignHCenter : Text.AlignLeft; text: sidebar.collapsed ? "" : qsTr("设置"); icon.source: "../assets/illustrated/settings.png"; variant: workspace.route === "settings" ? "tonal" : "text"; onClicked: sidebar.go("settings"); Accessible.name: qsTr("设置") }
+        SidebarItem { objectName: "nav3"; Layout.fillWidth: true; Layout.topMargin: 8; Layout.bottomMargin: 4; collapsed: sidebar.collapsed; text: qsTr("设置"); symbol: "settings"; selected: workspace.route === "settings"; onClicked: sidebar.go("settings") }
     }
 }

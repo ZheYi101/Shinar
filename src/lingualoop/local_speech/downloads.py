@@ -5,6 +5,8 @@ import os
 import re
 import shutil
 import tarfile
+import time
+from dataclasses import dataclass
 from contextlib import contextmanager
 from pathlib import Path, PurePosixPath
 from uuid import uuid4
@@ -20,8 +22,18 @@ class DownloadCancelled(RuntimeError):
     pass
 
 
+@dataclass(frozen=True)
+class TransferEvent:
+    component: str
+    phase: str
+    completed: int = 0
+    total: int = 0
+
+
 @contextmanager
-def package_lock(root: Path, package: ModelPackage):
+def package_lock(
+    root: Path, package: ModelPackage, *, wait=False, cancel=None, on_wait=lambda: None
+):
     locks = root / ".locks"
     locks.mkdir(parents=True, exist_ok=True)
     with (locks / (package.id + ".lock")).open("a+b") as stream:
@@ -31,14 +43,27 @@ def package_lock(root: Path, package: ModelPackage):
                 stream.write(b"0")
                 stream.flush()
             stream.seek(0)
-            if os.name == "nt":
-                import msvcrt
+            locked = False
+            while not locked:
+                _check_cancel(cancel)
+                try:
+                    if os.name == "nt":
+                        import msvcrt
 
-                msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
-            else:
-                import fcntl
+                        msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
+                    else:
+                        import fcntl
 
-                fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                        fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    locked = True
+                except OSError as error:
+                    if not wait or error.errno not in {11, 13, 35, 36}:
+                        raise
+                    on_wait()
+                    if cancel:
+                        cancel.wait(0.1)
+                    else:
+                        time.sleep(0.1)
         except OSError as exc:
             raise RuntimeError(
                 "模型正在被下载、测速或已加载的语音进程使用；请先释放模型。"
@@ -68,8 +93,19 @@ def _digest(path: Path, cancel=None):
 
 
 class ModelStore:
-    def __init__(self, root: Path):
+    def __init__(self, root: Path, *, wait_for_locks=False, on_transfer=lambda event: None):
         self.root = root.resolve()
+        self.wait_for_locks = wait_for_locks
+        self.on_transfer = on_transfer
+
+    def _lock(self, package, cancel=None, component=None):
+        return package_lock(
+            self.root,
+            package,
+            wait=self.wait_for_locks,
+            cancel=cancel,
+            on_wait=lambda: self.on_transfer(TransferEvent(component or package.id, "waiting")),
+        )
 
     def _owned(self, path):
         target = path.resolve()
@@ -82,9 +118,8 @@ class ModelStore:
 
     def fetch_artifact(self, artifact, *, cancel=None, progress=lambda done, total: None):
         """Share verified blobs across runtime/model jobs, including concurrent app instances."""
-        with package_lock(self.root, SimpleNamespace(id="asset-" + artifact.sha256)):
-            with httpx.Client(follow_redirects=True, timeout=httpx.Timeout(30, read=30)) as client:
-                return self._fetch(artifact, client, cancel, progress)
+        with httpx.Client(follow_redirects=True, timeout=httpx.Timeout(30, read=30)) as client:
+            return self._fetch(artifact, client, cancel, progress)
 
     def installed(self, package):
         path = self.model_path(package)
@@ -114,10 +149,19 @@ class ModelStore:
         cancel=None,
         progress=lambda done, total: None,
         client: httpx.Client | None = None,
+        wait_for_locks: bool | None = None,
+        on_transfer=None,
     ):
+        if wait_for_locks is not None or on_transfer is not None:
+            store = ModelStore(
+                self.root,
+                wait_for_locks=bool(wait_for_locks),
+                on_transfer=on_transfer or self.on_transfer,
+            )
+            return store.install(package, cancel=cancel, progress=progress, client=client)
         if not package.files:
             raise ValueError("此候选尚未提供已校验的安装包。")
-        with package_lock(self.root, package):
+        with self._lock(package, cancel):
             if self.installed(package):
                 return self.model_path(package)
             # Same-package lock proves these staging trees have no live owner.
@@ -153,6 +197,7 @@ class ModelStore:
             try:
                 for artifact, blob in downloads:
                     _check_cancel(cancel)
+                    self.on_transfer(TransferEvent(artifact.path, "extracting"))
                     if artifact.archive_root:
                         self._extract(blob, artifact, staging, cancel)
                     else:
@@ -186,10 +231,21 @@ class ModelStore:
                     shutil.rmtree(self._owned(staging))
 
     def _fetch(self, artifact, client, cancel, progress):
+        # Different models and environments can share a content-addressed blob.
+        # Lock the actual download too, not just the caller's model directory.
+        with self._lock(SimpleNamespace(id="asset-" + artifact.sha256), cancel, artifact.path):
+            return self._fetch_locked(artifact, client, cancel, progress)
+
+    def _fetch_locked(self, artifact, client, cancel, progress):
+        def report(done, total):
+            self.on_transfer(TransferEvent(artifact.path, "downloading", done, total))
+            progress(done, total)
+
+        self.on_transfer(TransferEvent(artifact.path, "verifying", 0, artifact.size))
         for attempt in range(3):
             _check_cancel(cancel)
             try:
-                return self._fetch_once(artifact, client, cancel, progress)
+                return self._fetch_once(artifact, client, cancel, report)
             except httpx.TransportError:
                 if attempt == 2:
                     raise
@@ -249,6 +305,7 @@ class ModelStore:
         _check_cancel(cancel)
         if not part.exists() or part.stat().st_size != artifact.size:
             raise ValueError("模型未下载完整，可重试续传。")
+        self.on_transfer(TransferEvent(artifact.path, "verifying", artifact.size, artifact.size))
         if _digest(part, cancel) != artifact.sha256:
             part.unlink()
             raise ValueError("模型校验失败，已丢弃损坏数据，请重新下载。")
@@ -304,8 +361,11 @@ class ModelStore:
                 shutil.rmtree(self._owned(path))
             # Content-addressed blobs are disposable; no user audio/history here.
             for artifact in package.files:
-                for suffix in ("", ".part"):
-                    (self.root / "downloads" / (artifact.sha256 + suffix)).unlink(missing_ok=True)
+                with package_lock(self.root, SimpleNamespace(id="asset-" + artifact.sha256)):
+                    for suffix in ("", ".part"):
+                        (self.root / "downloads" / (artifact.sha256 + suffix)).unlink(
+                            missing_ok=True
+                        )
 
 
 @contextmanager

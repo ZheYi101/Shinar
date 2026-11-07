@@ -79,6 +79,8 @@ class SyntheticRtc:
         self.generation = ""
         self.closed = False
         self.calls = []
+        self.paused_audio = None
+        self.mic_generation = 0
 
     async def start(self, config):
         return {"synthetic_rtc": True}
@@ -93,6 +95,19 @@ class SyntheticRtc:
             self.event("output_drained", generation=self.generation)
         elif kind == "cancel_output":
             self.generation = ""
+        elif kind == "resume":
+            self.mic_generation += 1
+            return {"mic_generation": self.mic_generation}
+        elif kind == "pause":
+            snapshot = self.paused_audio or ((fields, payload) if payload else None)
+            if snapshot:
+                header, data = snapshot
+                self.event("input_paused", data, utterance=header["utterance"],
+                           revision=header["revision"] + 1, pause_id=fields["pause_id"],
+                           mic_generation=self.mic_generation)
+            return {"has_input": bool(snapshot)}
+        elif kind in {"discard_input", "mute"}:
+            self.paused_audio = None
         return {"accepted": True}
 
     async def send(self, kind, payload=b"", **fields):
@@ -275,10 +290,113 @@ def test_old_microphone_generation_cannot_submit_after_mute_resume(desktop, monk
     until(lambda: not vm.busy)
 
 
+def test_paused_speech_can_be_explicitly_sent_once_without_opening_microphone(
+    desktop, monkeypatch, tmp_path
+):
+    vm, window, _, provider, speech, _, _ = desktop
+    call = begin(vm, window, monkeypatch, tmp_path)
+    vm.draft = "Keep my separate draft."
+    ws = workspace_of(window)
+    ws.toggleSource()
+    until(lambda: ws.documentReady)
+    ws.selectSource(0, 8)
+    source = ws.snapshot()
+    ws.toggleSource()
+    call.process.paused_audio = ({"utterance": "partial", "revision": 1}, pcm_wav())
+    click(window, "muteMicrophoneButton")
+    until(lambda: call.canSendPausedInput)
+    ws.selectSource(8, 16)
+    assert not call.bridge.recording and provider.reply_calls == 0
+    assert "已保留" in call.noticeText
+    call.process.event("utterance", pcm_wav(), utterance="late", revision=1)
+    QTest.qWait(50)
+    assert len(vm.messages) == 1 and speech.transcriptions == 0
+    click(window, "sendPausedInputButton")
+    call.sendPausedInput()  # Repeated callback must not enqueue a second send.
+    until(lambda: len(vm.messages) == 3 and vm.messages[-1]["role"] == "assistant")
+    assert len(vm.messages) == 3 and provider.reply_calls == 1 and speech.transcriptions == 1
+    assert call.muted and not call.bridge.recording and not call.hasPendingInput
+    assert vm.draft == "Keep my separate draft."
+    assert vm.messages[-2]["source"]["quote"] == source.quote
+    assert ws.snapshot().quote != source.quote
+
+
+def test_pause_during_recognition_keeps_audio_and_text_send_does_not_discard_it(
+    desktop, monkeypatch, tmp_path
+):
+    vm, window, _, provider, speech, _, _ = desktop
+    call = begin(vm, window, monkeypatch, tmp_path)
+    entered = Event()
+    original = speech.transcribe
+    async def slow(audio):
+        entered.set()
+        await asyncio.Event().wait()
+    speech.transcribe = slow
+    speak(call, "pending")
+    until(entered.is_set)
+    click(window, "muteMicrophoneButton")
+    until(lambda: call.canSendPausedInput)
+    assert provider.reply_calls == 0 and len(vm.messages) == 1
+    assert call._retained[0]["utterance"] == "pending"
+    speech.transcribe = original
+    vm.draft = "A separate typed message."
+    click(window, "sendMessageButton")
+    until(lambda: provider.reply_calls == 1 and vm.messages[-1]["role"] == "assistant")
+    assert call.canSendPausedInput and call._retained[0]["utterance"] == "pending"
+    click(window, "sendPausedInputButton")
+    until(lambda: len(vm.messages) == 5 and vm.messages[-1]["role"] == "assistant")
+    assert len(vm.messages) == 5 and not call.hasPendingInput and call.muted
+
+
+def test_explicit_discard_keeps_microphone_paused_and_rejects_late_snapshot(
+    desktop, monkeypatch, tmp_path
+):
+    vm, window, _, provider, speech, _, _ = desktop
+    call = begin(vm, window, monkeypatch, tmp_path)
+    call.process.paused_audio = ({"utterance": "noise", "revision": 1}, pcm_wav())
+    click(window, "muteMicrophoneButton")
+    until(lambda: call.canSendPausedInput)
+    old_pause = call._pause_id
+    click(window, "discardContinuousInput")
+    until(lambda: not call.microphoneBusy)
+    call.process.event("input_paused", pcm_wav(), utterance="noise", revision=2,
+                       pause_id=old_pause, mic_generation=call._mic_generation)
+    QTest.qWait(50)
+    assert not call.hasPendingInput and call.muted and not call.bridge.recording
+    assert len(vm.messages) == 1 and provider.reply_calls == 0 and speech.transcriptions == 0
+
+
+def test_pausing_microphone_keeps_the_confirmed_reply_running(desktop, monkeypatch, tmp_path):
+    vm, window, _, provider, _, _, _ = desktop
+    call = begin(vm, window, monkeypatch, tmp_path)
+    finish = Event()
+    async def stream(**kwargs):
+        provider.reply_calls += 1
+        yield "The first sentence. "
+        while not finish.is_set():
+            await asyncio.sleep(.01)
+        yield "The reply is complete."
+    provider.stream_reply = stream
+    try:
+        speak(call, "confirmed")
+        until(lambda: call.replyState == "generating" and bool(call.bridge.frames))
+        generation = call.runner.generation
+        click(window, "muteMicrophoneButton")
+        until(lambda: not call.microphoneBusy)
+        assert call.muted and not call.bridge.recording and not call.hasPendingInput
+        assert call.replyState == "generating" and call.runner.generation == generation
+        finish.set()
+        until(lambda: len(vm.messages) == 3 and vm.messages[-1]["role"] == "assistant")
+        assert vm.messages[-1]["content"].endswith("The reply is complete.")
+        assert provider.reply_calls == 1
+    finally:
+        finish.set()
+
+
 def test_pcm_frames_do_not_refresh_hidden_settings_or_reopen_failed_output(
     desktop, monkeypatch, tmp_path
 ):
-    import lingualoop.desktop.continuous_voice as module
+    import lingualoop.desktop.continuous_voice_presentation as module
 
     vm, window, *_ = desktop
     call = begin(vm, window, monkeypatch, tmp_path)
@@ -405,3 +523,46 @@ def test_finished_reading_rejects_late_frames_before_next_user_utterance(
     assert not call.faults and not call.muted
     click(window, "continuousVoiceButton")
     until(lambda: not vm.busy)
+
+
+def test_missing_language_model_is_actionable_before_microphone_opens(desktop, monkeypatch, tmp_path):
+    vm, window, _, provider, speech, audio, _ = desktop
+    load_and_start(vm, window)
+    vm.preferences.setValue("targetLanguage", "english")
+    call = configure(vm, monkeypatch, tmp_path)
+    async def missing(language):
+        raise ValueError("speech_model_not_selected")
+    speech.bind = missing
+    message_count = len(vm.messages)
+    click(window, "continuousVoiceButton")
+    until(lambda: call.connectionState == "failed")
+    assert "日语" in call.errorText and "STT" in call.errorText
+    assert not call.bridge.recording and call.canOpenModelSettings
+    assert call.faults[-1]["code"] == "speech_model_not_selected"
+    assert item(window, "openSpeechModelSettings").isVisible()
+    assert vm.speechLanguage == "ja" and len(vm.messages) == message_count
+    click(window, "openSpeechModelSettings")
+    workspace = workspace_of(window)
+    until(lambda: workspace.route == "settings")
+    assert workspace.settingsCategory == "local"
+    assert item(window, "speechLanguage").property("currentIndex") == 0
+    assert not call.bridge.recording and len(vm.messages) == message_count
+
+
+def test_missing_tts_keeps_continuous_stt_and_text_reply_available(desktop, monkeypatch, tmp_path):
+    vm, window, _, provider, speech, audio, _ = desktop
+    load_and_start(vm, window)
+    async def missing(language):
+        raise ValueError("speech_model_not_selected")
+    vm._tts = SimpleNamespace(bind=missing)
+    call = configure(vm, monkeypatch, tmp_path)
+    click(window, "continuousVoiceButton")
+    until(lambda: call.connectionState == "active" and not call.muted)
+    assert "未启用朗读" in call.noticeText
+    assert call.canOpenModelSettings
+    before = len(vm.messages)
+    speak(call, "without-tts")
+    until(lambda: len(vm.messages) == before + 2 and call.replyState == "idle")
+    assert vm.messages[-1]["role"] == "assistant"
+    assert not vm.messages[-1].get("speechError")
+    assert "output_begin" not in call.process.calls

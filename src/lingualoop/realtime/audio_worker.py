@@ -27,6 +27,7 @@ class AudioSessionWorker:
         self.output_generation = ""
         self.output_accepting = False
         self.muted = True
+        self.pausing = False
         self.closed = False
         self.tasks = set()
         self.capture_queue = asyncio.Queue(maxsize=20)  # <= 200 ms of canonical capture.
@@ -127,7 +128,7 @@ class AudioSessionWorker:
     async def watchdog(self):
         while not self.closed:
             await asyncio.sleep(0.2)
-            if not self.muted and (
+            if not self.muted and not self.pausing and (
                 monotonic() - self.last_capture > 0.8 or monotonic() - self.last_input > 1.2
             ):
                 self.muted = True
@@ -135,7 +136,7 @@ class AudioSessionWorker:
                 await self.event("input_gap")
 
     async def capture(self, payload, header):
-        if self.muted:
+        if self.muted or self.pausing:
             return
         self.last_capture = monotonic()
         self.capture_pending.extend(self.capture_converter.push(payload))
@@ -185,8 +186,11 @@ class AudioSessionWorker:
 
         while not self.closed:
             ref, pcm = await self.capture_queue.get()
-            if not self.muted and ref == self.mic_ref:
-                await self.desktop.send_audio(ref, PcmFrame(pcm))
+            try:
+                if not self.muted and ref == self.mic_ref:
+                    await self.desktop.send_audio(ref, PcmFrame(pcm))
+            finally:
+                self.capture_queue.task_done()
 
     def receive_input(self, ref, frame):
         if self.closed or self.muted or ref != self.mic_ref:
@@ -297,9 +301,10 @@ class AudioSessionWorker:
             # Also close the local sending side before any subsequent sentence.
             await self.engine.cancel_outgoing(self.output_ref)
 
-    async def mute(self):
+    async def mute(self, *, preserve: bool = False) -> None:
         self.muted = True
-        self.endpoint.reset()
+        if not preserve:
+            self.endpoint.reset()
         self.vad.reset()
         self.near_vad.reset()
         self.near_onset = 0
@@ -309,8 +314,36 @@ class AudioSessionWorker:
         self.capture_pending.clear()
         while not self.capture_queue.empty():
             self.capture_queue.get_nowait()
+            self.capture_queue.task_done()
         self.engine.receiver.cancel(self.mic_ref)
         await self.desktop.cancel_outgoing(self.mic_ref)
+
+    async def pause_input(self, header: dict, fallback: bytes) -> dict[str, bool]:
+        self.pausing = True
+        try:
+            # The device has stopped. Drain already accepted capture before sealing
+            # the RTC track; this does not reopen the application's submit gate.
+            async with asyncio.timeout(2):
+                await self.capture_queue.join()
+                await self.desktop.drain_audio(self.mic_ref, timeout=1)
+                await self.desktop.finish_audio(self.mic_ref)
+                # Allow the final subscribed RTC frames to arrive after unpublish.
+                await asyncio.sleep(0.15)
+            await self.mute(preserve=True)
+            self.endpoint.restore(header.get("utterance", ""), header.get("revision", 0), fallback)
+            snapshot = self.endpoint.pause()
+            if snapshot:
+                await self.event(
+                    "input_paused", snapshot.audio, pause_id=header["pause_id"],
+                    utterance=snapshot.id, revision=snapshot.revision,
+                    mic_generation=self.mic_ref.generation,
+                )
+            return {"has_input": snapshot is not None}
+        except Exception:
+            self.muted = True
+            raise
+        finally:
+            self.pausing = False
 
     async def handle(self, header, payload):
         kind = header["kind"]
@@ -329,10 +362,16 @@ class AudioSessionWorker:
             self.output_event.set()
         elif kind == "mute":
             await self.mute()
+        elif kind == "pause":
+            result = await self.pause_input(header, payload)
+        elif kind == "discard_input":
+            if not self.muted:
+                raise ValueError("input_must_be_paused")
+            self.endpoint.reset()
         elif kind == "resume":
             from lingualoop.realtime.protocol import TurnRef
 
-            await self.mute()
+            await self.mute(preserve=header.get("preserve_input", False))
             self.mic_ref = TurnRef(self.voice_session, "microphone", self.mic_ref.generation + 1)
             await self.desktop.start_turn(self.mic_ref)
             self.last_capture = self.last_input = monotonic()
@@ -346,6 +385,7 @@ class AudioSessionWorker:
             accepted = (
                 healthy
                 and not self.muted
+                and not self.pausing
                 and not self.near_active
                 and self.endpoint.claim(header["utterance"], header["revision"])
             )

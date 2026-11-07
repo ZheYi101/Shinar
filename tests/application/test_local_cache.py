@@ -5,10 +5,10 @@ import pytest
 from lingualoop.application import LearningWorkbench
 from lingualoop.core import LanguageEnum as L, ProficiencyLevel, MaterialAnalysis
 from lingualoop.infrastructure import SQLiteStore
-from lingualoop.providers import MockLearningLLMProvider
+from lingualoop.providers.mock import LegacyMockLearningLLMProvider
 
 
-class Counted(MockLearningLLMProvider):
+class Counted(LegacyMockLearningLLMProvider):
     def __init__(self, identity='model-a'):
         self.calls = 0
         self.preparation_cache_identity = identity

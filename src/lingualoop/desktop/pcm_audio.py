@@ -111,6 +111,10 @@ class PcmAudioBridge(QObject):
             finally:
                 self._stopping_input = False
 
+    def flush_capture(self) -> None:
+        """Forward the bounded bytes already in Qt before a voluntary pause."""
+        self._capture()
+
     def _capture(self):
         if self.input_io is None:
             return

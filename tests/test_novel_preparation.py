@@ -7,7 +7,7 @@ from pydantic import SecretStr
 
 from lingualoop.application.material_preparation import prepare_material
 from lingualoop.core import LanguageEnum, LearningMaterial, SessionUserProfile
-from lingualoop.providers import MockLearningLLMProvider
+from lingualoop.providers.mock import LegacyMockLearningLLMProvider
 from lingualoop.providers.openai_compatible import OpenAICompatibleLLMProvider, OpenAICompatibleLLMSettings
 
 
@@ -16,7 +16,7 @@ def profile():
 
 
 def test_parallel_sections_keep_order_and_reuse_overview():
-    class Parallel(MockLearningLLMProvider):
+    class Parallel(LegacyMockLearningLLMProvider):
         preparation_concurrency = 3
         calls = 0
         synthesis_calls = 0
@@ -51,7 +51,7 @@ def test_parallel_sections_keep_order_and_reuse_overview():
 
 
 def test_failed_synthesis_resumes_saved_sections_without_repaying():
-    class Interrupted(MockLearningLLMProvider):
+    class Interrupted(LegacyMockLearningLLMProvider):
         calls = 0
         synthesis_calls = 0
         async def analyze_material(self, **kwargs):
@@ -87,7 +87,7 @@ def test_whole_book_json_failure_retries_with_all_sections(monkeypatch):
             return AIMessage(content='invalid json' if len(self.calls) == 1 else self.valid)
     async def run():
         material = LearningMaterial(title='Book', source_language=LanguageEnum.JAPANESE, content='二人が駅へ行った。')
-        section = await MockLearningLLMProvider().analyze_material(material=material,
+        section = await LegacyMockLearningLLMProvider().analyze_material(material=material,
             target_language=LanguageEnum.JAPANESE, native_language=LanguageEnum.CHINESE)
         section.outline = ['opening', 'ending']
         client = Client(section.model_dump_json())
@@ -167,7 +167,7 @@ def test_section_length_failure_increases_budget_once_instead_of_identical_retry
 
 
 def test_parallel_failure_cancels_running_section_tasks():
-    class Fails(MockLearningLLMProvider):
+    class Fails(LegacyMockLearningLLMProvider):
         preparation_concurrency = 3
         active = 0
         async def analyze_material_section(self, **kwargs):
@@ -190,7 +190,7 @@ def test_parallel_failure_cancels_running_section_tasks():
 def test_empty_real_transport_response_does_not_save_a_blank_turn(tmp_path):
     from lingualoop.application import LearningWorkbench
     from lingualoop.infrastructure import SQLiteStore
-    class Empty(MockLearningLLMProvider):
+    class Empty(LegacyMockLearningLLMProvider):
         async def stream_reply(self, **kwargs):
             yield '  '
     async def run():
@@ -214,7 +214,7 @@ def test_whole_book_length_failure_changes_budget_and_keeps_thinking_role():
             return AIMessage(content='truncated', response_metadata={'finish_reason': 'length'}) if len(self.calls) == 1 else AIMessage(content=self.valid)
     async def run():
         material = LearningMaterial(title='Book', source_language='japanese', content='二人が駅へ行った。')
-        section = await MockLearningLLMProvider().analyze_material(material=material,
+        section = await LegacyMockLearningLLMProvider().analyze_material(material=material,
             target_language=LanguageEnum.JAPANESE, native_language=LanguageEnum.CHINESE)
         section.outline = ['opening', 'ending']
         client = Client(section.model_dump_json())
@@ -229,11 +229,11 @@ def test_whole_book_length_failure_changes_budget_and_keeps_thinking_role():
 
 
 def test_retry_keeps_unvisited_cached_tail_when_first_missing_section_fails():
-    class Fails(MockLearningLLMProvider):
+    class Fails(LegacyMockLearningLLMProvider):
         async def analyze_material(self, **kwargs): raise RuntimeError('network')
     async def run():
         material = LearningMaterial(title='Book', source_language='japanese', content='章の出来事。\n' * 5000)
-        initial = await prepare_material(MockLearningLLMProvider(), material, profile())
+        initial = await prepare_material(LegacyMockLearningLLMProvider(), material, profile())
         tail = initial.chunks[1:]
         material.analysis = initial.model_copy(update={'chunks': tail, 'preparation_complete': False})
         saved = []

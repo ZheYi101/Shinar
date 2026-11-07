@@ -19,7 +19,7 @@
 3. 低延迟识别优先使用已经测过的 SenseVoice 等模型。非原生流式模型在端点后出 final；只有确实支持 partial 的 adapter 才展示实时文字。
 4. LLM 可见文本增量进入分句器，达到可说的语言单元就合成并起播；不等待整段 LLM 回复结束。
 5. 用户打断时，先停止旧声音进入播放器，再取消生成/计算。麦克风输入不跟着被清空。
-6. 开始语音时加载、预热实际所选的一对模型，结束或空闲时释放。显存常驻、计算使用率、冷启动和释放状态可见。
+6. 进入活动对话页时按既有资源策略加载实际所选的本地模型对；开始语音仍冻结并复核配置，空闲释放偏好继续生效。显存常驻、计算使用率、冷启动和释放状态可见。设备诊断与持续监听分开，见第 20 节。
 
 本轮范围是桌面对话语音、现有按需朗读的引擎复用、模型及加速设置。整本音频转录、视频音轨导入、发音评分、声音克隆、多人会议、移动端和公网部署不混入这次实现。
 
@@ -66,7 +66,7 @@
 | 停顿后自动发送 | final 经端点/去重/非空校验后提交，气泡显示来自语音；可暂停自动发送 |
 | AI 回复 | 文字继续流入，已形成的短句先播放；可同时收音 |
 | 插话/停止本次回复 | 清旧播放队列并取消旧生成；显式“停止回复”不把空音频当新发言 |
-| 静音麦克风 | 暂停采集和发送；现有 AI 回复可继续；取消未确认的半句并告知用户 |
+| 暂停麦克风 | 暂停采集和自动发送；现有 AI 回复可继续；保留未发送语音，恢复续说或显式发送／丢弃 |
 | 停止语音 | 关闭本次语音会话，释放队列、轨和模型预约，保留学习对话 |
 | 文字发送 | 先关闭旧回复代际，复用同一用户提交入口；不与语音各发一轮 |
 | 更正转写 | 发送前直接改草稿；发送后用明确的“更正刚才转写”追加更正并关联原句 |
@@ -104,7 +104,7 @@
 
 | 语言 | STT 推荐 | CPU 备选 | TTS 推荐/选择 | 实施重点 |
 | --- | --- | --- | --- | --- |
-| 中文 | SenseVoice 2024 FP32 GPU | 原版 2024 INT8 CPU；2025 中文可选备份 | Melo 中文；优先验证 GPU 路径 | 现有中文 Melo CPU 短应答首 PCM 约 603 ms，全部文本约 1069 ms，不能称已经低延迟 |
+| 中文 | SenseVoice 2024 FP32 GPU | 原版 2024 INT8 CPU | Melo 中文；优先验证 GPU 路径 | 现有中文 Melo CPU 短应答首 PCM 约 603 ms，全部文本约 1069 ms，不能称已经低延迟 |
 | 英语 | SenseVoice 2024 FP32 GPU | 原版 2024 INT8 CPU | Lessac medium CPU 默认；独立 Melo EN/EN-Newest GPU 可选 | Lessac 短应答约 57 ms；Melo GPU约 124–177 ms，须计前导静音和负载慢尾 |
 | 日语 | SenseVoice 2024 FP32 GPU | ReazonSpeech k2 v2 INT8 CPU | VOICEVOX ずんだもん 0.17.1 | GPU STT 约 58 ms；Reazon CPU约 323 ms；VOICEVOX 热态首 PCM约 447 ms，预热和连续性仍需验收 |
 | 日语质量选项 | Kotoba Whisper v2 FP16 GPU | 不宣称 Kotoba CPU 过线 | 沿用日语声音 | CER 更低的对照，但平均约 346 ms、权重更大，作为明确的准确率偏好选项 |
@@ -123,7 +123,9 @@
 6. GPU 不满足时选择用户预先允许、质量和速度均过线的 CPU 配置。例如日语换 Reazon、英文 Melo 换 Lessac；不是把 Melo 英文 CPU 的 2.59–3.64 s 当无感回退。
 7. 没有合格备选则进入 `needs_configuration`；提供换模型/准备环境/文字输入。远程语音只有用户已明确选择并允许传音频时才能调用。
 
-SenseVoice 2025 的英文大小写可单独显示规范化，不用自动改写掩盖其识别错误；日语质量不合格，不因速度过线重新推荐。Kokoro/Qwen 继续不进入本轮推荐；Amy 的已确认否定词问题不因其他新样本好听而撤销。
+SenseVoice 2025 / WSYue 分支已于 2026-11-06 按用户决定从全部语言和用途的产品目录删除，不保留手动备选；历史评测只作淘汰依据。Kokoro/Qwen 继续不进入本轮推荐；Amy 的已确认否定词问题不因其他新样本好听而撤销。
+
+MeloTTS 中英 ONNX（`melo-zhen-onnx`）同日按用户试听结论仅保留中文，英语对话和朗读不再提供或接受旧选择。目录的 `languages` 保留上游能力，`disabled_languages` 表达产品限制，入口统一使用 `available_languages`。语言可用性不改变资产指纹，中文的已安装状态、测速与选择继续有效；独立 Melo English 型号不受影响。
 
 ### 4.2 语言边界
 
@@ -451,7 +453,7 @@ GPU 使用率只是观测值。资源页可说明当前忙碌及可能延迟；�
 2. **独立 Melo EN**：将实验中的可信英文前端、BERT/G2P 资产做离线可复现适配，默认 EN-Newest 或已选声音；各 speaker 的前导静音单列。已测英文 CPU 数秒，不当正常实时回退。不得把旧 Melo ZH/EN 切 speaker 当独立英文模型。
 3. **VOICEVOX**：预加载 core、字典、vvm 和 style 3，验证 warm、首 PCM、实际首声、块间 gap、取消后重用。显示“VOICEVOX:ずんだもん”署名和声音许可记录；既有用户同意范围是本地评测，正式再分发需按所用版本另做确认，不能沿用为所有最终用户的接受记录。
 
-Kotoba 是可选质量路径，排在三语默认链路之后。SenseVoice 2025 INT8 不因 GPU 可用自动升为 GPU 首选；只在实际后端速度和质量均适合的语言保留。
+Kotoba 是可选质量路径，排在三语默认链路之后。SenseVoice 2025 INT8 已退出产品目录，不因 GPU 可用而重新纳入。
 
 ## 12. 模块、接口和 IPC 契约
 
@@ -640,3 +642,39 @@ JobEvent: job_id, voice_session_id, turn_id?, generation?, stage, error_code?
 开麦授权属于用户开始／恢复意图，携带当前语音会话身份；停止或关闭后拒绝迟到授权。设备清单变化先检查已选 ID 与实际格式支持，不自动切换默认外放。故障记录仅保留有界的安全错误码与阶段；可见合成 PCM／真实播放探针和真人声学验收分开。
 
 自然朗读结束时，`AudioSessionWorker` 等待发送队列排空后关闭该输出的接收入口，调用 `LiveKitTransport.finish_audio()` 撤销音轨发布，再依序送完已经接收的 PCM。桌面设备排空后清除输出代际，拒绝后续旧回调；自然完成不写成用户中断。`AudioSource.wait_for_playout()` 只等待该 source 的排队音频，并不撤销已发布轨道，参见 [AudioSource](https://docs.livekit.io/reference/python/livekit/rtc/audio_source.html)及 [LocalParticipant](https://docs.livekit.io/reference/python/livekit/rtc/participant.html)。失效 reader 的请求立即失败；退出中即使语音清理失败，也继续释放模型和 Workbench，避免等待不存在的 IPC 回包后提前关闭事件循环。
+
+
+## 18. 下载任务与前台错误（2026-11-06）
+
+`SpeechPreparationJobs` 为同步资产准备提供最多 3 个有界后台任务，身份独立，固定创建时的模型、语言和计算配置。Qt 音频与 QML 仍在主线程，推理与业务仍在原 asyncio worker；本次不增加服务框架。任务队列通过 `QAbstractListModel.dataChanged` 更新文件级进度，候选模型只在相关状态变化后刷新。`busy` 保留汇总兼容，`operationBusy` 与下载状态分开，取消单项不会取消其他任务。
+
+`ModelStore` 的 `TransferEvent` 只传组件名、阶段和字节数。`package_lock(wait=True, cancel=...)` 为下载等待共享组件，默认调用继续保持原来的快速拒绝语义；`prepare_managed_runtime(wait_for_locks=True, on_transfer=...)` 沿用固定 hash、候选环境和计算探针。模型文件先行下载，环境与共享 blob 的安装串行互斥。卸载也尊重 blob 锁，不删除另一个任务正在写入的下载。后台进度不拼接凭据、URL 查询或 HTTP 响应正文。
+
+本地语音未选择、选择过期、环境未准备、测速缺失和未通过速度筛选使用 `speech_model_not_selected`、`speech_model_selection_stale`、`speech_runtime_not_ready`、`speech_model_benchmark_required`、`speech_model_too_slow`。协调器保留安全错误码，桌面结合真实会话语言与 STT/TTS 翻译；RTC 连接失败不再掩盖识别模型的准备失败。可选 TTS 预热失败只关闭本次朗读，不阻断识别和文字回复。
+
+设置页采用固定筛选与任务区、STT/TTS 标签、紧凑可展开的模型行和原生 ListView/ScrollView。实现依据见 [Qt ScrollView](https://doc.qt.io/qt-6.11/qml-qtquick-controls-scrollview.html)、[ListView](https://doc.qt.io/qt-6.11/qml-qtquick-listview.html)与 [ScrollBar](https://doc.qt.io/qt-6.11/qml-qtquick-controls-scrollbar.html)；验证边界见[本次记录](../../validation/engineering/SPEECH_DOWNLOAD_UX_2026-11-06.md)。
+
+`local_speech.samples.benchmark_audio(language, custom_path=None)` 在资源上下文中校验并提供内置公开示例；不将 Qt 引入本地语音层。桌面 `runBenchmark(id, wav)`／`runPairBenchmark(wav)` 的空字符串表示使用内置示例，显式文件 URL 继续兼容。新增 `benchmarkAndSelect(id)` 冻结语言、用途和计算配置，后台测速返回后在 GUI 线程执行原 `select` 准入及持久化；失败、取消和超出识别预算不保存选择。普通重测不隐式替换当前模型。STT 配对与单测均使用相同来源的示例，示例不是实时通话或学习历史数据。
+
+
+## 19. 手动暂停与保留输入（2026-11-06）
+
+`muteMicrophone()` 改为非破坏性暂停；主线程先关闭 `runner.input_allowed`、转发 Qt 已缓存的有界采集字节并停止设备。worker 取消未提交识别，保留 `ContinuousConversation.pending_input`，经 `pause` 控制消息等待已接收捕获队列和 RTC 轨排空，再冻结 Engine PCM。原 claim 与暂停竞争但尚未提交时，从业务 worker 保留的 PCM 恢复句段；用户事务提交后立即清掉该副本，不能把已发语音当作待发草稿。
+
+音频进程发送带暂停身份的 `input_paused` 事件，PCM 走既有有界二进制 payload，不塞进 JSON 头。`EndpointDetector.pause()` 保留句段 ID、提高版本、重置起音／停顿计数。`resume(preserve_input=True)` 使用新麦克风代际和同一句段，等待新的起音，避免一恢复就把旧半句误判为自然停顿。旧轨帧和过期暂停快照被拒绝。原 `mute` 默认仍是破坏性清理，供故障／旧调用兼容；`discard_input` 要求已闭麦。
+
+桌面新增 `microphoneBusy`、`hasPendingInput`、`canSendPausedInput`，以及 `sendPausedInput()`、`discardInput()`。暂停切换期间按钮防重；显式发送复用原录音请求 ID、来源和事务，不开麦。文字提交不清除另一份保留语音，语音提交也不清除后续文字草稿；识别失败仍可重试，已有回复继续。临时音频不新增持久化字段，停止／退出清理。
+
+验证命令与边界见[连续语音指南](../../desktop/CONTINUOUS_VOICE.md)和[本轮记录](../../validation/engineering/VOICE_PAUSE_2026-11-06.md)。
+
+## 20. 页面预检查与有界语音预取（2026-11-07）
+
+`LocalSpeechProvider.verify()` 及 `LocalSpeechService.verify(profile)` 对已加载模型实际执行丢弃式自检：STT 使用校验过的内置对应语言示例，TTS 使用固定短句并验证 PCM16 WAV。检查内容不走 Workbench，不确认消息，不播放、不保存音频。通过结果仅按当前 worker PID 与完整冻结 profile 在内存复用；释放／退出／换声音或语言即失效，不写就绪文件，也不替代测速报告。错误码 `speech_model_verification_failed` 由桌面翻译。页面分别记录 `stt_load_ms`／`tts_load_ms` 与对应 `_self_test_ms`，不把整体检查时间等同 STT 热态计算。
+
+`DesktopVoiceController.readiness` 暴露独立的 `VoiceReadinessController`，QML 以 `setPageVisible(bool)` 驱动。`checks` 分别返回 microphone／stt／tts／components 状态及安全错误；`busy` 不并入业务锁，文字草稿与浏览可继续。`retry()` 重新检查，设置变更按 revision 失效，消息／主题轮询不重复加载。页面离开、换线程、权限迟到和退出通过请求身份拒绝旧结果；在用语音不能被检查取消或重新配置。设备对象仍在 Qt 主线程，模型及资产检查在原 asyncio worker。
+
+麦克风检查在授权后用独立 `QAudioSource` 验证确实收到帧，随后关闭，最长 1.5 秒；不发布 RTC、不转写、不持久化。检查不会证明人声质量或 AEC。系统拒绝与实际打开失败均显示恢复入口。本地模型走现有冻结 profile 的 `prepare()`，不执行安装或额外模型选择；远程 adapter 只声明 configured，不能冒充实测就绪。后台内存／设备准入仍是唯一加载门禁，手动 GPU 不静默回退。空闲或主动释放后显示 released，不靠轮询重新保活。
+
+`VoiceSessionCoordinator` 将 TTS 合成与 `on_audio` 交付分为可取消的生产／消费任务。`SpeechPlayoutBuffer` 预算覆盖正在交付的一段，最多 3 段、24 MiB；构造中波形另受单段上限约束。保持一个冻结后端顺序推理，不并发争抢 GPU，不阻塞 LLM 流。首句立即处理，后续合并已经完成的句子；停朗读、插话、失败和关闭均取消预取。边界静音裁剪与计时口径见[Python 指南](../../desktop/VOICE_PYTHON.md)。
+
+RTC 和 Qt 音频源在同一输出代际内持续使用，句子之间不新建播放器或改为 WAV 轮询。下一段的合成不再等上一段走完有界 RTC 队列；模型 RTF 过高或 LLM 停顿仍可能造成供给不足，不将本机制宣称为原生流式 TTS 或真人听感通过。验证见[本轮记录](../../validation/engineering/VOICE_READINESS_AND_PLAYOUT_2026-11-07.md)。

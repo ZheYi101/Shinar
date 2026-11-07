@@ -17,7 +17,7 @@ from lingualoop.core import (
 )
 from lingualoop.infrastructure import SQLiteStore
 from lingualoop.infrastructure.material_import import import_material_file
-from lingualoop.providers import MockLearningLLMProvider
+from lingualoop.providers.mock import LegacyMockLearningLLMProvider
 from lingualoop.providers.openai_compatible import OpenAICompatibleLLMProvider, OpenAICompatibleLLMSettings
 
 
@@ -38,7 +38,7 @@ def test_chunks_cover_whole_source_without_loss_and_budget_is_explicit(monkeypat
 
 
 def test_long_material_saves_progress_and_resumes_from_completed_chunks(tmp_path):
-    class FailsSecondChunk(MockLearningLLMProvider):
+    class FailsSecondChunk(LegacyMockLearningLLMProvider):
         def __init__(self): self.calls = 0
         async def analyze_material(self, **kwargs):
             self.calls += 1
@@ -68,7 +68,7 @@ def test_long_material_saves_progress_and_resumes_from_completed_chunks(tmp_path
 def test_custom_topic_is_prepared_and_persisted_before_conversation(tmp_path):
     async def run():
         store = SQLiteStore(tmp_path / "custom.sqlite3")
-        work = LearningWorkbench(MockLearningLLMProvider(), event_store=store)
+        work = LearningWorkbench(LegacyMockLearningLLMProvider(), event_store=store)
         await load(work)
         started = await work.start_session(custom_topic="人物的友谊")
         topic = started.session.topic
@@ -80,7 +80,7 @@ def test_custom_topic_is_prepared_and_persisted_before_conversation(tmp_path):
 
 
 def test_foreground_stream_does_not_wait_for_reasoning_and_measures_both_times(tmp_path):
-    class BlockedReasoning(MockLearningLLMProvider):
+    class BlockedReasoning(LegacyMockLearningLLMProvider):
         async def prepare_dialogue(self, **kwargs):
             await asyncio.Future()
         async def stream_reply(self, **kwargs):
@@ -109,7 +109,7 @@ def test_foreground_stream_does_not_wait_for_reasoning_and_measures_both_times(t
 
 
 def test_stale_prediction_is_discarded_even_if_provider_ignores_cancellation(tmp_path):
-    class LatePrediction(MockLearningLLMProvider):
+    class LatePrediction(LegacyMockLearningLLMProvider):
         def __init__(self): self.started = asyncio.Event(); self.calls = 0
         async def prepare_dialogue(self, *, material, session):
             self.calls += 1
@@ -140,7 +140,7 @@ def test_stale_prediction_is_discarded_even_if_provider_ignores_cancellation(tmp
 
 
 def test_duplicate_send_and_failed_stream_do_not_save_partial_messages(tmp_path):
-    class FailingStream(MockLearningLLMProvider):
+    class FailingStream(LegacyMockLearningLLMProvider):
         def __init__(self): self.started = asyncio.Event(); self.resume = asyncio.Event()
         async def stream_reply(self, **kwargs):
             yield "partial"
@@ -181,12 +181,12 @@ def test_deepseek_role_settings_do_not_apply_legacy_disable_to_reasoning(monkeyp
 
 
 def test_restored_legacy_session_does_not_put_reasoning_back_in_foreground(tmp_path):
-    class NoForegroundReasoning(MockLearningLLMProvider):
+    class NoForegroundReasoning(LegacyMockLearningLLMProvider):
         async def correct_answer(self, **kwargs):
             raise AssertionError("Legacy restore must not call reasoning correction")
     async def run():
         store = SQLiteStore(tmp_path / "legacy.sqlite3")
-        work = LearningWorkbench(MockLearningLLMProvider(), event_store=store)
+        work = LearningWorkbench(LegacyMockLearningLLMProvider(), event_store=store)
         await load(work)
         await work.start_session()
         old = work.session.model_copy(update={"options": None})
@@ -311,7 +311,7 @@ def test_eight_section_book_balances_topic_budget_and_custom_topic_retrieves_tai
 
 
 def test_material_wall_budget_keeps_completed_chunks_and_retry_resumes(tmp_path, monkeypatch):
-    class SlowSecond(MockLearningLLMProvider):
+    class SlowSecond(LegacyMockLearningLLMProvider):
         def __init__(self): self.calls = 0
         async def analyze_material(self, **kwargs):
             self.calls += 1

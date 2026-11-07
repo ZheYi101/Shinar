@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+from itertools import islice
 from pathlib import Path
 import re
+from secrets import token_hex
+from xml.etree.ElementTree import ParseError
+from zipfile import BadZipFile
 from typing import Any
 
-from PySide6.QtCore import QCoreApplication, QObject, Property, QSettings, Qt, QUrl, Signal, Slot
+from PySide6.QtCore import QCoreApplication, QObject, Property, QSettings, Qt, QTimer, QUrl, Signal, Slot
 
 from lingualoop.application.source_document import (
     document_paragraphs,
@@ -28,26 +33,30 @@ from lingualoop.core import (
 from lingualoop.core.knowledge import SourceSpan, TurnSourceSnapshot
 from lingualoop.core.reading_scope import paragraph_boundary, reading_end
 from lingualoop.desktop.worker import AsyncWorker
+from lingualoop.infrastructure.blocking_jobs import BlockingRequest, run_blocking
+from lingualoop.application.source_loading import SourceLoadRequest
 from lingualoop.infrastructure.material_import import (
     ImportedMaterial,
     import_material_file,
     normalize_material,
 )
+from lingualoop.infrastructure.epub_reader import (
+    ReaderBook,
+    build_reader_book,
+    load_epub_asset,
+    save_epub_asset,
+)
 
 
-class DesktopWorkspaceController(QObject):
-    changed = Signal()
-    modelsChanged = Signal()
-    documentChanged = Signal()
-    sourceAppend = Signal(str)
-    selectionRequested = Signal(int, int)
-    editorRestoreRequested = Signal(int, float)
-    focusComposerRequested = Signal()
+from lingualoop.desktop.reader_workspace import ReaderWorkspace
+
+class DesktopWorkspaceController(QObject, ReaderWorkspace):
+
 
     def __init__(self, viewmodel: Any, settings: QSettings | None = None, parent=None):
         super().__init__(parent)
         self.vm = viewmodel
-        self.workbench = viewmodel._workbench
+        self.workbench = viewmodel.workbench
         self.settings = settings if settings is not None else QSettings("LinguaLoop", "Workspace")
         self._route = "chat" if viewmodel.hasSession else "library"
         self._browsing = viewmodel.selectedMaterialId
@@ -76,7 +85,14 @@ class DesktopWorkspaceController(QObject):
         self._source_material = ""
         self._source_end = 0
         self._source_section = ""
+        self._reader_book: ReaderBook | None = None
+        self._reader_id = ""
+        self._reader_error = ""
+        self._reader_generation = -1
+        self._reader_position = 0
+        self._reader_target: tuple[int, int] | None = None
         self._error = ""
+        self._closed = False
         self._import_mode = "file"
         self._import_title = ""
         self._import_text = ""
@@ -87,6 +103,12 @@ class DesktopWorkspaceController(QObject):
         self._scope_return_route = "material"
         self._scope_import_material = ""
         self._request = {"document": 0, "search": 0, "import": 0}
+        self._pending_search = None
+        self._jobs = {}
+        self._search_timer = QTimer(self)
+        self._search_timer.setSingleShot(True)
+        self._search_timer.setInterval(200)
+        self._search_timer.timeout.connect(self._search_after_pause)
         self._worker = AsyncWorker(self)
         self._worker.completed.connect(self._completed, Qt.ConnectionType.QueuedConnection)
         viewmodel.source_context_provider = self.snapshot
@@ -106,15 +128,15 @@ class DesktopWorkspaceController(QObject):
         # Notify navigation guards without rebuilding the material tree or source document.
         self.changed.emit()
 
-    @Property(str, notify=changed)
+    @Property(str, notify=ReaderWorkspace.changed)
     def route(self):
         return self._route
 
-    @Property(str, notify=changed)
+    @Property(str, notify=ReaderWorkspace.changed)
     def browsingMaterialId(self):
         return self._browsing
 
-    @Property(str, notify=changed)
+    @Property(str, notify=ReaderWorkspace.changed)
     def settingsCategory(self):
         return self._category
 
@@ -123,7 +145,7 @@ class DesktopWorkspaceController(QObject):
         self._category = category
         self.changed.emit()
 
-    @Property(bool, notify=changed)
+    @Property(bool, notify=ReaderWorkspace.changed)
     def collapsed(self):
         return self._collapsed
 
@@ -133,7 +155,7 @@ class DesktopWorkspaceController(QObject):
         self.settings.setValue("sidebarCollapsed", self._collapsed)
         self.changed.emit()
 
-    @Property(bool, notify=changed)
+    @Property(bool, notify=ReaderWorkspace.changed)
     def threadLocked(self):
         return self.vm.busy or self.vm.voiceState in {
             "recording",
@@ -143,19 +165,19 @@ class DesktopWorkspaceController(QObject):
             "playing",
         }
 
-    @Property(list, notify=modelsChanged)
+    @Property(list, notify=ReaderWorkspace.modelsChanged)
     def materials(self):
         return self._materials
 
-    @Property(list, notify=modelsChanged)
+    @Property(list, notify=ReaderWorkspace.modelsChanged)
     def threads(self):
         return [s for s in self._threads if s["materialId"] == self._browsing]
 
-    @Property(dict, notify=modelsChanged)
+    @Property(dict, notify=ReaderWorkspace.modelsChanged)
     def material(self):
         return next((m for m in self._materials if m["id"] == self._browsing), {})
 
-    @Property(dict, notify=changed)
+    @Property(dict, notify=ReaderWorkspace.changed)
     def reference(self) -> dict[str, Any]:
         material = self.workbench.get_material(self._browsing)
         analysis = material.analysis if material else None
@@ -187,7 +209,7 @@ class DesktopWorkspaceController(QObject):
         if self.threadLocked or not self.material.get("confirmed"):
             return
         material_id = self._browsing
-        self.vm._run_operation(
+        self.vm.run_operation(
             QCoreApplication.translate("Desktop", "正在整理参考…"),
             lambda: self.workbench.prepare_material_reference(material_id, reanalyze=reanalyze),
             lambda _: self.refresh(),
@@ -282,17 +304,18 @@ class DesktopWorkspaceController(QObject):
             opened=self._source_open,
             section=self._source_section,
             source_scroll=self._source_scroll,
+            reader_position=self._reader_position,
         )
 
     @Slot(int, float)
     def saveEditor(self, cursor: int, scroll: float):
         self._cursor, self._scroll = cursor, scroll
 
-    @Property(int, notify=changed)
+    @Property(int, notify=ReaderWorkspace.changed)
     def editorCursor(self):
         return self._cursor
 
-    @Property(float, notify=changed)
+    @Property(float, notify=ReaderWorkspace.changed)
     def chatScroll(self):
         return self._scroll
 
@@ -312,6 +335,7 @@ class DesktopWorkspaceController(QObject):
             state.get("scroll", 0.0),
         )
         self._source_scroll = state.get("source_scroll", 0.0)
+        self._reader_position = state.get("reader_position", 0)
         self._source_snapshot = state.get("source")
         self._preview = None
         self._source_open = state.get("opened", False)
@@ -325,7 +349,7 @@ class DesktopWorkspaceController(QObject):
         self.refresh()
         self.editorRestoreRequested.emit(self._cursor, self._scroll)
 
-    @Property(str, notify=changed)
+    @Property(str, notify=ReaderWorkspace.changed)
     def openingDraft(self):
         return self._opening.get(self._browsing, "")
 
@@ -347,9 +371,10 @@ class DesktopWorkspaceController(QObject):
             return
         self._save_state()
         if self.workbench.session:
-            self.vm._session_drafts[self._key()] = self.vm.draft
+            self.vm.remember_draft()
         material_id = self._browsing
         prefs = self.vm.preferences
+        profile = self.vm.selected_profile()
         options = PracticeOptions(
             mode=PracticeMode(self.vm.practiceMode),
             role_description=self.vm.roleDescription,
@@ -357,16 +382,16 @@ class DesktopWorkspaceController(QObject):
             correction_intensity=CorrectionIntensity(prefs.correctionIntensity),
             feedback_timing=FeedbackTiming(prefs.feedbackTiming),
         )
-        self.vm._run_operation(
+        self.vm.run_operation(
             QCoreApplication.translate("Desktop", "正在开始对话…"),
             lambda: self.workbench.start_session(
                 material_id=material_id,
                 new_thread=True,
-                profile=self.vm._selected_profile(),
+                profile=profile,
                 custom_topic=None,
                 options=options,
             ),
-            self.vm._after_started,
+            self.vm.after_started,
         )
 
     def _started(self):
@@ -374,13 +399,14 @@ class DesktopWorkspaceController(QObject):
         self._source_open = False
         self._source_section = ""
         self._source_scroll = 0.0
+        self._reader_position = 0
         self._cursor, self._scroll = 0, 0.0
         self._browsing = self.vm.selectedMaterialId
         self.vm.draft = self._opening.pop(self._browsing, "")
         self.navigate("chat")
         self.refresh()
 
-    @Property(str, notify=changed)
+    @Property(str, notify=ReaderWorkspace.changed)
     def error(self):
         return self._error
 
@@ -389,19 +415,27 @@ class DesktopWorkspaceController(QObject):
         self.changed.emit()
 
     def _request_job(self, kind, function, callback):
+        if self._closed:
+            return
+        previous = self._jobs.pop(kind, None)
+        if previous is not None:
+            previous.cancel()
         self._request[kind] += 1
         identity = self._request[kind]
 
         async def operation():
             try:
-                value = await asyncio.to_thread(function)
+                value = (await run_blocking(function) if isinstance(function, BlockingRequest)
+                         else await asyncio.to_thread(function))
                 return kind, identity, callback, value, ""
             except Exception as exc:
                 return kind, identity, callback, None, str(exc)
 
-        self._worker.submit(operation)
+        self._jobs[kind] = self._worker.submit(operation)
 
     def _completed(self, result, error):
+        if self._closed:
+            return
         if error:
             self._fail(error)
             return
@@ -416,7 +450,7 @@ class DesktopWorkspaceController(QObject):
             callback(value)
         self.changed.emit()
 
-    @Property(str, notify=changed)
+    @Property(str, notify=ReaderWorkspace.changed)
     def importMode(self):
         return self._import_mode
 
@@ -425,7 +459,7 @@ class DesktopWorkspaceController(QObject):
         self._import_mode = mode
         self.changed.emit()
 
-    @Property(str, notify=changed)
+    @Property(str, notify=ReaderWorkspace.changed)
     def importTitle(self):
         return self._import_title
 
@@ -433,7 +467,7 @@ class DesktopWorkspaceController(QObject):
     def importTitle(self, value):
         self._import_title = value
 
-    @Property(str, notify=changed)
+    @Property(str, notify=ReaderWorkspace.changed)
     def importText(self):
         return self._import_text
 
@@ -441,7 +475,7 @@ class DesktopWorkspaceController(QObject):
     def importText(self, value):
         self._import_text = value
 
-    @Property(str, notify=changed)
+    @Property(str, notify=ReaderWorkspace.changed)
     def importLanguage(self):
         return self._import_language
 
@@ -449,11 +483,11 @@ class DesktopWorkspaceController(QObject):
     def importLanguage(self, value):
         self._import_language = value
 
-    @Property(str, notify=changed)
+    @Property(str, notify=ReaderWorkspace.changed)
     def importFile(self):
         return Path(self._imported.source_path).name if self._imported else ""
 
-    @Property(bool, notify=changed)
+    @Property(bool, notify=ReaderWorkspace.changed)
     def inspecting(self):
         return self._inspecting
 
@@ -475,7 +509,7 @@ class DesktopWorkspaceController(QObject):
             ):
                 self._import_title = imported.title
 
-        self._request_job("import", lambda: import_material_file(path), received)
+        self._request_job("import", BlockingRequest("import", (path,)), received)
 
     @Slot()
     def commitImport(self):
@@ -499,14 +533,20 @@ class DesktopWorkspaceController(QObject):
             self._fail(QCoreApplication.translate("Desktop", "请选择文件。"))
             return
 
+        title = self._import_title.strip() or None
+        source_language = LanguageEnum(self._import_language)
+        target_language = LanguageEnum(self.vm.preferences.targetLanguage)
+        native_language = LanguageEnum(self.vm.preferences.nativeLanguage)
+        level = self.vm.selected_profile().profile_level
+
         async def operation():
             return await self.workbench.store_imported_material(
                 imported,
-                title=self._import_title.strip() or None,
-                source_language=LanguageEnum(self._import_language),
-                target_language=LanguageEnum(self.vm.preferences.targetLanguage),
-                native_language=LanguageEnum(self.vm.preferences.nativeLanguage),
-                learner_level=self.vm._selected_profile().profile_level,
+                title=title,
+                source_language=source_language,
+                target_language=target_language,
+                native_language=native_language,
+                learner_level=level,
             )
 
         def saved(material):
@@ -515,7 +555,7 @@ class DesktopWorkspaceController(QObject):
             self.refresh()
             self.openScope("import")
 
-        self.vm._run_operation(
+        self.vm.run_operation(
             QCoreApplication.translate("Desktop", "正在保存材料…"), operation, saved
         )
 
@@ -533,11 +573,11 @@ class DesktopWorkspaceController(QObject):
     def cancelScope(self):
         self.navigate(self._scope_return_route)
 
-    @Property(int, notify=changed)
+    @Property(int, notify=ReaderWorkspace.changed)
     def pendingEnd(self):
         return self._scope_pending.get(self._browsing, 0)
 
-    @Property(int, notify=changed)
+    @Property(int, notify=ReaderWorkspace.changed)
     def scopeEndPosition(self) -> int:
         if self._route != "scope" or self._source_material != self._browsing:
             return -1
@@ -546,7 +586,7 @@ class DesktopWorkspaceController(QObject):
             return -1
         return python_to_utf16(self._source_text, offset)
 
-    @Property(str, notify=changed)
+    @Property(str, notify=ReaderWorkspace.changed)
     def scopeQuote(self):
         material = self.workbench.get_material(self._browsing)
         return material.content[max(0, self.pendingEnd - 180) : self.pendingEnd] if material else ""
@@ -607,314 +647,27 @@ class DesktopWorkspaceController(QObject):
             self.refresh()
             self.navigate("material")
 
-        self.vm._run_operation(
+        self.vm.run_operation(
             QCoreApplication.translate("Desktop", "正在保存已读范围…"), operation, saved
         )
 
-    @Property(bool, notify=changed)
-    def sourceOpen(self):
-        return self._source_open
 
-    @Slot()
-    def toggleSource(self):
-        if self._source_open:
-            self._request["document"] += 1
-            self._request["search"] += 1
-        self._preview = None
-        self._source_open = not self._source_open
-        if self._source_open:
-            self.loadSource(self._source_section)
-        else:
-            self.focusComposerRequested.emit()
-        self.changed.emit()
-
-    @Property(str, notify=documentChanged)
-    def sourceText(self):
-        return self._source_text
-
-    @Property(list, notify=documentChanged)
-    def sections(self):
-        return self._sections
-
-    @Property(list, notify=changed)
-    def searchResults(self):
-        return self._results
-
-    @Property(bool, notify=changed)
-    def historicalSource(self):
-        return self._preview is not None
-
-    @Property(bool, notify=changed)
-    def sourceStale(self):
-        return self._source_stale
-
-    @Property(bool, notify=changed)
-    def documentReady(self):
-        return self._document_ready
-
-    @Property(str, notify=documentChanged)
-    def sourceLanguage(self):
-        material = self.workbench.get_material(self._source_material)
-        return material.source_language.value if material else ""
-
-    @Property(float, notify=documentChanged)
-    def sourceScroll(self):
-        return self._source_scroll
-
-    @Slot(float)
-    def saveSourceScroll(self, value: float):
-        if self._route == "chat" and not self._preview:
-            self._source_scroll = value
-
-    @Property(str, notify=changed)
-    def sourceLabel(self):
-        snapshot = self._preview or self._source_snapshot
-        return snapshot.label if snapshot else ""
-
-    @Property(bool, notify=changed)
-    def hasSource(self):
-        return self._source_snapshot is not None
-
-    @Property(bool, notify=changed)
-    def sourceHasMore(self):
-        return self._source_offset + len(self._source_text) < self._source_limit
-
-    @Slot(str)
-    def loadSource(self, section_id: str):
-        scope = self._route == "scope"
-        session = self.workbench.session
-        material_id = (
-            self._browsing if scope else session.material_id if session else self._browsing
-        )
-        material = self.workbench.get_material(material_id)
-        if not material:
-            return
-        end = (
-            len(material.content)
-            if scope
-            else session.options.read_through
-            if session and session.options and session.options.read_through is not None
-            else reading_end(material)
-        )
-        self._source_material, self._source_end = material.id, end
-        self._document_ready = False
-        self._pending_position = None
-        self._request["search"] += 1
-        self._results = []
-
-        def received(sections):
-            self._source_stale = False
-            self._document_ready = True
-            self._sections = [s.model_dump() for s in sections]
-            self._source_full = material.content
-            section = next((s for s in sections if s.id == section_id), None)
-            if not scope and not self._preview:
-                self._source_section = section.id if section else ""
-            self._source_offset = section.start_char if section else 0
-            self._source_limit = section.end_char if section else end
-            self._source_text = material.content[
-                self._source_offset : min(self._source_limit, self._source_offset + 40000)
-            ]
-            self.documentChanged.emit()
-            self.changed.emit()
-            snapshot = self._preview or self._source_snapshot
-            span = snapshot.focus if snapshot else None
-            if self._pending_position:
-                start, stop = self._pending_position
-                self._pending_position = None
-                self._show_position(start, stop)
-            elif span:
-                self._show_position(span.start_char, span.end_char)
-
-        self._request_job("document", lambda: document_sections(material, end), received)
-        self.changed.emit()
-
-    @Slot()
-    def loadMoreSource(self):
-        start = self._source_offset + len(self._source_text)
-        chunk = self._source_full[start : min(start + 40000, self._source_limit)]
-        if chunk:
-            self._source_text += chunk
-            self.sourceAppend.emit(chunk)
-            self.changed.emit()
-
-    def _snapshot(self, base=None, focus=None, kind=None, label=""):
-        return TurnSourceSnapshot(
-            material_id=self._source_material,
-            source_hash=source_hash(self._source_full),
-            read_through=self._source_end,
-            base=base,
-            focus=focus,
-            focus_kind=kind,
-            section_id=self._source_section or None,
-            label=label,
-            quote=self._source_full[(focus or base).start_char : (focus or base).end_char]
-            if focus or base
-            else "",
-        )
-
-    @Slot(str)
-    def selectSection(self, section_id: str):
-        section = next((s for s in self._sections if s["id"] == section_id), None)
-        if section and self._route != "scope" and not self._preview:
-            self._source_snapshot = self._snapshot(
-                base=SourceSpan(**{k: section[k] for k in ("id", "start_char", "end_char")}),
-                label=section["label"],
-            )
-        self._source_scroll = 0.0
-        self.loadSource(section_id)
-        self.changed.emit()
-
-    @Slot(int, int)
-    def selectSource(self, start: int, end: int):
-        if self._source_stale or not self._document_ready:
-            return
-        try:
-            a, b = sorted(
-                (utf16_to_python(self._source_text, start), utf16_to_python(self._source_text, end))
-            )
-            a, b = a + self._source_offset, b + self._source_offset
-            if a == b:
-                paragraphs = document_paragraphs(
-                    self._source_full, self._source_offset, self._source_limit
-                )
-                span = next((p for p in paragraphs if p.start_char <= a <= p.end_char), None)
-                if not span:
-                    return
-                a, b = span.start_char, span.end_char
-            if self._route == "scope":
-                self._scope_pending[self._browsing] = b
-            else:
-                snapshot = self._preview or self._source_snapshot
-                base = snapshot.base if snapshot else None
-                if self._preview:
-                    self._source_section = self._preview.section_id or ""
-                    self._preview = None
-                if base and not base.start_char <= a < b <= base.end_char:
-                    base = None
-                span = SourceSpan(id=f"selection_{a}_{b}", start_char=a, end_char=b)
-                self._source_snapshot = self._snapshot(
-                    base=base,
-                    focus=span,
-                    kind="paragraph" if start == end else "text",
-                    label=self._source_full[a:b][:80],
-                )
-            if start == end:
-                self._show_position(a, b)
-            self.changed.emit()
-        except ValueError as exc:
-            self._fail(exc)
-
-    @Slot()
-    def clearSource(self):
-        if self._source_snapshot and self._source_snapshot.focus and self._source_snapshot.base:
-            base = self._source_snapshot.base
-            label = next(
-                (s["label"] for s in self._sections if s["id"] == base.id),
-                QCoreApplication.translate("Desktop", "本章"),
-            )
-            self._source_snapshot = self._snapshot(base=base, label=label)
-        else:
-            self._source_snapshot = None
-        self.changed.emit()
-
-    def snapshot(self) -> TurnSourceSnapshot | None:
-        return self._source_snapshot.model_copy(deep=True) if self._source_snapshot else None
-
-    @Slot(str)
-    def searchSource(self, query: str):
-        text, end = self._source_full, self._source_end
-
-        def search():
-            return (
-                [
-                    {
-                        "start": m.start(),
-                        "end": m.end(),
-                        "text": text[max(0, m.start() - 25) : min(end, m.end() + 70)],
-                    }
-                    for m in list(re.finditer(re.escape(query), text[:end], re.I))[:100]
-                ]
-                if query.strip()
-                else []
-            )
-
-        self._request_job("search", search, self._set_results)
-
-    def _set_results(self, results):
-        self._results = results
-        self.changed.emit()
-
-    def _show_position(self, start, end):
-        if not self._document_ready:
-            self._pending_position = (start, end)
-            return
-        if not 0 <= start < end <= self._source_end:
-            return
-        if not self._source_offset <= start < end <= self._source_limit:
-            self._source_offset = max(0, start - 500)
-            self._source_limit = self._source_end
-            self._source_text = self._source_full[
-                self._source_offset : min(self._source_limit, max(end, start + 40000))
-            ]
-            self.documentChanged.emit()
-        while end > self._source_offset + len(self._source_text):
-            previous_length = len(self._source_text)
-            self.loadMoreSource()
-            if len(self._source_text) == previous_length:
-                return
-        self.selectionRequested.emit(
-            python_to_utf16(self._source_text, start - self._source_offset),
-            python_to_utf16(self._source_text, end - self._source_offset),
-        )
-
-    @Slot(int, int)
-    def showSearchResult(self, start: int, end: int):
-        self._show_position(start, end)
-
-    @Slot(str)
-    def previewMessage(self, message_id: str):
-        session = self.workbench.session
-        message = (
-            next((m for m in session.messages if m.id == message_id), None) if session else None
-        )
-        if not message or not message.source_context:
-            return
-        self._request["document"] += 1
-        self._request["search"] += 1
-        self._results = []
-        self._pending_position = None
-        self._preview = message.source_context.model_copy(deep=True)
-        material = self.workbench.get_material(self._preview.material_id)
-        self._source_open = True
-        if (
-            not material
-            or source_hash(material.content) != self._preview.source_hash
-            or self._preview.index_version != "source-view-v1"
-        ):
-            self._source_stale = True
-            self._document_ready = False
-            self._source_text = self._preview.quote
-            self._source_full = self._preview.quote
-            self._source_offset = 0
-            self._source_limit = self._source_end = len(self._source_text)
-            self._sections = []
-            self.documentChanged.emit()
-            self._fail(
-                QCoreApplication.translate("Desktop", "原文版本已改变，显示发送时保存的引文。")
-            )
-        else:
-            self.loadSource(self._preview.section_id or "")
-        self.changed.emit()
-
-    @Slot()
-    def closePreview(self):
-        self._preview = None
-        self.loadSource(self._source_section)
-        self.changed.emit()
-
-    def close(self):
+    def begin_shutdown(self):
+        self._closed = True
+        for kind in self._request:
+            self._request[kind] += 1
+        self._pending_search = None
+        self._search_timer.stop()
         async def cleanup():
             pass
 
+        self._worker.begin_shutdown(cleanup)
+
+    def finish_shutdown(self) -> bool:
+        return self._worker.finish_shutdown()
+
+    def close(self):
+        self.begin_shutdown()
+        async def cleanup():
+            pass
         self._worker.close(cleanup)

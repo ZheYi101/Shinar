@@ -118,6 +118,7 @@ def test_cli_command_flow(tmp_path) -> None:
                 "A2",
                 "Yesterday I went to the market and bought apples.",
                 ".",
+                "100",
                 "Yesterday I go market and buy apple.",
                 "I go market and buy apple.",
             ]
@@ -201,7 +202,7 @@ def test_cli_import_supports_title_track_and_preview(tmp_path) -> None:
             "# Wind Story\n\nThe wind blew hard. The sun shone warmly.",
             encoding="utf-8",
         )
-        responses = iter(["Custom Wind", "live_chat", "english", "english", "chinese", "A2"])
+        responses = iter(["Custom Wind", "live_chat", "english", "english", "chinese", "A2", "100"])
         outputs: list[str] = []
 
         app = ConsoleSessionApp(

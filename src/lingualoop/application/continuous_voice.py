@@ -35,6 +35,7 @@ class ContinuousConversation:
         self.speech_stopped = False
         self.closed = False
         self.input_allowed = True
+        self.pending_input: tuple[dict[str, Any], bytes, TurnSourceSnapshot | None] | None = None
         self.sources = {}
         self._interrupt_lock = asyncio.Lock()
         self._input_cleanup = None
@@ -47,6 +48,10 @@ class ContinuousConversation:
             self.emit(kind, self.generation, value)
 
     async def input_started(self, utterance: str, revision: int) -> None:
+        if not self.input_allowed or self.closed:
+            return
+        if self.pending_input and self.pending_input[0]["utterance"] != utterance:
+            self.pending_input = None
         self.version = (utterance, revision)
         current = asyncio.current_task()
         self._input_cleanup = current
@@ -108,6 +113,10 @@ class ContinuousConversation:
             if not current():
                 return
             self.turn_id = turn.id
+            if self.pending_input:
+                key = self.pending_input[0]["utterance"]
+                if turn.request_id == f"voice:{self.process.id}:{key}":
+                    self.pending_input = None
             self.event("confirmed", (turn, self.workbench.session))
 
         def delta(text):
@@ -185,6 +194,7 @@ class ContinuousConversation:
         ):
             return
         self.version = identity
+        self.pending_input = (dict(header), audio, source)
         self.sources.setdefault(identity[0], source)
         if len(self.sources) > 16:
             self.sources.pop(next(iter(self.sources)))
@@ -242,33 +252,39 @@ class ContinuousConversation:
         except asyncio.CancelledError:
             raise
         except Exception as error:
-            code = str(error)
-            safe_codes = {
-                "conversation_busy",
-                "voice_draft_expired",
-                "stt_empty_result",
-                "stt_requires_16khz_mono_pcm16",
-                "voice_session_changed",
-                "audio_worker_disconnected",
-                "audio_worker_closed",
-            }
-            self.event(
-                "recognition_failed" if self.input_task is current else "reply_failed",
-                {
-                    "error_type": type(error).__name__,
-                    "error_code": code if code in safe_codes else "speech_operation_failed",
-                    "frames": [
-                        f"{frame.name}:{frame.lineno}"
-                        for frame in traceback.extract_tb(error.__traceback__)
-                    ],
-                },
-            )
+            self._receive_failed(error, identity, manual_retry, current)
         finally:
             await coordinator.aclose()
             if self.input_task is current:
                 self.input_task = None
             if self.reply_task is current:
                 self.reply_task = None
+
+
+    def _receive_failed(self, error, identity, manual_retry, current):
+        if self.closed or self.version != identity or (not self.input_allowed and not manual_retry):
+            return
+        code = str(error)
+        safe_codes = {
+            "conversation_busy",
+            "voice_draft_expired",
+            "stt_empty_result",
+            "stt_requires_16khz_mono_pcm16",
+            "voice_session_changed",
+            "audio_worker_disconnected",
+            "audio_worker_closed",
+        }
+        self.event(
+            "recognition_failed" if self.input_task is current else "reply_failed",
+            {
+                "error_type": type(error).__name__,
+                "error_code": code if code in safe_codes else "speech_operation_failed",
+                "frames": [
+                    f"{frame.name}:{frame.lineno}"
+                    for frame in traceback.extract_tb(error.__traceback__)
+                ],
+            },
+        )
 
     async def send_text(
         self,
@@ -337,4 +353,5 @@ class ContinuousConversation:
             await self.interrupt("voice_stopped")
         finally:
             self.closed = True
+            self.pending_input = None
             self.sources.clear()

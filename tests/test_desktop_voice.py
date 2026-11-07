@@ -92,7 +92,12 @@ def test_queue_backpressure_does_not_block_text_reader_and_holds_thread_lock(des
         if not vm.busy:
             break
     until(lambda: not vm.busy)
-    assert [s.index for s in audio.segments] == list(range(8))
+    # Look-ahead may group already available sentences into one synthesis.
+    # Verify every sentence exactly once, in order, with contiguous audio indexes.
+    assert [s.index for s in audio.segments] == list(range(len(audio.segments)))
+    assert " ".join(" ".join(s.text for s in audio.segments).split()) == " ".join(
+        f"Sentence {i}." for i in range(8)
+    )
     assert len(vm.messages) == 3 and not workspace_of(window).threadLocked
 
 

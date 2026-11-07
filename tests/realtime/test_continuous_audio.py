@@ -72,6 +72,92 @@ def test_pending_final_does_not_accumulate_unbounded_silence():
     assert detector.claim(value.id, value.revision)
 
 
+def test_pause_keeps_speech_but_never_turns_the_muted_interval_into_an_endpoint():
+    detector = EndpointDetector()
+    for _ in range(4):
+        detector.feed(b"\x10\x01" * 512, 0.9)
+    before = bytes(detector.pcm)
+    paused = detector.pause()
+    assert paused and paused.audio.endswith(before)
+    # The engine does not feed paused audio. Silence after resume also waits for
+    # another onset, rather than automatically submitting the unfinished phrase.
+    for _ in range(3000):
+        assert not detector.feed(b"\0" * 1024, 0.01)
+    assert bytes(detector.pcm) == before
+    assert not detector.claim(paused.id, paused.revision - 1)
+    events = utterance(detector)
+    ended = next(v for k, v in events if k == "ended")
+    assert ended.id == paused.id and ended.revision > paused.revision
+    with wave.open(io.BytesIO(ended.audio)) as wav:
+        assert wav.readframes(wav.getnframes()).startswith(before)
+    assert detector.claim(ended.id, ended.revision)
+
+
+def test_pause_restores_an_uncommitted_claim_and_shares_the_original_length_limit():
+    detector = EndpointDetector()
+    first = next(v for k, v in utterance(detector) if k == "ended")
+    assert detector.claim(first.id, first.revision)
+    detector.restore(first.id, first.revision, first.audio)
+    paused = detector.pause()
+    assert paused.id == first.id and paused.audio == first.audio
+    detector.MAX_SAMPLES = len(detector.pcm) // 2 + 512
+    events = [e for _ in range(4) for e in detector.feed(b"\1\0" * 512, .9)]
+    assert any(k == "limit" for k, _ in events)
+    assert not any(k == "ended" for k, _ in events)
+    with pytest.raises((ValueError, wave.Error, EOFError)):
+        detector.restore("invalid", 1, b"not audio")
+
+
+def test_audio_worker_pause_retains_rtc_tail_and_old_microphone_generation_is_closed():
+    from types import SimpleNamespace
+    from lingualoop.realtime.audio_worker import AudioSessionWorker
+    from lingualoop.realtime.protocol import TurnRef
+
+    async def run():
+        events, controls = [], []
+        async def emit(header, payload):
+            events.append((header, payload))
+        worker = AudioSessionWorker(emit)
+        worker.voice_session = "s"
+        worker.mic_ref = TurnRef("s", "microphone", 1)
+        worker.endpoint = EndpointDetector()
+        for _ in range(4):
+            worker.endpoint.feed(b"\1\0" * 512, .9)
+        original = bytes(worker.endpoint.pcm)
+        worker.muted = False
+        worker.vad = worker.near_vad = SimpleNamespace(reset=lambda: None)
+        async def drain(ref, **kwargs):
+            controls.append("drain")
+        async def finish(ref):
+            controls.append("finish")
+            worker.endpoint.feed(b"\2\0" * 512, .9)  # Last subscribed RTC frame.
+        async def cancel(ref):
+            controls.append("cancel")
+        async def start(ref):
+            controls.append("start")
+        worker.desktop = SimpleNamespace(drain_audio=drain, finish_audio=finish,
+                                         cancel_outgoing=cancel, start_turn=start)
+        worker.engine = SimpleNamespace(receiver=SimpleNamespace(cancel=lambda ref: None))
+        await worker.handle({"kind": "pause", "voice_session": "s", "pause_id": "p",
+                             "operation": "op"}, b"")
+        header, audio = next((h, p) for h, p in events if h["kind"] == "input_paused")
+        assert header["pause_id"] == "p" and audio.endswith(original + b"\2\0" * 512)
+        assert controls == ["drain", "finish", "cancel"] and worker.muted
+        assert worker.endpoint.pending and events[-1][0]["has_input"]
+        old = worker.mic_ref
+        await worker.handle({"kind": "resume", "voice_session": "s", "preserve_input": True}, b"")
+        assert not worker.muted and worker.mic_ref.generation == old.generation + 1
+        assert bytes(worker.endpoint.pcm) == original + b"\2\0" * 512
+        # A delayed frame from the pre-pause track must not mutate the buffer.
+        worker.receive_input(old, SimpleNamespace(data=b"stale"))
+        assert bytes(worker.endpoint.pcm) == original + b"\2\0" * 512
+        await worker.mute(preserve=True)
+        await worker.handle({"kind": "discard_input", "voice_session": "s"}, b"")
+        assert not worker.endpoint.id and not worker.endpoint.pcm and worker.muted
+
+    asyncio.run(run())
+
+
 def test_device_format_conversion_is_chunk_independent_and_clips():
     import numpy as np
 

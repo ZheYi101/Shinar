@@ -74,14 +74,14 @@ ScrollView {
         MCard {
             color: "transparent"; padding: 0
             MLabel { text: qsTr("运行环境"); role: "title" }
-            MLabel { text: qsTr("NVIDIA GPU 需要合适的显卡驱动。软件按需下载匹配的 CUDA / cuDNN 运行库到独立目录，通常无需安装完整 CUDA Toolkit。下载与准备空间按下方固定组件清单估算。"); role: "supporting" }
+            MLabel { text: qsTr("NVIDIA GPU 需要合适的显卡驱动。软件按需下载匹配的 CUDA / cuDNN 运行库到独立目录，通常无需安装完整 CUDA Toolkit。安装需可用空间含临时文件和余量，不是最终硬盘占用或运行内存。"); role: "supporting" }
             Repeater {
                 model: ["cpu", "cuda", "voicevox-cpu", "melo-cpu", "melo-cuda"]
                 ColumnLayout {
                     required property string modelData
                     Layout.fillWidth: true
                     MLabel { text: ({cpu: qsTr("ONNX CPU"), cuda: qsTr("ONNX NVIDIA GPU"), "voicevox-cpu": qsTr("VOICEVOX CPU"), "melo-cpu": qsTr("Melo 英文 CPU"), "melo-cuda": qsTr("Melo 英文 NVIDIA GPU")})[modelData] + " · " + (speechLibrary.runtimes[modelData].prepared ? qsTr("已通过计算探针（驱动变化后请重检）") : qsTr("尚未准备或验证")); role: "label" }
-                    MLabel { text: qsTr("需下载约 %1 MiB · 准备空间约 %2 MiB").arg(speechLibrary.runtimes[modelData].downloadMiB).arg(speechLibrary.runtimes[modelData].diskMiB); role: "supporting" }
+                    SpeechPreparationSize { downloadMiB: speechLibrary.runtimes[modelData].downloadMiB; requiredFreeMiB: speechLibrary.runtimes[modelData].diskMiB }
                     Flow {
                         Layout.fillWidth: true
                         spacing: 8

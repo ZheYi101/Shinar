@@ -24,7 +24,7 @@ def hardware():
 
 
 def test_admission_uses_available_memory_and_no_unverified_candidates():
-    package = load_catalog()[0]
+    package = next(p for p in load_catalog() if p.id == "sensevoice-int8-20240717")
     assert admission(package, hardware())[0]
     assert not admission(package, dict(hardware(), available_ram_bytes=1024**3))[0]
     assert not admission(package, dict(hardware(), available_ram_bytes=None))[0]
@@ -33,7 +33,7 @@ def test_admission_uses_available_memory_and_no_unverified_candidates():
 
 
 def test_download_does_not_require_model_inference_memory(tmp_path):
-    package = load_catalog()[0]
+    package = next(p for p in load_catalog() if p.id == "sensevoice-int8-20240717")
     rows = model_rows(ModelStore(tmp_path), [package], "zh", "conversation",
                       dict(hardware(), available_ram_bytes=1024**3))
     assert rows[0]["downloadable"] and not rows[0]["benchmarkable"]
@@ -54,7 +54,7 @@ def test_model_recommendation_requires_matching_measurement(tmp_path, monkeypatc
     monkeypatch.setattr(store, "installed", lambda _: True)
     first = model_rows(store, catalog, "ja", "conversation", hardware())
     assert not any(r["recommended"] for r in first)
-    model = catalog[0]
+    model = next(p for p in catalog if p.id == "sensevoice-int8-20240717")
     report = {
         "schema": 1,
         "language": "zh",
@@ -83,7 +83,7 @@ def test_model_recommendation_requires_matching_measurement(tmp_path, monkeypatc
 
 def test_slow_tts_is_never_recommended_for_realtime(tmp_path, monkeypatch):
     catalog, store = load_catalog(), ModelStore(tmp_path)
-    package = catalog[2]
+    package = next(p for p in catalog if p.id == "kokoro-int8-zhen-v11")
     monkeypatch.setattr(store, "installed", lambda _: True)
     report = {
         "schema": 1,
@@ -110,7 +110,8 @@ def test_slow_tts_is_never_recommended_for_realtime(tmp_path, monkeypatch):
 def test_benchmark_timeout_kills_child_and_releases_lock(tmp_path, monkeypatch):
     import lingualoop.local_speech.benchmark as module
 
-    store, package = ModelStore(tmp_path), load_catalog()[2]
+    store = ModelStore(tmp_path)
+    package = next(p for p in load_catalog() if p.id == "kokoro-int8-zhen-v11")
     monkeypatch.setattr(module, "detect_hardware", lambda _: hardware())
     monkeypatch.setattr(store, "installed", lambda _: True)
     original, children = subprocess.Popen, []
@@ -139,9 +140,11 @@ def test_benchmark_rejects_missing_audio_and_unsupported_language(tmp_path, monk
 
     monkeypatch.setattr(module, "detect_hardware", lambda _: hardware())
     with pytest.raises(ValueError, match="WAV"):
-        benchmark(ModelStore(tmp_path), [load_catalog()[0]], "ja")
+        package = next(p for p in load_catalog() if p.id == "sensevoice-int8-20240717")
+        benchmark(ModelStore(tmp_path), [package], "ja")
     with pytest.raises(ValueError, match="语言"):
-        benchmark(ModelStore(tmp_path), [load_catalog()[2]], "ja")
+        package = next(p for p in load_catalog() if p.id == "kokoro-int8-zhen-v11")
+        benchmark(ModelStore(tmp_path), [package], "ja")
 
 
 def test_decoder_revision_invalidates_paired_measurements_and_selection(tmp_path, monkeypatch):

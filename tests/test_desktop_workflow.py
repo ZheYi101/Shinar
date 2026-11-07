@@ -291,14 +291,23 @@ def workspace_of(window):
     return window.property("workspaceController")
 
 
+def load_material(vm, title, content, source, target, native, level):
+    from lingualoop.core import LanguageEnum, ProficiencyLevel
+    vm.run_operation("保存材料", lambda: vm.workbench.load_material(
+        title=title, content=content, source_language=LanguageEnum(source),
+        target_language=LanguageEnum(target), native_language=LanguageEnum(native),
+        learner_level=ProficiencyLevel(level), auto_prepare=False,
+    ), vm._after_material_loaded)
+
+
 def load_and_start(vm, window):
-    vm.loadMaterial("放課後の約束", "放課後、二人は喫茶店で話した。離れても友達でいようと約束した。",
+    load_material(vm, "放課後の約束", "放課後、二人は喫茶店で話した。離れても友達でいようと約束した。",
                     "japanese", "japanese", "chinese", "B1")
     until(lambda: not vm.busy)
     ws = workspace_of(window)
     ws.browseMaterial(vm.selectedMaterialId)
     ws.openScope()
-    QTest.qWait(100)
+    until(lambda: ws.documentReady)
     click(window, "readWholeMaterialButton")
     click(window, "saveScopeButton")
     until(lambda: not vm.busy)
@@ -319,12 +328,13 @@ def test_service_balance_error_is_actionable_and_saved_material_survives(desktop
         await fail(**kwargs)
         yield ''
     provider.stream_reply = fail_stream
-    vm.loadMaterial('Book', 'Two friends met at the station.', 'english', 'english', 'chinese', 'B1')
+    load_material(vm, 'Book', 'Two friends met at the station.', 'english', 'english', 'chinese', 'B1')
     until(lambda: not vm.busy)
     assert not vm.errorMessage  # Import is local, including with an empty AI balance.
     vm.confirmReadingPercent(100)
     until(lambda: not vm.busy)
-    vm.startPractice()
+    workspace_of(window).browseMaterial(vm.selectedMaterialId)
+    workspace_of(window).startThread()
     until(lambda: not vm.busy)
     vm.sendMessage('I liked the friends meeting again.')
     until(lambda: not vm.busy)
@@ -522,7 +532,7 @@ def test_free_text_streaming_initial_draft_and_shortcut(desktop):
     # Text development does not need audio configuration.
     vm._stt = vm._tts = None
     vm.uiChanged.emit()
-    vm.loadMaterial("放課後の約束", "放課後、二人は喫茶店で話した。離れても友達でいようと約束した。",
+    load_material(vm, "放課後の約束", "放課後、二人は喫茶店で話した。離れても友達でいようと約束した。",
                     "japanese", "japanese", "chinese", "B1")
     until(lambda: not vm.busy)
     assert not vm.topics and not vm.materialPrepared
@@ -571,6 +581,7 @@ def test_frameless_controls_and_window_geometry(desktop):
     assert window.flags() & Qt.WindowType.FramelessWindowHint
     click(window, "nav3")
     assert scaffold.property("currentPage") == 3
+    click(window, "nav0")
     click(window, "nav2")
     assert scaffold.property("currentPage") == 2
     click(window, "nav0")
@@ -595,12 +606,12 @@ def test_frameless_controls_and_window_geometry(desktop):
     click(window, "secondaryMenuButton")
     QTest.keyClick(window, Qt.Key.Key_Escape)
     click(window, "windowCloseButton")
-    assert not window.isVisible()
+    until(lambda: not window.isVisible())
 
 
 def test_material_poll_does_not_destroy_pressed_reading_confirmation(desktop):
     vm, window, scaffold, *_ = desktop
-    vm.loadMaterial('Polling race', 'A first paragraph.\n\nA final paragraph.', 'english', 'english', 'chinese', 'B1')
+    load_material(vm, 'Polling race', 'A first paragraph.\n\nA final paragraph.', 'english', 'english', 'chinese', 'B1')
     until(lambda: not vm.busy)
     ws = workspace_of(window)
     ws.browseMaterial(vm.selectedMaterialId)
@@ -669,7 +680,7 @@ def test_partial_reading_is_explicit_and_optional_direction_only_fills_draft(des
     vm, window, scaffold, provider, speech, audio, database = desktop
     vm._stt = vm._tts = None
     text = "友達が駅に戻ってきた。二人は再会を喜んだ。\n未読の結末には別れがある。"
-    vm.loadMaterial("途中までの本", text, "japanese", "japanese", "chinese", "B1")
+    load_material(vm, "途中までの本", text, "japanese", "japanese", "chinese", "B1")
     until(lambda: not vm.busy)
     ws = workspace_of(window)
     ws.browseMaterial(vm.selectedMaterialId)

@@ -14,6 +14,8 @@ from lingualoop.application import LearningWorkbench
 from lingualoop.core.domain import LanguageEnum, MaterialTrack, ProficiencyLevel, ReviewRating
 from lingualoop.core.ports import LearningLLMProvider
 from lingualoop.infrastructure.material_import import import_material_file
+from lingualoop.infrastructure.blocking_jobs import BlockingRequest, run_blocking
+from lingualoop.core.reading_scope import paragraph_boundary
 from lingualoop.providers import MockLearningLLMProvider, OpenAICompatibleLLMProvider
 
 
@@ -66,6 +68,8 @@ class ConsoleSessionApp:
                 return CommandOutcome(await self._import_material(args))
             if command == "start":
                 return CommandOutcome(await self._start_session())
+            if command == "scope":
+                return CommandOutcome(self._confirm_scope(args))
             if command == "say":
                 text = args or self._input("Message: ").strip()
                 return CommandOutcome(await self._say(text))
@@ -136,10 +140,13 @@ class ConsoleSessionApp:
             native_language=native_language,
             learner_level=learner_level,
             content=content,
+            auto_prepare=False,
         )
+        scope_lines = self._confirm_scope()
 
         lines = [
             f"Loaded: {material.title}",
+            *scope_lines,
             *self._workbench.overview_lines(),
             "Type 'start' to open the practice session.",
         ]
@@ -147,7 +154,7 @@ class ConsoleSessionApp:
 
     async def _import_material(self, path_text: str) -> list[str]:
         path = Path(path_text.strip() or self._input("File path: ").strip())
-        imported = import_material_file(path)
+        imported = await run_blocking(BlockingRequest("import", (path,)))
         self._output("Normalized preview:")
         for line in _preview_lines(imported.normalized_content):
             self._output(line)
@@ -193,14 +200,31 @@ class ConsoleSessionApp:
             native_language=native_language,
             learner_level=learner_level,
             track=track,
+            auto_prepare=False,
         )
+        scope_lines = self._confirm_scope()
         return [
             f"Imported: {material.title}",
+            *scope_lines,
             f"Track: {material.track.value}",
             *imported.diagnostics,
             *self._workbench.overview_lines(),
             "Type 'start' to open the practice session.",
         ]
+
+    def _confirm_scope(self, value: str | None = None) -> list[str]:
+        material = self._workbench.material
+        if material is None:
+            raise ValueError("Load a material before confirming its reading scope.")
+        value = self._input("Read percentage 1–100 [unconfirmed]: ").strip() if value is None else value.strip()
+        if not value:
+            return ["Reading scope unconfirmed. Use 'scope <1–100>' before starting."]
+        percent = float(value)
+        if not (1 <= percent <= 100 and percent.is_integer()):
+            raise ValueError("Read percentage must be an integer between 1 and 100.")
+        end = paragraph_boundary(material.content, int(percent))
+        self._workbench.set_reading_scope(end)
+        return [f"Reading scope confirmed: {percent:g}%."]
 
     async def _start_session(self) -> list[str]:
         result = await self._workbench.start_session()
@@ -261,9 +285,10 @@ class ConsoleSessionApp:
 def _help_lines() -> list[str]:
     return [
         "Commands:",
-        "  load    Load and analyze one material",
+        "  load    Save one material and confirm the reading scope",
         "  import  Import .md/.markdown/.docx material",
         "  start   Start the practice session",
+        "  scope   Confirm the read percentage (1–100)",
         "  say     Send a learner message",
         "  finish  Complete the session and create review items",
         "  review  Show due review items",

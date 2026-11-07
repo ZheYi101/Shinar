@@ -14,7 +14,7 @@ from lingualoop.core import (
     PracticeSession, ProficiencyLevel, SessionUserProfile,
 )
 from lingualoop.infrastructure import SQLiteStore
-from lingualoop.providers import MockLearningLLMProvider
+from lingualoop.providers.mock import LegacyMockLearningLLMProvider
 from lingualoop.providers.openai_compatible import OpenAICompatibleLLMProvider, OpenAICompatibleLLMSettings
 
 SOURCE = "太郎は駅で花子に会った。二人は旅行について話した。"
@@ -129,7 +129,7 @@ def test_material_new_topics_use_same_strict_branch_gate():
 
 
 def test_workbench_rejects_invalid_adapter_preparation_and_preserves_old_valid_snapshot(tmp_path):
-    class FailsAfterValid(MockLearningLLMProvider):
+    class FailsAfterValid(LegacyMockLearningLLMProvider):
         def __init__(self): self.calls = 0
         async def prepare_dialogue(self, *, material, session):
             self.calls += 1
@@ -164,13 +164,13 @@ def test_legacy_payloads_still_read_empty_preparation_fields():
 
 
 def test_legacy_unverified_snapshot_is_not_consumed_by_dialogue_model(tmp_path):
-    class Capture(MockLearningLLMProvider):
+    class Capture(LegacyMockLearningLLMProvider):
         async def generate_reply(self, *, current_instruction, **kwargs):
             self.metadata = current_instruction.metadata
             return await super().generate_reply(current_instruction=current_instruction, **kwargs)
     async def run():
         store = SQLiteStore(tmp_path / "old-prepare.sqlite3")
-        work = LearningWorkbench(MockLearningLLMProvider(), event_store=store)
+        work = LearningWorkbench(LegacyMockLearningLLMProvider(), event_store=store)
         await work.load_material(title="旅", source_language=LanguageEnum.JAPANESE,
             target_language=LanguageEnum.JAPANESE, native_language=LanguageEnum.CHINESE,
             learner_level=ProficiencyLevel.B1, content=SOURCE)

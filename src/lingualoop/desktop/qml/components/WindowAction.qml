@@ -6,14 +6,18 @@ AbstractButton {
     id: control
     property string glyph: "minimize"
     property string label: ""
+    readonly property color glyphColor: glyph === "close" && (hovered || down) ? "#FFFFFF" : AppTheme.colorOnSurface
     implicitWidth: 48; implicitHeight: AppTheme.topBarHeight
     hoverEnabled: true
+    HoverHandler { cursorShape: Qt.PointingHandCursor }
     Accessible.name: label
     ToolTip.visible: hovered
     ToolTip.text: label
+    ToolTip.delay: 650
     background: Rectangle {
-        radius: AppTheme.cardRadius
-        color: control.down ? AppTheme.surfaceContainerHigh : control.hovered || control.visualFocus ? AppTheme.surfaceContainer : "transparent"
+        radius: 4
+        color: control.glyph === "close" && (control.hovered || control.down) ? "#C42B1C" : control.down ? AppTheme.surfaceContainerHigh : control.hovered || control.visualFocus ? AppTheme.surfaceContainer : "transparent"
+        Behavior on color { ColorAnimation { duration: AppTheme.motionFast } }
         border.width: control.visualFocus ? 2 : 0
         border.color: AppTheme.primary
     }
@@ -27,8 +31,8 @@ AbstractButton {
         }
         Item {
             visible: control.glyph === "close"; anchors.centerIn: parent; width: 14; height: 14
-            Rectangle { anchors.centerIn: parent; width: 16; height: 1.5; rotation: 45; color: AppTheme.colorOnSurface }
-            Rectangle { anchors.centerIn: parent; width: 16; height: 1.5; rotation: -45; color: AppTheme.colorOnSurface }
+            Rectangle { anchors.centerIn: parent; width: 16; height: 1.5; rotation: 45; color: control.glyphColor }
+            Rectangle { anchors.centerIn: parent; width: 16; height: 1.5; rotation: -45; color: control.glyphColor }
         }
         Text { visible: control.glyph === "more"; anchors.centerIn: parent; text: "···"; font.pixelSize: 24; color: AppTheme.colorOnSurface }
     }

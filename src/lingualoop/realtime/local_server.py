@@ -74,8 +74,11 @@ def hidden_flags() -> int:
 
 
 def ensure_server(cache: Path, *, download: bool = False, cancel=None,
-                  progress=lambda done, total: None) -> Path:
+                  progress=lambda done, total: None, on_transfer=lambda event: None) -> Path:
+    from lingualoop.local_speech.downloads import TransferEvent
+
     archive = cache / ARCHIVE_NAME
+    on_transfer(TransferEvent(ARCHIVE_NAME, "verifying"))
     valid = archive.is_file() and hashlib.sha256(archive.read_bytes()).hexdigest() == ARCHIVE_SHA256
     if not valid:
         if not download:
@@ -84,13 +87,16 @@ def ensure_server(cache: Path, *, download: bool = False, cancel=None,
         from .continuous_assets import server_package
         from lingualoop.local_speech.downloads import ModelStore
 
-        folder = ModelStore(cache.parent).install(server_package(), cancel=cancel, progress=progress)
+        folder = ModelStore(cache.parent, on_transfer=on_transfer).install(
+            server_package(), cancel=cancel, progress=progress
+        )
         temporary = archive.with_suffix(".preparing")
         shutil.copyfile(folder / ARCHIVE_NAME, temporary)
         os.replace(temporary, archive)
     if hashlib.sha256(archive.read_bytes()).hexdigest() != ARCHIVE_SHA256:
         raise RuntimeError("livekit_archive_checksum_mismatch")
     executable = cache / f"server-{SERVER_VERSION}" / "livekit-server.exe"
+    on_transfer(TransferEvent("livekit-server.exe", "extracting"))
     # Re-extract this exact member each run; do not trust a replaced cached executable.
     with zipfile.ZipFile(archive) as bundle:
         executable.parent.mkdir(parents=True, exist_ok=True)

@@ -185,53 +185,8 @@ def recognize(
         text = "".join(parts)
         cpu_ms = final_ms = (time.perf_counter() - begin) * 1000
     else:
-        if adapter == "vosk":
-            from vosk import KaldiRecognizer
-
-            stream = KaldiRecognizer(model, rate)
-            fragments = []
-        else:
-            stream = model.create_stream()
-        for position in range(0, len(samples), 3200):
-            end = min(position + 3200, len(samples))
-            if paced:
-                time.sleep(max(0, begin + end / rate - time.perf_counter()))
-            before = time.perf_counter()
-            if adapter == "vosk":
-                pcm = (samples[position:end] * 32768).astype("<i2").tobytes()
-                if stream.AcceptWaveform(pcm):
-                    fragments.append(json.loads(stream.Result()).get("text", ""))
-                partial = " ".join(
-                    fragments + [json.loads(stream.PartialResult()).get("partial", "")]
-                )
-            else:
-                stream.accept_waveform(rate, samples[position:end])
-                while model.is_ready(stream):
-                    model.decode_stream(stream)
-                partial = model.get_result(stream)
-            cpu_ms += (time.perf_counter() - before) * 1000
-            if partial.strip() and first_text is None:
-                first_text = (time.perf_counter() - begin) * 1000
-                first_audio_position = end / rate * 1000
-            if partial.strip() != last_partial.strip():
-                partial_changes += 1
-                last_partial = partial
-            if partial_only and first_text is not None:
-                break
-        before = time.perf_counter()
-        if partial_only:
-            text = last_partial
-        elif adapter == "vosk":
-            fragments.append(json.loads(stream.FinalResult()).get("text", ""))
-            text = " ".join(fragments)
-        else:
-            stream.accept_waveform(rate, np.zeros(int(rate * 0.66), dtype=np.float32))
-            stream.input_finished()
-            while model.is_ready(stream):
-                model.decode_stream(stream)
-            text = model.get_result(stream)
-        final_ms = (time.perf_counter() - before) * 1000
-        cpu_ms += final_ms
+        (text, cpu_ms, final_ms, first_text, first_audio_position,
+         partial_changes, end) = _recognize_stream(model, spec, samples, rate, begin, paced, partial_only)
     wall_ms = (time.perf_counter() - begin) * 1000
     duration_s = len(samples) / rate
     processed_audio_s = end / rate if partial_only else duration_s
@@ -288,28 +243,7 @@ def synthesize(model, spec: dict, text: str, output: Path | None = None) -> dict
         samples = audios[0]
         callback(samples, 1)
     elif spec["adapter"] == "voicevox":
-        query = model.create_audio_query(text, spec["style_id"])
-        frontend_ms = (time.perf_counter() - begin) * 1000
-        chunks = []
-        header, pcm_started = bytearray(), False
-        for index, chunk in enumerate(model.streaming_synthesis(query, spec["style_id"])):
-            chunks.append(chunk)
-            if not pcm_started:
-                header.extend(chunk)
-                offset = wav_data_offset(header)
-                if offset is None:
-                    continue
-                pcm, pcm_started = header[offset:], True
-            else:
-                pcm = chunk
-            if pcm:
-                callback(np.frombuffer(pcm, dtype="<i2").astype(np.float32) / 32768, 0)
-        with wave.open(io.BytesIO(b"".join(chunks))) as wav:
-            rate = wav.getframerate()
-            samples = (
-                np.frombuffer(wav.readframes(wav.getnframes()), dtype="<i2").astype(np.float32)
-                / 32768
-            )
+        samples, rate, frontend_ms = _voicevox_audio(model, spec, text, callback, begin)
     elif spec["adapter"] == "kokoro_ja":
         kokoro, g2p = model
         phonemes, _ = g2p(text)
@@ -383,61 +317,230 @@ def run(request: dict) -> dict:
     rows, first, paced = [], None, []
     items = request["items"]
 
-    def checkpoint(values: list[dict]) -> None:
-        folder = Path(request["output_dir"])
-        folder.mkdir(parents=True, exist_ok=True)
-        path = folder / f"progress-{len(values):04d}.json"
-        path.write_text(
-            json.dumps(
-                {
-                    "complete": False,
-                    "model": spec,
-                    "load_ms": load_ms,
-                    "first_inference": first,
-                    "rows": values,
-                },
-                ensure_ascii=False,
-            ),
-            encoding="utf-8",
-        )
+    checkpoint = lambda values, first=None: _evaluation_checkpoint(request, spec, load_ms, first, values)
 
     if request.get("first_partial_only"):
-        warmup = recognize(model, spec, read_wav(items[0]["wav"]), partial_only=True)
-        partial_rows = []
-        for item in items:
-            row = recognize(model, spec, read_wav(item["wav"]), paced=True, partial_only=True)
-            row["item_id"] = item["id"]
-            partial_rows.append(row)
-            if len(partial_rows) % 10 == 0:
-                checkpoint(partial_rows)
-                print(
-                    json.dumps({"progress": f"first partial {len(partial_rows)}/{len(items)}"}),
-                    flush=True,
-                )
-        return {
-            "schema": "strict-first-partial-v1",
-            "model": spec,
-            "load_ms": load_ms,
-            "threads": request["threads"],
-            "first_stream_unpaced": warmup,
-            "rows": partial_rows,
-            "first_text_ms": distribution(
-                [
-                    row["first_text_wall_ms"]
-                    for row in partial_rows
-                    if row["first_text_wall_ms"] is not None
-                ]
-            ),
-            "missing_partial": sum(row["first_text_wall_ms"] is None for row in partial_rows),
-            "recordings": len(partial_rows),
-            "live_microphone_evaluated": False,
-            "scope": "200ms clock-paced public file replay, stop at first native text; includes source silence and acoustic context",
-        }
+        return _first_partial_report(request, model, spec, items, load_ms, checkpoint)
     if spec.get("attribution"):
         attribution = Path(request["output_dir"]) / "ATTRIBUTION.txt"
         attribution.write_text(
             spec["attribution"] + "\nhttps://github.com/VOICEVOX/voicevox_vvm\n", encoding="utf-8"
         )
+    rows, first = _evaluation_samples(request, model, spec, items, checkpoint)
+    if spec["task"] == "stt" and spec["adapter"] in {"zipformer", "vosk"}:
+        for item in sorted(items, key=lambda row: row["id"])[: request.get("paced_count", 3)]:
+            row = recognize(model, spec, read_wav(item["wav"]), paced=True)
+            row["item_id"] = item["id"]
+            paced.append(row)
+    fields = (
+        "compute_ms",
+        "first_pcm_ms",
+        "first_text_wall_ms",
+        "finalization_compute_ms",
+        "characters_per_compute_s",
+        "reference_characters_per_compute_s",
+        "rtf",
+        "spoken_characters_per_s",
+        "output_characters_per_compute_s",
+    )
+    summary = {
+        field: distribution([row[field] for row in rows if row.get(field) is not None])
+        for field in fields
+    }
+    if spec["task"] == "stt":
+        # Accuracy once per unique recording; timing repeats must not inflate corpus size.
+        summary["accuracy"] = aggregate_accuracy([row for row in rows if row["repeat"] == 0])
+        summary["audio_duration_s"] = sum(item["duration_s"] for item in items)
+        summary["corpus_characters_per_compute_s"] = sum(
+            len(normalized_characters(item["reference"])) for item in items
+        ) / sum(row["compute_ms"] / 1000 for row in rows if row["repeat"] == 0)
+    memory = psutil.Process().memory_info()
+    versions = _evaluation_versions()
+    result = {
+        "schema": "strict-speech-evaluation-v1",
+        "model": spec,
+        "threads": request["threads"],
+        "load_ms": load_ms,
+        "first_inference": first,
+        "rows": rows,
+        "paced": paced,
+        "summary": summary,
+        "versions": versions,
+        "peak_process_rss_bytes": getattr(memory, "peak_wset", memory.rss),
+        "peak_memory_kind": "process_peak" if hasattr(memory, "peak_wset") else "final_rss",
+        "human_listening_evaluated": False,
+        "live_chain_evaluated": False,
+        "worker_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "metrics_sha256": hashlib.sha256(
+            Path(__file__).with_name("evaluation_metrics.py").read_bytes()
+        ).hexdigest(),
+        "runtime_worker_sha256": hashlib.sha256(
+            Path(__file__).with_name("runtime_worker.py").read_bytes()
+        ).hexdigest(),
+    }
+    if spec.get("provider") == "cuda":
+        result["inference_peak_cuda_allocated_bytes"] = torch.cuda.max_memory_allocated()
+        result["peak_cuda_allocated_bytes"] = max(
+            load_peak_cuda_allocated, torch.cuda.max_memory_allocated()
+        )
+        result["peak_cuda_reserved_bytes"] = max(
+            load_peak_cuda_reserved, torch.cuda.max_memory_reserved()
+        )
+        result["cuda_device"] = torch.cuda.get_device_name()
+    return result
+
+
+def main() -> None:
+    request = json.loads(sys.stdin.readline())
+    result = run(request)
+    output = Path(request["output_dir"]) / "report.json"
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(json.dumps({"ok": True, "report": str(output)}), flush=True)
+
+
+
+
+def _recognize_stream(model, spec, samples, rate, begin, paced, partial_only):
+    import numpy as np
+
+    adapter = spec["adapter"]
+    first_text = first_audio_position = None
+    partial_changes, last_partial, cpu_ms = 0, "", 0.0
+    if adapter == "vosk":
+        from vosk import KaldiRecognizer
+
+        stream = KaldiRecognizer(model, rate)
+        fragments = []
+    else:
+        stream = model.create_stream()
+    for position in range(0, len(samples), 3200):
+        end = min(position + 3200, len(samples))
+        if paced:
+            time.sleep(max(0, begin + end / rate - time.perf_counter()))
+        before = time.perf_counter()
+        if adapter == "vosk":
+            pcm = (samples[position:end] * 32768).astype("<i2").tobytes()
+            if stream.AcceptWaveform(pcm):
+                fragments.append(json.loads(stream.Result()).get("text", ""))
+            partial = " ".join(
+                fragments + [json.loads(stream.PartialResult()).get("partial", "")]
+            )
+        else:
+            stream.accept_waveform(rate, samples[position:end])
+            while model.is_ready(stream):
+                model.decode_stream(stream)
+            partial = model.get_result(stream)
+        cpu_ms += (time.perf_counter() - before) * 1000
+        if partial.strip() and first_text is None:
+            first_text = (time.perf_counter() - begin) * 1000
+            first_audio_position = end / rate * 1000
+        if partial.strip() != last_partial.strip():
+            partial_changes += 1
+            last_partial = partial
+        if partial_only and first_text is not None:
+            break
+    before = time.perf_counter()
+    if partial_only:
+        text = last_partial
+    elif adapter == "vosk":
+        fragments.append(json.loads(stream.FinalResult()).get("text", ""))
+        text = " ".join(fragments)
+    else:
+        stream.accept_waveform(rate, np.zeros(int(rate * 0.66), dtype=np.float32))
+        stream.input_finished()
+        while model.is_ready(stream):
+            model.decode_stream(stream)
+        text = model.get_result(stream)
+    final_ms = (time.perf_counter() - before) * 1000
+    cpu_ms += final_ms
+    return text, cpu_ms, final_ms, first_text, first_audio_position, partial_changes, end
+
+
+def _voicevox_audio(model, spec, text, callback, begin):
+    import numpy as np
+
+    query = model.create_audio_query(text, spec["style_id"])
+    frontend_ms = (time.perf_counter() - begin) * 1000
+    chunks = []
+    header, pcm_started = bytearray(), False
+    for index, chunk in enumerate(model.streaming_synthesis(query, spec["style_id"])):
+        chunks.append(chunk)
+        if not pcm_started:
+            header.extend(chunk)
+            offset = wav_data_offset(header)
+            if offset is None:
+                continue
+            pcm, pcm_started = header[offset:], True
+        else:
+            pcm = chunk
+        if pcm:
+            callback(np.frombuffer(pcm, dtype="<i2").astype(np.float32) / 32768, 0)
+    with wave.open(io.BytesIO(b"".join(chunks))) as wav:
+        rate = wav.getframerate()
+        samples = (
+            np.frombuffer(wav.readframes(wav.getnframes()), dtype="<i2").astype(np.float32)
+            / 32768
+        )
+    return samples, rate, frontend_ms
+
+
+def _evaluation_checkpoint(request, spec, load_ms, first, values: list[dict]) -> None:
+    folder = Path(request["output_dir"])
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / f"progress-{len(values):04d}.json"
+    path.write_text(
+        json.dumps(
+            {
+                "complete": False,
+                "model": spec,
+                "load_ms": load_ms,
+                "first_inference": first,
+                "rows": values,
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+
+
+def _first_partial_report(request, model, spec, items, load_ms, checkpoint):
+    warmup = recognize(model, spec, read_wav(items[0]["wav"]), partial_only=True)
+    partial_rows = []
+    for item in items:
+        row = recognize(model, spec, read_wav(item["wav"]), paced=True, partial_only=True)
+        row["item_id"] = item["id"]
+        partial_rows.append(row)
+        if len(partial_rows) % 10 == 0:
+            checkpoint(partial_rows)
+            print(
+                json.dumps({"progress": f"first partial {len(partial_rows)}/{len(items)}"}),
+                flush=True,
+            )
+    return {
+        "schema": "strict-first-partial-v1",
+        "model": spec,
+        "load_ms": load_ms,
+        "threads": request["threads"],
+        "first_stream_unpaced": warmup,
+        "rows": partial_rows,
+        "first_text_ms": distribution(
+            [
+                row["first_text_wall_ms"]
+                for row in partial_rows
+                if row["first_text_wall_ms"] is not None
+            ]
+        ),
+        "missing_partial": sum(row["first_text_wall_ms"] is None for row in partial_rows),
+        "recordings": len(partial_rows),
+        "live_microphone_evaluated": False,
+        "scope": "200ms clock-paced public file replay, stop at first native text; includes source silence and acoustic context",
+    }
+
+
+def _evaluation_samples(request, model, spec, items, checkpoint):
+    rows, first = [], None
     for repeat in range(request["repeats"]):
         order = list(items)
         random.Random(9321 + repeat).shuffle(order)
@@ -489,40 +592,16 @@ def run(request: dict) -> dict:
                 row.update({"item_id": item["id"], "repeat": repeat})
             rows.append(row)
             if len(rows) % 10 == 0:
-                checkpoint(rows)
-        checkpoint(rows)
+                checkpoint(rows, first)
+        checkpoint(rows, first)
         print(
             json.dumps({"progress": f"{spec['id']} {spec['language']} repeat {repeat + 1}"}),
             flush=True,
         )
-    if spec["task"] == "stt" and spec["adapter"] in {"zipformer", "vosk"}:
-        for item in sorted(items, key=lambda row: row["id"])[: request.get("paced_count", 3)]:
-            row = recognize(model, spec, read_wav(item["wav"]), paced=True)
-            row["item_id"] = item["id"]
-            paced.append(row)
-    fields = (
-        "compute_ms",
-        "first_pcm_ms",
-        "first_text_wall_ms",
-        "finalization_compute_ms",
-        "characters_per_compute_s",
-        "reference_characters_per_compute_s",
-        "rtf",
-        "spoken_characters_per_s",
-        "output_characters_per_compute_s",
-    )
-    summary = {
-        field: distribution([row[field] for row in rows if row.get(field) is not None])
-        for field in fields
-    }
-    if spec["task"] == "stt":
-        # Accuracy once per unique recording; timing repeats must not inflate corpus size.
-        summary["accuracy"] = aggregate_accuracy([row for row in rows if row["repeat"] == 0])
-        summary["audio_duration_s"] = sum(item["duration_s"] for item in items)
-        summary["corpus_characters_per_compute_s"] = sum(
-            len(normalized_characters(item["reference"])) for item in items
-        ) / sum(row["compute_ms"] / 1000 for row in rows if row["repeat"] == 0)
-    memory = psutil.Process().memory_info()
+    return rows, first
+
+
+def _evaluation_versions():
     versions = {}
     for package in [
         "sherpa-onnx",
@@ -544,47 +623,7 @@ def run(request: dict) -> dict:
             versions[package] = importlib.metadata.version(package)
         except importlib.metadata.PackageNotFoundError:
             pass
-    result = {
-        "schema": "strict-speech-evaluation-v1",
-        "model": spec,
-        "threads": request["threads"],
-        "load_ms": load_ms,
-        "first_inference": first,
-        "rows": rows,
-        "paced": paced,
-        "summary": summary,
-        "versions": versions,
-        "peak_process_rss_bytes": getattr(memory, "peak_wset", memory.rss),
-        "peak_memory_kind": "process_peak" if hasattr(memory, "peak_wset") else "final_rss",
-        "human_listening_evaluated": False,
-        "live_chain_evaluated": False,
-        "worker_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
-        "metrics_sha256": hashlib.sha256(
-            Path(__file__).with_name("evaluation_metrics.py").read_bytes()
-        ).hexdigest(),
-        "runtime_worker_sha256": hashlib.sha256(
-            Path(__file__).with_name("runtime_worker.py").read_bytes()
-        ).hexdigest(),
-    }
-    if spec.get("provider") == "cuda":
-        result["inference_peak_cuda_allocated_bytes"] = torch.cuda.max_memory_allocated()
-        result["peak_cuda_allocated_bytes"] = max(
-            load_peak_cuda_allocated, torch.cuda.max_memory_allocated()
-        )
-        result["peak_cuda_reserved_bytes"] = max(
-            load_peak_cuda_reserved, torch.cuda.max_memory_reserved()
-        )
-        result["cuda_device"] = torch.cuda.get_device_name()
-    return result
-
-
-def main() -> None:
-    request = json.loads(sys.stdin.readline())
-    result = run(request)
-    output = Path(request["output_dir"]) / "report.json"
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(json.dumps({"ok": True, "report": str(output)}), flush=True)
+    return versions
 
 
 if __name__ == "__main__":

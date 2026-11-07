@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import QObject, Property, QCoreApplication, Signal, Slot, Qt, QTimer
 
 from lingualoop.application.voice_session import VoiceSessionCoordinator
+from lingualoop.desktop.conversation_presentation import PresentationToken
 from lingualoop.core.voice import SpeechSegment, VoiceTurnResult
 from lingualoop.core.domain import Message
 
@@ -22,9 +23,9 @@ class _SpeechRoute:
     """Capture routing once on the GUI thread, bind the model on the worker."""
 
     def __init__(self, vm, task: str) -> None:
-        local = vm._local_speech
+        local = vm.local_speech
         self.backend = (
-            local.provider(task) if local and local.enabled(task) else getattr(vm, "_" + task)
+            local.provider(task) if local and local.enabled(task) else vm.speech_provider(task)
         )
         self._bound = None
         self._error = None
@@ -53,7 +54,8 @@ class DesktopVoiceController(QObject):
 
     def __init__(self, vm: LearningViewModel) -> None:
         super().__init__(vm)
-        self.vm, self.worker, self.audio = vm, vm._worker, vm._audio
+        self._presentation_token = None
+        self.vm, self.worker, self.audio = vm, vm.worker, vm.audio
         self._closed = False
         self._job = ""
         self._session = ""
@@ -72,6 +74,7 @@ class DesktopVoiceController(QObject):
         self._transcription_error = ""
         self._turn_errors = {}
         self._speech_errors = {}
+        self._speech_error_codes = {}
         self._pending_audio = []
         self._cache = []
         self._cache_turn = ""
@@ -84,6 +87,8 @@ class DesktopVoiceController(QObject):
         self._sent_revision = None
         from .continuous_voice import ContinuousVoiceController
         self.call = ContinuousVoiceController(self)
+        from .voice_readiness import VoiceReadinessController
+        self.preflight = VoiceReadinessController(self)
         self._eventReceived.connect(self._event, Qt.ConnectionType.QueuedConnection)
         self.worker.jobCompleted.connect(self._completed, Qt.ConnectionType.QueuedConnection)
         self._lease_timer = QTimer(self)
@@ -100,6 +105,17 @@ class DesktopVoiceController(QObject):
                 self._segment_started, Qt.ConnectionType.QueuedConnection
             )
 
+    pending_job = property(lambda self: self._job)
+    speech_errors = property(lambda self: self._speech_errors)
+    speech_error_codes = property(lambda self: self._speech_error_codes)
+    turn_errors = property(lambda self: self._turn_errors)
+
+    def notify(self) -> None:
+        self._notify()
+
+    def speak_enabled(self) -> bool:
+        return self._speak_enabled()
+
     @Property(bool, notify=changed)
     def active(self) -> bool:
         return bool(self._job or self._recognition == "recording" or self.call.active)
@@ -108,9 +124,13 @@ class DesktopVoiceController(QObject):
     def continuous(self):
         return self.call
 
+    @Property(QObject, constant=True)
+    def readiness(self):
+        return self.preflight
+
     @Property(bool, notify=changed)
     def canSendText(self):
-        return self.call.canSendText if self.call.active else not self.active and not self.vm._busy
+        return self.call.canSendText if self.call.active else not self.active and not self.vm.operationBusy
 
     @Property(str, notify=changed)
     def recognitionState(self) -> str:
@@ -180,31 +200,33 @@ class DesktopVoiceController(QObject):
         self.vm.busyChanged.emit()
 
     def _session_id(self) -> str:
-        session = self.vm._workbench.session
+        session = self.vm.workbench.session
         return session.id if session else ""
 
     def _can_start(self) -> bool:
-        return not self._closed and not self.active and not self.vm._busy
+        return not self._closed and not self.active and not self.vm.operationBusy
 
     def _speak_enabled(self) -> bool:
         return bool(
-            self.audio and self.vm.preferences.autoReadReplies and self.vm._speech_available("tts")
+            self.audio and self.vm.preferences.autoReadReplies and self.vm.speech_available("tts")
+            and not (self.call.active and self.call._tts_error)
         )
 
     @Slot()
     def startRecording(self) -> None:
         if not self._can_start() or not self.vm.sessionActive:
             return
-        if not self.audio or not self.vm._speech_available("stt"):
+        if not self.audio or not self.vm.speech_available("stt"):
             self._transcription_error = QCoreApplication.translate(
                 "Desktop", "语音识别尚未配置，请查看设置；文字输入仍可使用。"
             )
             self._notify()
             return
+        self.preflight.suspendMicrophone()
         self.discardRecording()
         self._session = self._session_id()
         self._recording_id = "recording-" + uuid4().hex
-        self.vm._recording_seconds = 0
+        self.vm.presentation.recording_seconds = 0
         self._recognition = "recording"
         self.audio.start_recording()
         self._notify()
@@ -295,7 +317,7 @@ class DesktopVoiceController(QObject):
         source = self.vm.source_context_provider()
         request_id = "text-" + uuid4().hex
         self._sent_revision = (
-            (self.vm._draft_revision, self.vm.draft) if text == self.vm.draft else None
+            (self.vm.draft_revision, self.vm.draft) if text == self.vm.draft else None
         )
 
         async def submit(coordinator):
@@ -326,7 +348,7 @@ class DesktopVoiceController(QObject):
         if self.call.active:
             self.call.send_text("", retry_turn=turn_id, speech_only=True)
             return
-        if not self._can_start() or not self.vm._speech_available("tts"):
+        if not self._can_start() or not self.vm.speech_available("tts"):
             return
         self._turn = turn_id
         self._speech_errors.pop(turn_id, None)
@@ -339,7 +361,7 @@ class DesktopVoiceController(QObject):
                 return VoiceTurnResult(turn_id, None, "completed", "completed", len(cached))
             if not turn_id.startswith("legacy:"):
                 return await coordinator.retry_speech(turn_id)
-            message = next(m for m in self.vm._workbench.session.messages if m.id == turn_id[7:])
+            message = next(m for m in self.vm.workbench.session.messages if m.id == turn_id[7:])
             backend = await coordinator._bind(coordinator.tts, coordinator._language())
             audio = await backend.synthesize(message.content)
             await coordinator.on_audio(SpeechSegment.from_wav(turn_id, 0, message.content, audio))
@@ -348,7 +370,7 @@ class DesktopVoiceController(QObject):
         self._launch("speech", speak, speak=True)
 
     def speak_latest(self) -> None:
-        message = next((m for m in reversed(self.vm._messages) if m["role"] == "assistant"), None)
+        message = next((m for m in reversed(self.vm.presentation.messages) if m["role"] == "assistant"), None)
         if message:
             self.speakTurn(message.get("turnId") or "legacy:" + message["id"])
 
@@ -363,10 +385,11 @@ class DesktopVoiceController(QObject):
         self._job_speak = self._speak_enabled() if speak is None else speak
         self._reply = "idle" if kind in {"recording", "speech"} else "generating"
         self._speech = "synthesizing" if self._job_speak else "idle"
-        self.vm._streaming_text = ""
-        self.vm._pending_user_text = ""
-        self.vm._response_timing = ""
-        self.vm._error = ""
+        self._presentation_token = PresentationToken(self._session, self._turn, 0, self.vm.draft_revision)
+        self.vm.presentation.activate(self._presentation_token)
+        self.vm.presentation.pending_user_text = ""
+        self.vm.presentation.response_timing = ""
+        self.vm.presentation.error = ""
         self._replaying = (
             kind == "speech" and self._cache_complete and self._cache_turn == self._turn
         )
@@ -380,7 +403,7 @@ class DesktopVoiceController(QObject):
             self._cache_turn = self._turn
         job_id, session_id = self._job, self._session
         stt, tts = _SpeechRoute(self.vm, "stt"), _SpeechRoute(self.vm, "tts")
-        language = self.vm._speech_language()
+        language = self.vm.speech_language()
         should_speak = self._job_speak
         if self.audio:
             self.audio.begin_playback(job_id)
@@ -394,10 +417,10 @@ class DesktopVoiceController(QObject):
             await asyncio.wrap_future(accepted)
 
         def confirmed(turn):
-            emit("confirmed", (turn, self.vm._workbench.session))
+            emit("confirmed", (turn, self.vm.workbench.session))
 
         coordinator = VoiceSessionCoordinator(
-            self.vm._workbench,
+            self.vm.workbench,
             stt=stt,
             tts=tts,
             on_audio=consume,
@@ -446,25 +469,27 @@ class DesktopVoiceController(QObject):
             turn, session = payload
             self._turn = turn.id
             self._cache_turn = turn.id
+            self._presentation_token = PresentationToken(session.id, turn.id, 0, self.vm.draft_revision)
+            self.vm.presentation.activate(self._presentation_token)
             self._recognition, self._reply = "idle", "generating"
             self._transcript, self._recording = None, b""
             if self._kind == "text" and self._sent_revision == (
-                self.vm._draft_revision,
+                self.vm.draft_revision,
                 self.vm.draft,
             ):
                 self.vm.draft = ""
-            self.vm._refresh_session_state(session)
+            self.vm.refresh_session_state(session)
             self.vm.messagesChanged.emit()
             self.vm.historyChanged.emit()
         elif kind == "delta":
             if self._kind != "speech":
-                self.vm._streaming_text += payload
+                self.vm.presentation.append(self._presentation_token, payload)
                 self.timings.setdefault("ui_first_delta", (perf_counter() - self._started) * 1000)
         elif kind == "textCompleted":
             self._reply = "idle"
-            self.vm._streaming_text = ""
+            self.vm.presentation.streaming_text = ""
             self.timings["ui_text_completed"] = (perf_counter() - self._started) * 1000
-            self.vm._refresh_session_state(payload.session)
+            self.vm.refresh_session_state(payload.session)
             self.vm.messagesChanged.emit()
         elif kind == "audio":
             self._pending_audio.append(payload)
@@ -522,7 +547,7 @@ class DesktopVoiceController(QObject):
             return
         self._done = True
         self._reply = self._recognition = "idle"
-        self.vm._streaming_text = ""
+        self.vm.presentation.streaming_text = ""
         if error:
             if self._kind == "recording" and not self._turn:
                 self._transcription_error = QCoreApplication.translate(
@@ -537,7 +562,7 @@ class DesktopVoiceController(QObject):
                     "Desktop", "朗读未完成，文字回复已保留。"
                 )
             elif not self._turn:
-                self.vm._on_operation_failed(
+                self.vm.report_error(
                     QCoreApplication.translate("Desktop", "发言未发送，请检查长度后重试。")
                 )
             else:
@@ -567,8 +592,10 @@ class DesktopVoiceController(QObject):
             else:
                 self._turn_errors.pop(result.turn_id, None)
                 if result.speech_status == "failed" and not self._muted:
-                    self._speech_errors[result.turn_id] = QCoreApplication.translate(
-                        "Desktop", "朗读未完成，文字回复已保留。"
+                    from .speech_errors import speech_error_text
+                    self._speech_error_codes[result.turn_id] = result.error_code
+                    self._speech_errors[result.turn_id] = speech_error_text(
+                        result.error_code or "speech_synthesis_failed", "tts", self.vm.speech_language()
                     )
                 if not self._replaying:
                     self._cache_complete = (
@@ -589,9 +616,9 @@ class DesktopVoiceController(QObject):
                         value0=full / 1000
                     )
                 )
-            self.vm._response_timing = " · ".join(parts)
-        self.vm._refresh_session_state()
-        self.vm._restore_last_reply()
+            self.vm.presentation.response_timing = " · ".join(parts)
+        self.vm.refresh_session_state()
+        self.vm.restore_last_reply()
         self.vm.messagesChanged.emit()
         self.vm.historyChanged.emit()
         self.vm.messageSent.emit()
@@ -605,7 +632,7 @@ class DesktopVoiceController(QObject):
         self._job = ""
         self._coordinator = None
         self._speech = "idle"
-        self.vm._refresh_session_state()
+        self.vm.refresh_session_state()
         self.vm.messagesChanged.emit()
         self._notify()
 
@@ -642,7 +669,7 @@ class DesktopVoiceController(QObject):
 
     @Slot(int)
     def _duration(self, seconds: int) -> None:
-        self.vm._recording_seconds = seconds
+        self.vm.presentation.recording_seconds = seconds
         self._notify()
 
     @Slot(str)
@@ -653,13 +680,15 @@ class DesktopVoiceController(QObject):
         else:
             self._speech_errors[self._turn] = message
             self._stop_speech(user=False)
-            self.vm._refresh_session_state()
+            self.vm.refresh_session_state()
             self.vm.messagesChanged.emit()
         self._notify()
 
     def turn_details(self, message: Message, turn_id: str = "") -> dict[str, object]:
         turn_id = message.metadata.get("turn_id", turn_id)
         details = {"turnId": turn_id, "replyError": "", "speechError": "", "canRetryReply": False}
+        code = self._speech_error_codes.get(turn_id or "legacy:" + message.id) or ""
+        details["speechSetupRequired"] = code.startswith("speech_model_") or code in {"speech_runtime_not_ready", "speech_service_unavailable"}
         details["replyNotice"] = (QCoreApplication.translate("Desktop", "这轮回复已停止。")
                                   if message.metadata.get("reply_interrupted") else "")
         if message.metadata.get("speech_interrupted") and not details["replyNotice"]:
@@ -669,15 +698,16 @@ class DesktopVoiceController(QObject):
             if message.role.value == "assistant"
             else ""
         )
+        details["speechSetupRequired"] = details["speechSetupRequired"] and bool(details["speechError"])
         if not turn_id:
             return details
-        session = self.vm._workbench.session
+        session = self.vm.workbench.session
         # Only a trailing user message can be resumed. Completed history needs
         # no repository round trip for every bubble on every UI refresh.
         if message.role.value != "user" or session.messages[-1].id != message.id:
             return details
         try:
-            turn = self.vm._workbench.get_turn(turn_id)
+            turn = self.vm.workbench.get_turn(turn_id)
         except ValueError:
             return details
         pending = turn.state != "completed" and session.messages[-1].id == turn.user_message_id
@@ -701,9 +731,9 @@ class DesktopVoiceController(QObject):
     def _refresh_recovery(self) -> None:
         if self.active or self._closed:
             return
-        self.vm._refresh_session_state()
+        self.vm.refresh_session_state()
         self.vm.messagesChanged.emit()
-        if any(m.get("canRetryReply") for m in self.vm._messages):
+        if any(m.get("canRetryReply") for m in self.vm.presentation.messages):
             self._lease_timer.stop()
 
     @Slot()
@@ -723,6 +753,7 @@ class DesktopVoiceController(QObject):
         self._cache_overflow = True
 
     def close(self) -> None:
+        self.preflight.close()
         self.call.close()
         self._closed = True
         self._lease_timer.stop()

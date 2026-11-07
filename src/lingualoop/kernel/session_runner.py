@@ -137,55 +137,8 @@ class DirectLearningSessionRunner:
             raise ValueError("Practice session must have an active instruction")
 
         user_message = confirmed_user or Message(role=MessageRole.USER, content=user_content, source_context=source_context)
-        corrections = []
-        # New discussions keep reasoning off the foreground path. End-of-session feedback
-        # remains grounded in confirmed user messages. Legacy direct integrations retain behaviour.
-        if session.options is None:
-            try:
-                corrections = await self._llm_provider.correct_answer(
-                    current_instruction=instruction, user_message=user_message,
-                    target_language=session.profile.target_language,
-                )
-            except Exception:
-                # Feedback is auxiliary; a failed correction must not block the reply.
-                corrections = []
-
-        corrections = [
-            (
-                item
-                if item.source_message_id is not None
-                else item.model_copy(update={"source_message_id": user_message.id})
-            )
-            for item in corrections
-        ]
-        if session.options:
-            corrections = [item.model_copy(update={"source_message_id": user_message.id}) for item in corrections
-                           if item.original.casefold() in user_content.casefold()
-                           and item.original.casefold() != item.corrected.casefold()]
-        feedback_limit = _feedback_limit(session)
-        corrections = _dedupe_feedback_items(corrections, limit=feedback_limit)
-
-        preparation = session.preparation
-        metadata = dict(instruction.metadata)
-        if turn_context is not None:
-            metadata["turn_context"] = turn_context.model_dump(mode="json")
-        if preparation and preparation.based_on_message_count == len(session.messages):
-            try:
-                validated = validate_dialogue_preparation(preparation, material.content)
-                metadata["preparation"] = validated.model_dump(mode="json")
-            except ValueError:
-                metadata.pop("preparation", None)
-        else:
-            metadata.pop("preparation", None)
-        reply_instruction = instruction.model_copy(update={"metadata": metadata})
-        reply_kwargs = dict(
-            current_instruction=reply_instruction,
-            material=material,
-            message_history=[*session.messages, user_message],
-            user_message=user_message,
-            corrections=corrections,
-            target_language=session.profile.target_language,
-        )
+        corrections = await self._turn_feedback(session, user_message, user_content)
+        reply_kwargs = self._reply_arguments(session, material, user_message, corrections, turn_context)
         started = perf_counter()
         first_token = None
         stream = getattr(self._llm_provider, "stream_reply", None)
@@ -256,6 +209,63 @@ class DirectLearningSessionRunner:
             assistant_message=assistant_message,
             feedback_items=corrections,
             timing=timing,
+        )
+
+
+    async def _turn_feedback(self, session, user_message, user_content):
+        instruction = session.current_instruction
+        corrections = []
+        # New discussions keep reasoning off the foreground path. End-of-session feedback
+        # remains grounded in confirmed user messages. Legacy direct integrations retain behaviour.
+        if session.options is None:
+            try:
+                corrections = await self._llm_provider.correct_answer(
+                    current_instruction=instruction, user_message=user_message,
+                    target_language=session.profile.target_language,
+                )
+            except Exception:
+                # Feedback is auxiliary; a failed correction must not block the reply.
+                corrections = []
+
+        corrections = [
+            (
+                item
+                if item.source_message_id is not None
+                else item.model_copy(update={"source_message_id": user_message.id})
+            )
+            for item in corrections
+        ]
+        if session.options:
+            corrections = [item.model_copy(update={"source_message_id": user_message.id}) for item in corrections
+                           if item.original.casefold() in user_content.casefold()
+                           and item.original.casefold() != item.corrected.casefold()]
+        feedback_limit = _feedback_limit(session)
+        corrections = _dedupe_feedback_items(corrections, limit=feedback_limit)
+
+        return corrections
+
+    def _reply_arguments(self, session, material, user_message, corrections, turn_context):
+        instruction = session.current_instruction
+        preparation = session.preparation
+        metadata = dict(instruction.metadata)
+        if turn_context is not None:
+            metadata["turn_context"] = turn_context.model_dump(mode="json")
+        if preparation and preparation.based_on_message_count == len(session.messages):
+            try:
+                validated = validate_dialogue_preparation(preparation, material.content)
+                metadata["preparation"] = validated.model_dump(mode="json")
+            except ValueError:
+                metadata.pop("preparation", None)
+        else:
+            metadata.pop("preparation", None)
+        reply_instruction = instruction.model_copy(update={"metadata": metadata})
+        return dict(
+            current_instruction=reply_instruction,
+            material=material,
+            message_history=[*session.messages, user_message],
+            user_message=user_message,
+            corrections=corrections,
+            target_language=session.profile.target_language,
         )
 
     async def complete_session(

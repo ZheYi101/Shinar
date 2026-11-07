@@ -54,6 +54,25 @@ class SpeechTextBuffer:
             return value
         return None
 
+    def pop_chunk(self, *, combine: bool = False, limit: int = 240) -> str | None:
+        """Keep the first sentence fast, then coalesce already available sentences.
+
+        Never wait for a future sentence or consume a partial sentence early.
+        """
+        value = self.pop_sentence()
+        if value is None or not combine:
+            return value
+        while len(value) < limit:
+            pending = self.text
+            following = self.pop_sentence()
+            if following is None:
+                break
+            if len(value) + len(following) > limit:
+                self.text = pending
+                break
+            value += following
+        return value
+
 
 class SpokenTextProjection:
     """Exclude fenced code, metadata and Markdown syntax without rewriting facts."""

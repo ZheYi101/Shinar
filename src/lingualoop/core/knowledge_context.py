@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import math
 import re
-from collections import Counter
+from collections import Counter, OrderedDict
 from functools import lru_cache
 from time import perf_counter
 from typing import TYPE_CHECKING
@@ -25,13 +25,28 @@ from lingualoop.core.knowledge import (
 
 VERSION = "semantic-v1"
 AUXILIARY_KINDS = {"foreword", "author_note", "commentary"}
+_primed_terms: OrderedDict[str, frozenset[str]] = OrderedDict()
 
 
 @lru_cache(maxsize=4096)
 def cached_terms(text: str) -> frozenset[str]:
     from lingualoop.core.material_context import _terms
 
-    return frozenset(_terms(text))
+    prepared = _primed_terms.pop(text, None)
+    return prepared if prepared is not None else frozenset(_terms(text))
+
+
+def install_turn_index(index: dict[str, frozenset[str]]) -> None:
+    for text, terms in index.items():
+        _primed_terms[text] = terms
+        if len(_primed_terms) > 4096:
+            _primed_terms.popitem(last=False)
+
+
+def build_turn_index(material: LearningMaterial) -> dict[str, frozenset[str]]:
+    """Return ordinary data so a CPU worker cannot own the parent's cache."""
+    texts = turn_index_texts(material)
+    return {text: cached_terms(text) for text in texts[-4096:]}
 
 
 def digest(text: str) -> str:
@@ -216,6 +231,12 @@ def prime_turn_index(material: LearningMaterial) -> None:
     This is local CPU work only. The caller runs it off the UI thread; it does
     not select evidence, change reading permission or make a model request.
     """
+    for text in turn_index_texts(material):
+        cached_terms(text)
+
+
+def turn_index_texts(material: LearningMaterial) -> list[str]:
+    texts = []
     end = material.read_through
     end = len(material.content) if end is None else min(end, len(material.content))
     knowledge = material.analysis.knowledge if material.analysis else None
@@ -227,11 +248,11 @@ def prime_turn_index(material: LearningMaterial) -> None:
     for unit in units:
         for span in unit.paragraphs:
             if span.end_char <= end:
-                cached_terms(material.content[span.start_char : span.end_char])
+                texts.append(material.content[span.start_char : span.end_char])
     for note in knowledge.notes if knowledge else []:
         if note.knowledge_end <= end:
-            cached_terms(" ".join([note.text, *note.entities, *note.search_terms]))
-            cached_terms(
+            texts.append(" ".join([note.text, *note.entities, *note.search_terms]))
+            texts.append(
                 " ".join(
                     [
                         note.text,
@@ -242,6 +263,7 @@ def prime_turn_index(material: LearningMaterial) -> None:
                     ]
                 )
             )
+    return texts
 
 
 def assemble_turn_context(
@@ -283,6 +305,36 @@ def assemble_turn_context(
         pointed and unit.start_char < pointed.end_char and unit.end_char > pointed.start_char
     )}
     notes = [note for note in (knowledge.notes if knowledge else []) if note.unit_id in allowed]
+    selected, current_terms, terms, relevance = _rank_context_notes(notes, session, query)
+    candidates = _collect_context_candidates(
+        text, units, allowed, selected, relevance, source_context, query
+    )
+    evidence = _budget_context_evidence(candidates, text, current_terms, source_context)
+    selected_ids = {item.id for item in evidence}
+    selected = [note for note in selected if set(note.support_ids) <= selected_ids]
+    brief, gaps, key, memory, focus_points = _context_annotations(
+        session, query, selected, selected_ids, evidence, knowledge, terms,
+        source_hash, end, source_context, current_terms,
+    )
+    return TurnContext(
+        title=material.title,
+        scope_end=end,
+        source_hash=source_hash,
+        brief=brief,
+        notes=selected,
+        evidence=evidence,
+        memory=memory,
+        focus_points=focus_points,
+        focus_key=key,
+        gaps=gaps,
+        retrieval_ms=(perf_counter() - started) * 1000,
+        source_context=source_context.model_copy(update={"quote": ""}) if source_context else None,
+    )
+
+
+def _rank_context_notes(notes, session, query):
+    from lingualoop.core.material_context import _terms
+
     recent = session.messages[-4:]
     previous = " ".join(message.content for message in recent)[-1800:]
     current_terms, previous_terms = _terms(query), _terms(previous)
@@ -326,6 +378,10 @@ def assemble_turn_context(
             ranked.append((score, note))
     ranked.sort(key=lambda pair: pair[0], reverse=True)
     selected = [note for _, note in ranked[:6]]
+    return selected, current_terms, terms, relevance
+
+
+def _collect_context_candidates(text, units, allowed, selected, relevance, source_context, query):
     paragraph_map = {
         span.id: (span, unit) for unit in units for span in unit.paragraphs if unit.id in allowed
     }
@@ -363,6 +419,10 @@ def assemble_turn_context(
                                 neighbor,
                                 unit,
                             )
+    return candidates
+
+
+def _budget_context_evidence(candidates, text, current_terms, source_context):
     evidence = []
     total = 0
     for _, span, unit in sorted(candidates.values(), key=lambda item: item[0], reverse=True):
@@ -400,8 +460,13 @@ def assemble_turn_context(
                 source_kind=unit.source_kind,
             )
         )
-    selected_ids = {item.id for item in evidence}
-    selected = [note for note in selected if set(note.support_ids) <= selected_ids]
+    return evidence
+
+
+def _context_annotations(session, query, selected, selected_ids, evidence, knowledge, terms,
+                         source_hash, end, source_context, current_terms):
+    from lingualoop.core.material_context import _terms
+
     brief = knowledge.brief.summary[:3200] if knowledge and knowledge.brief else ""
     gaps = []
     if not selected and not evidence and terms:
@@ -465,17 +530,4 @@ def assemble_turn_context(
             focus_points = [
                 point for point in focus.points if set(point.support_ids) <= selected_ids
             ]
-    return TurnContext(
-        title=material.title,
-        scope_end=end,
-        source_hash=source_hash,
-        brief=brief,
-        notes=selected,
-        evidence=evidence,
-        memory=memory,
-        focus_points=focus_points,
-        focus_key=key,
-        gaps=gaps,
-        retrieval_ms=(perf_counter() - started) * 1000,
-        source_context=source_context.model_copy(update={"quote": ""}) if source_context else None,
-    )
+    return brief, gaps, key, memory, focus_points

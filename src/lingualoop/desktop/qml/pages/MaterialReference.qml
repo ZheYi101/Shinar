@@ -20,7 +20,11 @@ ColumnLayout {
         ColumnLayout {
             width: parent.width; spacing: 20
             MLabel { text: workspace.reference.status; role: "supporting" }
-            MLabel { text: workspace.reference.summary; font.family: AppTheme.readingFont; maximumLineCount: page.expanded ? 2147483647 : 7; elide: Text.ElideRight }
+            ReadingNote {
+                visible: workspace.reference.summary.length > 0
+                Layout.maximumWidth: 760
+                MLabel { text: workspace.reference.summary; font.family: AppTheme.readingFont; font.pixelSize: AppTheme.bodyLarge; lineHeight: 1.5; maximumLineCount: page.expanded ? 2147483647 : 7; elide: Text.ElideRight }
+            }
             MButton { visible: workspace.reference.summary.length > 300; text: page.expanded ? qsTr("收起") : qsTr("展开"); variant: "text"; onClicked: page.expanded = !page.expanded }
             Repeater { model: workspace.reference.outline; MLabel { required property string modelData; text: modelData } }
         }

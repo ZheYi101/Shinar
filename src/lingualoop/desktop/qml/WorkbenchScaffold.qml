@@ -15,12 +15,18 @@ Item {
         if (currentPage !== (workspace.route === "chat" ? 1 : workspace.route === "review" || workspace.route === "queue" ? 2 : workspace.route === "settings" ? 3 : 0)) workspace.navigate(route)
     }
     Rectangle { anchors.fill: parent; color: AppTheme.surface }
+    PaperTexture {
+        anchors.fill: parent
+        anchors.leftMargin: root.compact ? 0 : root.sidebarWidth
+        anchors.topMargin: AppTheme.topBarHeight
+        quiet: workspace.route === "chat" || workspace.route === "scope" || workspace.route === "reference"
+    }
     RowLayout {
         anchors.fill: parent; spacing: 0
-        WorkspaceSidebar { visible: !root.compact; Layout.preferredWidth: root.sidebarWidth; Layout.fillHeight: true; collapsed: workspace.collapsed }
+        WorkspaceSidebar { visible: !root.compact; Layout.preferredWidth: root.sidebarWidth; Layout.fillHeight: true; collapsed: workspace.collapsed; clip: true; Behavior on Layout.preferredWidth { NumberAnimation { duration: AppTheme.duration; easing.type: Easing.OutCubic } } }
         ColumnLayout {
             Layout.fillWidth: true; Layout.fillHeight: true; spacing: 0
-            WindowTitleBar { Layout.fillWidth: true; Layout.preferredHeight: AppTheme.topBarHeight; onToggleSidebar: root.compact ? drawer.open() : workspace.toggleSidebar(); onNavigate: page => workspace.navigate(page === 3 ? "settings" : "review") }
+            WindowTitleBar { Layout.fillWidth: true; Layout.preferredHeight: AppTheme.topBarHeight; compactNavigation: root.compact; onToggleSidebar: root.compact ? drawer.open() : workspace.toggleSidebar(); onNavigate: page => workspace.navigate(page === 3 ? "settings" : "review") }
             ProgressBar { visible: learningViewModel.operationBusy; Layout.fillWidth: true; Layout.preferredHeight: 2; indeterminate: true }
             RowLayout {
                 visible: learningViewModel.errorMessage.length > 0 || workspace.error.length > 0
@@ -56,4 +62,6 @@ Item {
     Shortcut { sequence: "Ctrl+1"; onActivated: workspace.navigate("library") }
     Shortcut { sequence: "Ctrl+2"; onActivated: workspace.navigate("chat") }
     Shortcut { sequence: "Ctrl+,"; onActivated: workspace.navigate("settings") }
+    CloseWindowDialog { }
+    ShutdownDialog { }
 }
