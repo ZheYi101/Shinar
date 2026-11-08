@@ -68,41 +68,40 @@ class LearningPropertiesMixin:
         return [
             {
                 "id": session.id,
-                "title": session.topic.title
-                if session.topic
+                "title": session.title
+                if session.title
                 else QCoreApplication.translate("Desktop", "历史讨论"),
                 "date": session.updated_at.astimezone().strftime("%m-%d %H:%M"),
                 "status": QCoreApplication.translate("Desktop", "进行中")
                 if session.status.value == "active"
                 else QCoreApplication.translate("Desktop", "已结束"),
-                "turns": sum(message.role.value == "user" for message in session.messages),
-                "preview": next(
-                    (
-                        message.content[:140]
-                        for message in session.messages
-                        if message.role.value == "user"
-                    ),
-                    session.messages[0].content[:140] if session.messages else "",
-                ),
+                "turns": session.turns,
+                "preview": session.preview,
                 "selected": bool(
                     self._workbench.session and session.id == self._workbench.session.id
                 ),
             }
-            for session in self._workbench.sessions
+            for session in self._workbench.list_session_summaries(
+                self._workbench.material.id if self._workbench.material else None
+            )
         ]
 
     @Property(bool, notify=busyChanged)
     def busy(self) -> bool:
-        return self._busy or self.voice.active
+        return self._operations.snapshot.busy or self.voice.active
 
     @Property(bool, notify=busyChanged)
     def operationBusy(self) -> bool:
-        return bool(self._busy or self.voice.pending_job or self.voice.call.connectionState in
-                    {"preparing", "connecting", "reconnecting", "stopping"})
+        return bool(
+            self._operations.snapshot.busy
+            or self.voice.pending_job
+            or self.voice.call.connectionState
+            in {"preparing", "connecting", "reconnecting", "stopping"}
+        )
 
     @Property(str, notify=statusChanged)
     def status(self) -> str:
-        return self._status
+        return self._operations.snapshot.status
 
     @Property(bool, notify=materialChanged)
     def hasMaterial(self) -> bool:
@@ -207,11 +206,11 @@ class LearningPropertiesMixin:
 
     @Property(list, notify=feedbackItemsChanged)
     def feedbackItems(self) -> list[dict[str, str]]:
-        return self._feedback_items
+        return display_value(self._reviews.snapshot.feedback)
 
     @Property(list, notify=reviewItemsChanged)
     def reviewItems(self) -> list[dict[str, str]]:
-        return self._review_items
+        return display_value(self._reviews.snapshot.reviews)
 
     @Property(list, notify=materialsChanged)
     def materials(self) -> list[dict[str, str]]:
@@ -397,50 +396,49 @@ class LearningPropertiesMixin:
 
     @Property(bool, notify=uiChanged)
     def canRetryOperation(self):
-        return bool(self._retry_operation)
+        return bool(self._operations.retry)
 
     @Property(str, notify=uiChanged)
     def draft(self):
-        return self._draft
+        return self._editing.snapshot.draft
 
     @draft.setter
     def draft(self, value):
-        if value != self._draft:
-            self._draft_revision += 1
-            self._draft = value
+        if value != self._editing.snapshot.draft:
+            self._editing.draft(value)
             self.uiChanged.emit()
 
     @Property(str, notify=uiChanged)
     def customTopic(self):
-        return self._custom_topic
+        return self._materials.snapshot.custom_topic
 
     @customTopic.setter
     def customTopic(self, value):
-        self._custom_topic = value
+        self._materials.custom(value)
         self.uiChanged.emit()
 
     @Property(str, notify=uiChanged)
     def practiceMode(self):
-        return self._practice_mode
+        return self._materials.snapshot.practice_mode
 
     @practiceMode.setter
     def practiceMode(self, value):
         if value in {"discussion", "roleplay"}:
-            self._practice_mode = value
+            self._materials.mode(value)
             self.uiChanged.emit()
 
     @Property(str, notify=uiChanged)
     def roleDescription(self):
-        return self._role_description
+        return self._materials.snapshot.role_description
 
     @roleDescription.setter
     def roleDescription(self, value):
-        self._role_description = value
+        self._materials.role(value)
         self.uiChanged.emit()
 
     @Property(str, notify=uiChanged)
     def selectedTopicId(self):
-        return self._selected_topic
+        return self._materials.snapshot.selected_topic
 
     @Property(list, notify=topicsChanged)
     def topics(self):
@@ -464,11 +462,11 @@ class LearningPropertiesMixin:
 
     @Property(str, notify=topicsChanged)
     def topicFilter(self):
-        return self._topic_filter
+        return self._materials.snapshot.topic_filter
 
     @topicFilter.setter
     def topicFilter(self, value):
-        self._topic_filter = value
+        self._materials.filter(value)
         self.topicsChanged.emit()
 
     @Property(list, notify=topicsChanged)
@@ -477,26 +475,31 @@ class LearningPropertiesMixin:
             topic
             for topic in self.topics
             if (
-                self._topic_filter == QCoreApplication.translate("Desktop", "全部")
-                or topic["category_label"] == self._topic_filter
+                self._materials.snapshot.topic_filter
+                == QCoreApplication.translate("Desktop", "全部")
+                or topic["category_label"] == self._materials.snapshot.topic_filter
             )
-            and self._topic_search.casefold()
+            and self._materials.snapshot.topic_search.casefold()
             in (topic["title"] + " " + topic["opening_question"]).casefold()
         ]
 
     @Property(str, notify=topicsChanged)
     def topicSearch(self):
-        return self._topic_search
+        return self._materials.snapshot.topic_search
 
     @topicSearch.setter
     def topicSearch(self, value):
-        self._topic_search = value.strip()
+        self._materials.search(value.strip())
         self.topicsChanged.emit()
 
     @Property(str, notify=uiChanged)
     def selectedTopicTitle(self):
         return next(
-            (topic["title"] for topic in self.topics if topic["id"] == self._selected_topic),
+            (
+                topic["title"]
+                for topic in self.topics
+                if topic["id"] == self._materials.snapshot.selected_topic
+            ),
             QCoreApplication.translate("Desktop", "随便聊聊，不用先选话题"),
         )
 
@@ -519,7 +522,7 @@ class LearningPropertiesMixin:
             "preparing": QCoreApplication.translate("Desktop", "正在后台准备下一轮参考…"),
             "ready": QCoreApplication.translate("Desktop", "下一轮参考已准备"),
             "unavailable": QCoreApplication.translate("Desktop", "后台准备暂不可用，对话仍可继续"),
-        }.get(self._preparation_state, "")
+        }.get(self._materials.snapshot.preparation_state, "")
 
     @Property(str, notify=sessionChanged)
     def topicTitle(self):
@@ -538,14 +541,11 @@ class LearningPropertiesMixin:
 
     @Property(bool, notify=uiChanged)
     def voiceReady(self):
-        return bool(
-            self.speech_available("stt")
-            and self._audio is not None
-        )
+        return bool(self.speech_available("stt") and self._audio is not None)
 
     @Property(str, notify=uiChanged)
     def speechStatus(self):
-        return self._speech_status
+        return self._operations.snapshot.speech_status
 
     @Property(str, notify=uiChanged)
     def voiceState(self):
@@ -565,11 +565,19 @@ class LearningPropertiesMixin:
 
     @Property(str, notify=uiChanged)
     def selectedInputDeviceId(self):
-        return getattr(self._audio, "selected_input_id", self.inputDevices[0]["id"] if self.inputDevices else "")
+        return getattr(
+            self._audio,
+            "selected_input_id",
+            self.inputDevices[0]["id"] if self.inputDevices else "",
+        )
 
     @Property(str, notify=uiChanged)
     def selectedOutputDeviceId(self):
-        return getattr(self._audio, "selected_output_id", self.outputDevices[0]["id"] if self.outputDevices else "")
+        return getattr(
+            self._audio,
+            "selected_output_id",
+            self.outputDevices[0]["id"] if self.outputDevices else "",
+        )
 
     @Property(bool, notify=uiChanged)
     def canRetryTranscription(self):
@@ -577,7 +585,7 @@ class LearningPropertiesMixin:
 
     @Property(bool, notify=uiChanged)
     def canSpeak(self):
-        return bool(self._last_reply and self.speech_available("tts"))
+        return bool(self._editing.snapshot.last_reply and self.speech_available("tts"))
 
     @Property(str, notify=uiChanged)
     def speechLanguage(self):

@@ -9,9 +9,9 @@
 | 语音库 | 模型行、硬件、容量、运行环境、语言与场景 | CatalogProjection | 已迁移 |
 | 语音库 | 忙闲、进度、错误、安装／测速请求 | LibraryOperations；下载仍由 SpeechPreparationJobs 管理 | 已迁移 |
 | 语音库 | 资源扫描身份、启停、扫描线程 | ResourceMonitor | 已迁移 |
-| LearningViewModel | 材料／话题筛选、准备轮询 | 材料投影 | 待迁移 |
-| LearningViewModel | 草稿、版本、会话草稿、展示代际 | 会话编辑状态 | 待迁移 |
-| LearningViewModel | 反馈与复习 DTO、操作回调与重试 | 复盘投影、操作协调器 | 待迁移 |
+| LearningViewModel | 材料／话题筛选、准备轮询 | MaterialProjection | 已迁移 |
+| LearningViewModel | 草稿、版本、会话草稿、展示代际 | SessionEditing | 已迁移 |
+| LearningViewModel | 反馈与复习 DTO、操作回调与重试 | ReviewProjection、LearningOperations | 已迁移 |
 | Workspace | 导入编辑、文件预览、导入代际 | 导入协作者 | 待迁移 |
 | Workspace | 路由、侧栏、展开、编辑位置 | 导航协作者 | 待迁移 |
 | Workspace | 当前阅读、范围编辑、历史预览、搜索与文档身份 | 阅读协作者 | 待迁移 |
@@ -26,3 +26,5 @@ Qt 播放器、设备和计时器仍在语音库门面。模型服务沿用 View
 - 语音库：原相关回归 32 项通过，修正一个原来绕过目录所有者的试听夹具后，定向回归另 18 项通过；覆盖真实 QML 下载／测速／选用、并行队列取消重试、资源显示及快照／晚到结果／实际线程退出。Ruff 与 desktop/application F401 通过。测试与脚本补丁迁至实际工作模块，删除 OperationsMixin。
 
 最终离线、可见 Windows Mock、翻译／vendor、wheel 与隔离安装证据将在全部迁移后补齐。真实 AI、真人语音及 Windows 安装器未验收。
+
+- ViewModel 阶段：对话展示、文本／分轮语音与桌面主路径 56 项通过；操作身份、草稿／复盘不可变快照、原治理回归及工作区兼容共 24 项通过。sessionHistory 仅使用摘要，不再触发整库正文读取。workspace 通过 refresh_learning(ProjectionChange) 请求投影更新。

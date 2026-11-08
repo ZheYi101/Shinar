@@ -4,7 +4,11 @@ from dataclasses import replace
 
 from shinar.core import PracticeSession
 
-from shinar.desktop.presentation.conversation_presentation import ConversationEvent, ConversationSnapshot, PresentationToken
+from shinar.desktop.presentation.conversation_presentation import (
+    ConversationEvent,
+    ConversationSnapshot,
+    PresentationToken,
+)
 
 
 class ConversationViewMixin:
@@ -13,16 +17,12 @@ class ConversationViewMixin:
         return self._conversation.snapshot
 
     def new_presentation_token(self, task_id: str, turn_id: str = "") -> PresentationToken:
-        self._presentation_generation += 1
         session = self._workbench.session
-        return PresentationToken(
-            session.id if session else "", turn_id, self._presentation_generation,
-            self.draft_revision, task_id,
-        )
+        return self._editing.token(session.id if session else "", task_id, turn_id)
 
     def present_conversation(self, event: ConversationEvent) -> bool:
         """Reject obsolete work before projecting messages or touching the draft."""
-        if self._closed and event.kind != "invalidate":
+        if self._operations.snapshot.closed and event.kind != "invalidate":
             return False
         session = self._workbench.session
         session_id = session.id if session else ""
@@ -53,13 +53,22 @@ class ConversationViewMixin:
         return True
 
     def confirm_presentation(
-        self, token: PresentationToken, turn_id: str, session: PracticeSession,
+        self,
+        token: PresentationToken,
+        turn_id: str,
+        session: PracticeSession,
         sent_draft: tuple[int, str] | None,
     ) -> PresentationToken:
         confirmed = replace(token, turn_id=turn_id)
-        self.present_conversation(ConversationEvent(
-            "confirm", confirmed, session, sent_draft=sent_draft, history_changed=True,
-        ))
+        self.present_conversation(
+            ConversationEvent(
+                "confirm",
+                confirmed,
+                session,
+                sent_draft=sent_draft,
+                history_changed=True,
+            )
+        )
         return confirmed
 
     def _conversation_messages(self, session: PracticeSession | None) -> list[dict]:
@@ -69,16 +78,29 @@ class ConversationViewMixin:
         for message in session.messages:
             if message.role.value == "user":
                 turn_id = message.metadata.get("turn_id", "")
-            messages.append({
-                **self.voice.turn_details(message, turn_id),
-                "id": message.id, "role": message.role.value, "content": message.content,
-                "source": message.source_context.model_dump(mode="json")
-                if message.source_context else None,
-            })
+            messages.append(
+                {
+                    **self.voice.turn_details(message, turn_id),
+                    "id": message.id,
+                    "role": message.role.value,
+                    "content": message.content,
+                    "source": message.source_context.model_dump(mode="json")
+                    if message.source_context
+                    else None,
+                }
+            )
         return messages
 
     def _conversation_feedback(self, session: PracticeSession | None) -> None:
-        self._feedback_items = [
-            {"original": item.original, "corrected": item.corrected, "explanation": item.explanation}
-            for item in session.feedback_items
-        ] if session else []
+        self._reviews.feedback(
+            [
+                {
+                    "original": item.original,
+                    "corrected": item.corrected,
+                    "explanation": item.explanation,
+                }
+                for item in session.feedback_items
+            ]
+            if session
+            else []
+        )

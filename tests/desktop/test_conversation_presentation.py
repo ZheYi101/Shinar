@@ -9,6 +9,9 @@ from shinar.desktop.presentation.conversation_presentation import (
     ConversationEvent, ConversationPresentation, PresentationToken, display_value,
 )
 from shinar.desktop.presentation.conversation_view import ConversationViewMixin
+from shinar.desktop.presentation.editing import SessionEditing
+from shinar.desktop.presentation.review_projection import ReviewProjection
+from shinar.desktop.presentation.operations import LearningOperations
 
 
 
@@ -70,27 +73,27 @@ class SignalLog:
 class DisplayHarness(ConversationViewMixin):
     def __init__(self):
         self._conversation = ConversationPresentation()
-        self._presentation_generation = 0
-        self._closed = False
+        self._editing = SessionEditing()
+        self._reviews = ReviewProjection()
+        self._operations = LearningOperations()
         self._workbench = SimpleNamespace(
             session=SimpleNamespace(id="session", messages=[], feedback_items=[])
         )
-        self._draft, self._revision = "sent draft", 0
+        self._editing.draft("sent draft")
         for name in ("messagesChanged", "historyChanged", "messageSent", "uiChanged", "busyChanged"):
             setattr(self, name, SignalLog())
 
     @property
     def draft_revision(self):
-        return self._revision
+        return self._editing.snapshot.revision
 
     @property
     def draft(self):
-        return self._draft
+        return self._editing.snapshot.draft
 
     @draft.setter
     def draft(self, text):
-        self._revision += 1
-        self._draft = text
+        self._editing.draft(text)
 
     def restore_last_reply(self):
         pass
@@ -143,7 +146,7 @@ def test_history_switch_and_shutdown_invalidate_every_old_event():
     assert not view.present_conversation(ConversationEvent("complete", old))
     current = begin(view, "history-job")
     view.present_conversation(ConversationEvent("invalidate"))
-    view._closed = True
+    view._operations.close()
     before = view.presentation
     for kind in ("begin", "confirm", "complete", "delta", "error", "refresh", "status"):
         assert not view.present_conversation(ConversationEvent(kind, current))

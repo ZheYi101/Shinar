@@ -358,14 +358,18 @@ def test_background_preparation_does_not_move_composer_actions(desktop):
     vm, window, scaffold, provider, speech, audio, database = desktop
     load_and_start(vm, window)
     vm._preparation_timer.stop()
-    vm._preparation_state = "idle"
-    vm._response_timing = ""
+    from shinar.desktop.presentation.conversation_presentation import ConversationEvent
+    from unittest.mock import PropertyMock, patch
+    with patch.object(type(vm.workbench), "preparation_status", new_callable=PropertyMock, return_value="idle"):
+        vm._poll_preparation()
+    vm.present_conversation(ConversationEvent("timing", text=""))
     vm.uiChanged.emit()
     QTest.qWait(50)
     target = item(window, "recordButton")
     before = target.mapToScene(QPointF(target.width() / 2, target.height() / 2))
-    vm._preparation_state = "ready"
-    vm._response_timing = "首字 0.25 秒 · 完整回复 0.80 秒"
+    with patch.object(type(vm.workbench), "preparation_status", new_callable=PropertyMock, return_value="ready"):
+        vm._poll_preparation()
+    vm.present_conversation(ConversationEvent("timing", text="首字 0.25 秒 · 完整回复 0.80 秒"))
     vm.uiChanged.emit()
     QTest.qWait(50)
     assert target.mapToScene(QPointF(target.width() / 2, target.height() / 2)) == before
@@ -436,7 +440,7 @@ def test_partial_reading_is_explicit_and_optional_direction_only_fills_draft(des
         click(window, "sendMessageButton")
         until(lambda: not vm.busy)
     until(lambda: bool(vm.suggestedDirections))
-    until(lambda: vm._preparation_state == "ready")
+    until(lambda: vm.material_snapshot.preparation_state == "ready")
     QTest.qWait(50)
     assert item(window, "sendMessageButton").mapToScene(QPointF()) == send_position
     confirmed = len(vm.messages)

@@ -23,6 +23,7 @@ from shinar.core import (
 )
 from shinar.core.knowledge import TurnSourceSnapshot
 from shinar.core.reading_scope import paragraph_boundary, reading_end
+from shinar.desktop.presentation.operations import ProjectionChange
 from shinar.desktop.tasks.worker import AsyncWorker
 from shinar.desktop.shell.settings import ProductSettings
 from shinar.infrastructure.blocking_jobs import BlockingRequest, run_blocking
@@ -628,9 +629,7 @@ class DesktopWorkspaceController(QObject, ReaderWorkspaceMixin):
                 self._scope_import_material = ""
                 self._imported = None
                 self._import_text = self._import_title = ""
-            self.vm.materialChanged.emit()
-            self.vm.topicsChanged.emit()
-            self.vm.materialsChanged.emit()
+            self.vm.refresh_learning(ProjectionChange(scope=True))
             self.refresh()
             self.navigate("material")
 

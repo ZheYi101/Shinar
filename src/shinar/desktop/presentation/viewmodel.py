@@ -19,13 +19,23 @@ from shinar.core import (
 from shinar.core.reading_scope import paragraph_boundary
 from shinar.kernel import SessionStepResult
 from shinar.desktop.tasks.worker import AsyncWorker
-from shinar.desktop.presentation.conversation_presentation import ConversationEvent, ConversationPresentation
+from shinar.desktop.presentation.editing import SessionEditing
+from shinar.desktop.presentation.material_projection import MaterialProjection
+from shinar.desktop.presentation.review_projection import ReviewProjection
+from shinar.desktop.presentation.operations import LearningOperations, ProjectionChange
+from shinar.desktop.presentation.conversation_presentation import (
+    ConversationEvent,
+    ConversationPresentation,
+)
 from shinar.desktop.presentation.conversation_view import ConversationViewMixin
 from shinar.desktop.shell.preferences import DesktopPreferences
 from shinar.providers.speech import CompatibleSpeechProvider, SpeechSettings
 
 
-from shinar.desktop.presentation.properties import (LearningPropertiesMixin, topic_category_label as topic_category_label)
+from shinar.desktop.presentation.properties import (
+    LearningPropertiesMixin,
+    topic_category_label as topic_category_label,
+)
 
 AsyncOperation = Callable[[], Coroutine[Any, Any, Any]]
 
@@ -37,20 +47,41 @@ class LearningViewModel(QObject, LearningPropertiesMixin, ConversationViewMixin)
     the UI is not coupled to Pydantic or LangGraph implementation details.
     """
 
-
-
     workbench = property(lambda self: self._workbench)
     worker = property(lambda self: self._worker)
     audio = property(lambda self: self._audio)
     local_speech = property(lambda self: self._local_speech)
-    draft_revision = property(lambda self: self._draft_revision)
+    draft_revision = property(lambda self: self._editing.snapshot.revision)
+
+    @property
+    def editing_snapshot(self):
+        return self._editing.snapshot
+
+    @property
+    def material_snapshot(self):
+        return self._materials.snapshot
+
+    @property
+    def operation_snapshot(self):
+        return self._operations.snapshot
+
+    def refresh_learning(self, change: ProjectionChange) -> None:
+        if self._operations.snapshot.closed:
+            return
+        if change.material or change.scope:
+            self.materialChanged.emit()
+            self.materialsChanged.emit()
+            self.topicsChanged.emit()
+        if change.review:
+            self._after_review_changed()
+        self.uiChanged.emit()
 
     def speech_provider(self, task: str):
         return self._stt if task == "stt" else self._tts
 
     def remember_draft(self) -> None:
         if self._workbench.session:
-            self._session_drafts[self._workbench.session.id] = self.draft
+            self._editing.remember(self._workbench.session.id)
 
     def __init__(
         self,
@@ -64,26 +95,21 @@ class LearningViewModel(QObject, LearningPropertiesMixin, ConversationViewMixin)
     ) -> None:
         super().__init__()
         self._conversation = ConversationPresentation()
-        self._presentation_generation = 0
+        self._editing = SessionEditing()
+        self._materials = MaterialProjection(QCoreApplication.translate("Desktop", "全部"))
+        self._reviews = ReviewProjection()
+        self._operations = LearningOperations()
         self._workbench = workbench
         self._provider_label = getattr(workbench.provider, "display_label", provider_label)
-        self._busy = False
-        self._status = QCoreApplication.translate("Desktop", "就绪。当前模式：{value0}").format(
-            value0=self._provider_label
+        self._operations.status(
+            QCoreApplication.translate("Desktop", "就绪。当前模式：{value0}").format(
+                value0=self._provider_label
+            )
         )
-        self._feedback_items: list[dict[str, str]] = []
-        self._review_items: list[dict[str, str]] = []
         self._worker = AsyncWorker(self)
-        self._worker.completed.connect(
+        self._worker.jobCompleted.connect(
             self._operation_completed, Qt.ConnectionType.QueuedConnection
         )
-        self._on_success = None
-        self._retry_operation = None
-        self._closed = False
-        self._topic_filter = QCoreApplication.translate("Desktop", "全部")
-        self._topic_search = ""
-        self._preparation_state = "idle"
-        self._analysis_identity = None
         self._preparation_timer = QTimer(self)
         self._preparation_timer.setInterval(250)
         self._preparation_timer.timeout.connect(self._poll_preparation)
@@ -97,15 +123,7 @@ class LearningViewModel(QObject, LearningPropertiesMixin, ConversationViewMixin)
         self._preferences = (
             preferences if preferences is not None else DesktopPreferences(parent=self)
         )
-        self._draft = ""
-        self._session_drafts = {}
         self.source_context_provider = lambda: None
-        self._draft_revision = 0
-        self._selected_topic = ""
-        self._custom_topic = ""
-        self._practice_mode = "discussion"
-        self._role_description = ""
-        self._last_reply = ""
         self._stt = stt_provider
         self._tts = tts_provider
         self._local_speech = None
@@ -124,10 +142,15 @@ class LearningViewModel(QObject, LearningPropertiesMixin, ConversationViewMixin)
                                 "{value0} 未配置或配置无效，请检查 SHINAR_{value1}_*。",
                             ).format(value0=kind, value1=kind)
                         )
-        self._speech_status = "；".join(speech_notes) or (
-            QCoreApplication.translate("Desktop", "识别与合成服务已配置，实际可用性需连接验证。")
-            if self._stt and self._tts
-            else QCoreApplication.translate("Desktop", "Mock 离线模式：语音服务未启用。")
+        self._operations.speech_status(
+            "；".join(speech_notes)
+            or (
+                QCoreApplication.translate(
+                    "Desktop", "识别与合成服务已配置，实际可用性需连接验证。"
+                )
+                if self._stt and self._tts
+                else QCoreApplication.translate("Desktop", "Mock 离线模式：语音服务未启用。")
+            )
         )
         self._audio = audio_controller
         if self._audio is None and QCoreApplication.instance() is not None:
@@ -138,26 +161,25 @@ class LearningViewModel(QObject, LearningPropertiesMixin, ConversationViewMixin)
 
         self.voice = DesktopVoiceController(self)
         if workbench.session and workbench.session.topic:
-            self._selected_topic = workbench.session.topic.id
+            self._materials.topic(workbench.session.topic.id)
         self.refresh_session_state()
         self.restore_last_reply()
         self._refresh_review_items()
-
 
     @Slot(str)
     def selectSession(self, session_id):
         if self.busy:
             return
         if self._workbench.session:
-            self._session_drafts[self._workbench.session.id] = self._draft
+            self._editing.remember(self._workbench.session.id)
         try:
             session = self._workbench.select_session(session_id)
         except ValueError as exc:
             self.report_error(str(exc))
             return
         self._clear_audio()
-        self._selected_topic = session.topic.id if session.topic else ""
-        self._draft = self._session_drafts.get(session.id, "")
+        self._materials.topic(session.topic.id if session.topic else "")
+        self._editing.restore(session.id)
         self.refresh_session_state()
         self.restore_last_reply()
         self._refresh_review_items()
@@ -169,11 +191,9 @@ class LearningViewModel(QObject, LearningPropertiesMixin, ConversationViewMixin)
         self.historyChanged.emit()
         self.uiChanged.emit()
 
-
     @Property(QObject, constant=True)
     def voiceController(self):
         return self.voice
-
 
     @Slot(str)
     def sendMessage(self, content: str) -> None:
@@ -199,7 +219,9 @@ class LearningViewModel(QObject, LearningPropertiesMixin, ConversationViewMixin)
             return
         self.run_operation(
             QCoreApplication.translate("Desktop", "正在保存复习结果..."),
-            lambda: self._workbench.record_review_outcome(review_id, review_rating, answer or None),
+            lambda workbench=self._workbench: workbench.record_review_outcome(
+                review_id, review_rating, answer or None
+            ),
             lambda _outcome: self._after_review_changed(),
         )
 
@@ -212,7 +234,9 @@ class LearningViewModel(QObject, LearningPropertiesMixin, ConversationViewMixin)
             return
         self.run_operation(
             QCoreApplication.translate("Desktop", "正在更新复习项..."),
-            lambda: self._workbench.update_review_status(review_id, review_status),
+            lambda workbench=self._workbench: workbench.update_review_status(
+                review_id, review_status
+            ),
             lambda _result: self._after_review_changed(),
         )
 
@@ -227,11 +251,11 @@ class LearningViewModel(QObject, LearningPropertiesMixin, ConversationViewMixin)
         except Exception as exc:  # noqa: BLE001 - forwarded to UI
             self.errorOccurred.emit(str(exc))
             return
-        self._selected_topic = ""
-        self._custom_topic = ""
-        self._topic_filter = QCoreApplication.translate("Desktop", "全部")
-        self._topic_search = ""
-        self._draft = ""
+        self._materials.topic("")
+        self._materials.custom("")
+        self._materials.filter(QCoreApplication.translate("Desktop", "全部"))
+        self._materials.search("")
+        self._editing.draft("")
         self.refresh_session_state()
         self.restore_last_reply()
         self._refresh_review_items()
@@ -253,7 +277,7 @@ class LearningViewModel(QObject, LearningPropertiesMixin, ConversationViewMixin)
             return
         self.run_operation(
             QCoreApplication.translate("Desktop", "正在导出会话..."),
-            lambda: self._workbench.export_json(path),
+            lambda workbench=self._workbench: workbench.export_json(path),
             lambda exported: self._set_status(
                 QCoreApplication.translate("Desktop", "已导出到 {value0}").format(value0=exported)
             ),
@@ -265,14 +289,14 @@ class LearningViewModel(QObject, LearningPropertiesMixin, ConversationViewMixin)
             self.errorOccurred.emit(QCoreApplication.translate("Desktop", "当前还有操作正在运行。"))
             return
         self._clear_audio()
-        self._draft = ""
-        self._selected_topic = ""
-        self._custom_topic = ""
+        self._editing.draft("")
+        self._materials.topic("")
+        self._materials.custom("")
         self._workbench.reset()
         self.historyChanged.emit()
         self.refresh_session_state()
-        self._feedback_items = []
-        self._review_items = []
+        self._reviews.feedback([])
+        self._reviews.reviews([])
         self._set_status(
             QCoreApplication.translate("Desktop", "状态已重置。当前模式：{value0}").format(
                 value0=self._provider_label
@@ -294,29 +318,34 @@ class LearningViewModel(QObject, LearningPropertiesMixin, ConversationViewMixin)
         if self.busy:
             self.errorOccurred.emit(QCoreApplication.translate("Desktop", "当前还有操作正在运行。"))
             return
-        self._busy = True
+        identity = self._operations.start(
+            status,
+            operation,
+            on_success,
+            self._workbench.session.id if self._workbench.session else "",
+            self._workbench.material.id if self._workbench.material else "",
+        )
+        if identity is None:
+            return
         self.busyChanged.emit()
-        self._set_status(status)
-
-        self._on_success = on_success
-        self._retry_operation = (status, operation, on_success)
+        self.statusChanged.emit()
         self.present_conversation(ConversationEvent("error"))
         self.uiChanged.emit()
         try:
-            self._worker.submit(operation)
+            self._worker.submit_job(identity.task, operation)
         except RuntimeError:
             self._operation_completed(
+                identity.task,
                 None,
                 QCoreApplication.translate("Desktop", "后台任务启动失败，请重试或重新启动应用。"),
             )
 
-    @Slot(object, str)
-    def _operation_completed(self, result, error):
-        if self._closed:
+    @Slot(str, object, str)
+    def _operation_completed(self, task, result, error):
+        accepted, callback = self._operations.complete(task, error)
+        if not accepted:
             return
-        callback = self._on_success
-        self._on_success = None
-        self._busy = False
+        self._worker.forget_job(task)
         self.busyChanged.emit()
         if error:
             self.present_conversation(ConversationEvent("invalidate"))
@@ -327,7 +356,6 @@ class LearningViewModel(QObject, LearningPropertiesMixin, ConversationViewMixin)
             self.topicsChanged.emit()
         elif callback is not None:
             self.present_conversation(ConversationEvent("error"))
-            self._retry_operation = None
             callback(result)
         self.uiChanged.emit()
 
@@ -339,9 +367,9 @@ class LearningViewModel(QObject, LearningPropertiesMixin, ConversationViewMixin)
 
     def _after_material_loaded(self, _material: Any) -> None:
         self.refresh_session_state()
-        self._selected_topic = ""
-        self._topic_filter = QCoreApplication.translate("Desktop", "全部")
-        self._topic_search = ""
+        self._materials.topic("")
+        self._materials.filter(QCoreApplication.translate("Desktop", "全部"))
+        self._materials.search("")
         self._refresh_review_items()
         self.materialChanged.emit()
         self.sessionChanged.emit()
@@ -365,13 +393,15 @@ class LearningViewModel(QObject, LearningPropertiesMixin, ConversationViewMixin)
         self.reviewReady.emit()
 
     def restore_last_reply(self):
-        self._last_reply = next(
-            (
-                message["content"]
-                for message in reversed(self.presentation.messages)
-                if message["role"] == "assistant"
-            ),
-            "",
+        self._editing.reply(
+            next(
+                (
+                    message["content"]
+                    for message in reversed(self.presentation.messages)
+                    if message["role"] == "assistant"
+                ),
+                "",
+            )
         )
 
     def _after_session_changed(self, result: SessionStepResult) -> None:
@@ -392,27 +422,24 @@ class LearningViewModel(QObject, LearningPropertiesMixin, ConversationViewMixin)
         self._set_status(QCoreApplication.translate("Desktop", "复习结果已保存。"))
 
     def _refresh_review_items(self) -> None:
-        self._review_items = self._review_dtos(self._workbench.review_queue)
-
+        self._reviews.reviews(self._review_dtos(self._workbench.review_queue))
 
     def _set_status(self, value: str) -> None:
-        self._status = value
+        self._operations.status(value)
         self.statusChanged.emit()
-
 
     @Slot()
     def _poll_preparation(self):
         state = getattr(self._workbench, "preparation_status", "idle")
-        if state != self._preparation_state:
-            self._preparation_state = state
+        if state != self._materials.snapshot.preparation_state:
+            self._materials.preparation(state)
             self.uiChanged.emit()
         material = self._workbench.material
         identity = (material.id, id(material.analysis)) if material else None
-        if identity != self._analysis_identity:
-            self._analysis_identity = identity
+        if identity != self._materials.snapshot.analysis_identity:
+            self._materials.analysis(identity)
             self.materialChanged.emit()
             self.topicsChanged.emit()
-
 
     def configure_local_speech(self, library):
         self._local_speech = library.local_service
@@ -428,14 +455,13 @@ class LearningViewModel(QObject, LearningPropertiesMixin, ConversationViewMixin)
 
     @Slot(str)
     def _local_speech_status(self, value):
-        self._speech_status = value
+        self._operations.speech_status(value)
         self.uiChanged.emit()
 
     def speech_available(self, task):
         return bool(
             (self._local_speech and self._local_speech.enabled(task)) or getattr(self, "_" + task)
         )
-
 
     def speech_language(self):
         session = self._workbench.session
@@ -464,7 +490,6 @@ class LearningViewModel(QObject, LearningPropertiesMixin, ConversationViewMixin)
         method = provider.transcribe if task == "stt" else provider.synthesize
         return lambda: method(content)
 
-
     @Slot(int)
     def confirmReadingPercent(self, percent):
         if self.busy or not self._workbench.material:
@@ -488,8 +513,8 @@ class LearningViewModel(QObject, LearningPropertiesMixin, ConversationViewMixin)
         self._confirm_scope(text.index(passage) + len(passage))
 
     def _confirm_scope(self, end):
-        async def operation():
-            return self._workbench.set_reading_scope(end)
+        async def operation(workbench=self._workbench):
+            return workbench.set_reading_scope(end)
 
         self.run_operation(
             QCoreApplication.translate("Desktop", "正在建立本地引用…"),
@@ -497,20 +522,18 @@ class LearningViewModel(QObject, LearningPropertiesMixin, ConversationViewMixin)
             self._after_material_loaded,
         )
 
-
     @Slot()
     def resumeMaterialPreparation(self):
-        if not self._busy:
+        if not self._operations.snapshot.busy:
 
-            async def operation():
-                return self._workbench.resume_material_preparation()
+            async def operation(workbench=self._workbench):
+                return workbench.resume_material_preparation()
 
             self.run_operation(
                 QCoreApplication.translate("Desktop", "正在继续基础理解…"),
                 operation,
                 self._after_material_loaded,
             )
-
 
     @Slot(str)
     def useDirection(self, direction):
@@ -521,8 +544,8 @@ class LearningViewModel(QObject, LearningPropertiesMixin, ConversationViewMixin)
     def selectTopic(self, topic_id):
         if self.busy:
             return
-        self._selected_topic = topic_id
-        self._custom_topic = ""
+        self._materials.topic(topic_id)
+        self._materials.custom("")
         self.uiChanged.emit()
 
     @Slot()
@@ -530,7 +553,7 @@ class LearningViewModel(QObject, LearningPropertiesMixin, ConversationViewMixin)
         profile = self.selected_profile()
         self.run_operation(
             QCoreApplication.translate("Desktop", "正在重新分析..."),
-            lambda: self._workbench.analyze_current_material(profile=profile),
+            lambda workbench=self._workbench: workbench.analyze_current_material(profile=profile),
             self._after_material_loaded,
         )
 
@@ -545,11 +568,11 @@ class LearningViewModel(QObject, LearningPropertiesMixin, ConversationViewMixin)
     def retryOperation(self):
         if self.busy:
             return
-        if self._retry_operation:
+        if self._operations.retry:
             if self._workbench.material and self._workbench.material.analysis is None:
                 self.reanalyze()
             else:
-                self.run_operation(*self._retry_operation)
+                self.run_operation(*self._operations.retry)
 
     @Slot()
     def dismissError(self):
@@ -557,15 +580,15 @@ class LearningViewModel(QObject, LearningPropertiesMixin, ConversationViewMixin)
         self.uiChanged.emit()
 
     def after_started(self, result):
-        self._draft = self._custom_topic.strip()
-        self._custom_topic = ""
+        self._editing.draft(self._materials.snapshot.custom_topic.strip())
+        self._materials.custom("")
         if result.session.topic:
-            self._selected_topic = result.session.topic.id
+            self._materials.topic(result.session.topic.id)
         self.topicsChanged.emit()
         self.materialChanged.emit()
         self.uiChanged.emit()
         self._after_session_changed(result)
-        self._last_reply = result.assistant_message.content if result.assistant_message else ""
+        self._editing.reply(result.assistant_message.content if result.assistant_message else "")
         self.practiceStarted.emit()
         if self.preferences.autoReadReplies and self.speech_available("tts"):
             self.speakReply()
@@ -611,14 +634,14 @@ class LearningViewModel(QObject, LearningPropertiesMixin, ConversationViewMixin)
         self.voice.reset()
         if self._audio:
             self._audio.clear()
-        self._last_reply = ""
-        self._retry_operation = None
+        self._editing.reply("")
+        self._operations.clear_retry()
         self.uiChanged.emit()
 
     def begin_shutdown(self):
-        if not self._closed:
+        if not self._operations.snapshot.closed:
             self.present_conversation(ConversationEvent("invalidate"))
-            self._closed = True
+            self._operations.close()
             self.voice.close()
             self._preparation_timer.stop()
 
@@ -643,7 +666,7 @@ class LearningViewModel(QObject, LearningPropertiesMixin, ConversationViewMixin)
     @Slot()
     def close(self):
         self.begin_shutdown()
-        self._worker.close(lambda: self._workbench.aclose())
+        self._worker.close(lambda workbench=self._workbench: workbench.aclose())
         self.finish_shutdown()
 
 

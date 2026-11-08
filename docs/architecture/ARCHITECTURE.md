@@ -110,7 +110,7 @@ Qt 控件、WebEngine profile 和音频对象属于主线程。网络与准备�
 
 对话展示事件固定为开始、确认、增量、完成、失败、打断、结算、刷新、失效、转写预览、录音时长、耗时、错误和状态通知；不引入通用事件总线。`PresentationToken` 携带会话、轮次、任务标识、门面单调代际和草稿版本。传输层先校验原任务／通话身份，再在主线程生成展示事件，后台回调不得读取新任务身份来标记旧结果。确认只允许同一任务绑定一次轮次；完成／失败／打断后拒绝继续追加，结算通知幂等。历史切换、重试与退出使旧事件失效；无 token 的刷新只用于门面当前同步状态和恢复轮询。
 
-草稿仍由 ViewModel 管理；确认事件仅在已发送文本和版本均匹配时清稿。编辑新草稿不使当前有效回复失效。展示入口从 Workbench 会话快照生成历史投影，不提交消息或保存半段流；数据库、来源索引和历史 payload 保持不变。
+草稿由普通 Python SessionEditing 独占，材料／话题及准备观察由 MaterialProjection 管理，反馈／复习 DTO 由 ReviewProjection 管理。LearningPropertiesMixin 只读取快照或委托命令；ConversationViewMixin 只适配统一展示入口。LearningOperations 使用原任务 ID 接收业务结果、管理重试并在退出时失效；工作区通过 refresh_learning(ProjectionChange) 请求门面发送投影通知。Workbench 仍独占会话及持久化写入，历史投影仅读摘要。确认事件仅在已发送文本和版本均匹配时清稿。编辑新草稿不使当前有效回复失效。展示入口从 Workbench 会话快照生成历史投影，不提交消息或保存半段流；数据库、来源索引和历史 payload 保持不变。
 
 SQLite 不跨线程共享 connection。重模型和 RTC／DSP 使用既有独立进程边界；阅读器沿用 Qt 管理的 Chromium 进程。新能力不自行添加本地 HTTP 服务、第二套 event loop 或无界任务池。
 

@@ -18,13 +18,27 @@ class PresentationToken:
 
     def same_operation(self, other: "PresentationToken") -> bool:
         return (self.session_id, self.task_id, self.generation) == (
-            other.session_id, other.task_id, other.generation
+            other.session_id,
+            other.task_id,
+            other.generation,
         )
 
 
 EventKind = Literal[
-    "begin", "confirm", "delta", "complete", "fail", "interrupt", "settled",
-    "refresh", "invalidate", "preview", "recording", "timing", "error", "status",
+    "begin",
+    "confirm",
+    "delta",
+    "complete",
+    "fail",
+    "interrupt",
+    "settled",
+    "refresh",
+    "invalidate",
+    "preview",
+    "recording",
+    "timing",
+    "error",
+    "status",
 ]
 
 
@@ -90,7 +104,9 @@ class ConversationPresentation:
             return False
         if event.kind == "confirm":
             return (
-                not self._text_done and not self._confirmed and current.same_operation(token)
+                not self._text_done
+                and not self._confirmed
+                and current.same_operation(token)
                 and (not current.turn_id or current.turn_id == token.turn_id)
             )
         if token != current:
@@ -107,8 +123,14 @@ class ConversationPresentation:
             self._generation = event.token.generation
             self._text_done = self._settled = False
             self._confirmed = False
-            changes.update(token=event.token, streaming_text="", pending_user_text="",
-                           response_timing="", recording_seconds=0, error="")
+            changes.update(
+                token=event.token,
+                streaming_text="",
+                pending_user_text="",
+                response_timing="",
+                recording_seconds=0,
+                error="",
+            )
         elif event.kind == "confirm":
             self._confirmed = True
             changes.update(token=event.token, streaming_text="", pending_user_text="")
