@@ -1296,7 +1296,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../voice/continuous/coordinator.py" line="+682"/>
+        <location filename="../voice/continuous/coordinator.py" line="+683"/>
         <location line="+44"/>
         <location filename="../voice/turns.py" line="+3"/>
         <location line="+20"/>
@@ -1381,7 +1381,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../voice/continuous/controller.py" line="+244"/>
+        <location filename="../voice/continuous/controller.py" line="+248"/>
         <source>未启用自动朗读；识别后的发言仍会发送。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1448,12 +1448,12 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-53"/>
+        <location line="-54"/>
         <source>麦克风权限未开启，请允许此应用使用麦克风，再重新开始语音。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+89"/>
+        <location line="+90"/>
         <source>音频设备不可用，请选择麦克风和播放设备后重试。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1580,7 +1580,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../tasks/preparation_progress.py" line="+54"/>
+        <location filename="../tasks/preparation_progress.py" line="+61"/>
         <source>已取消，已下载部分保留，可继续。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1645,7 +1645,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../tasks/preparation_progress.py" line="-61"/>
+        <location filename="../tasks/preparation_progress.py" line="-62"/>
         <source>下载</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1670,12 +1670,12 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-8"/>
+        <location line="-12"/>
         <source>准备独立 Python 与安装工具</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+3"/>
         <source>准备词典与共享资源</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1705,7 +1705,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+3"/>
         <source>准备模型文件</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1715,7 +1715,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <source>%1 / %2 KiB</source>
         <translation type="unfinished"></translation>
     </message>

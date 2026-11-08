@@ -104,8 +104,11 @@ def test_qml_recognition_failure_retries_while_muted_without_duplicate(
     until(lambda: call.canRetryInput)
     assert call.muted and provider.reply_calls == 0
     click(window, "retryContinuousInput")
-    until(lambda: provider.reply_calls == 1 and vm.messages[-1]["role"] == "assistant")
-    assert len(vm.messages) == 3
+    # The provider counter changes in the worker before queued UI confirmation.
+    # Wait for the new completed projection, rather than the opening assistant.
+    until(lambda: len(vm.messages) == 3 and call.replyState == "idle"
+          and len(vm.workbench.session.messages) == 3)
+    assert provider.reply_calls == 1 and len(vm.messages) == 3
     click(window, "continuousVoiceButton")
     until(lambda: not vm.busy)
 
