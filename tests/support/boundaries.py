@@ -16,6 +16,15 @@ class PrivateAccess(ast.NodeVisitor):
     def __init__(self):
         self.aliases = set()
         self.violations = set()
+        self.types = {}
+
+    def typed(self, annotation):
+        if annotation is None:
+            return False
+        return collaborator_type(annotation) or any(
+            collaborator_type(ast.Name(id=self.types.get(node.id, "")))
+            for node in ast.walk(annotation) if isinstance(node, ast.Name)
+        )
 
     def foreign(self, value):
         key = ast.unparse(value)
@@ -27,14 +36,14 @@ class PrivateAccess(ast.NodeVisitor):
             return (isinstance(value.value, ast.Name) and value.value.id == "self"
                     and value.attr.lstrip("_") in ROLES) or self.foreign(value.value)
         if isinstance(value, ast.Call):
-            return collaborator_type(value.func)
+            return self.typed(value.func)
         return False
 
     def bind(self, target, value, annotation=None):
         if isinstance(target, (ast.Tuple, ast.List)) and isinstance(value, (ast.Tuple, ast.List)):
             for left, right in zip(target.elts, value.elts):
                 self.bind(left, right)
-        elif self.foreign(value) or collaborator_type(annotation):
+        elif self.foreign(value) or self.typed(annotation):
             self.aliases.add(ast.unparse(target))
         else:
             self.aliases.discard(ast.unparse(target))
@@ -47,14 +56,14 @@ class PrivateAccess(ast.NodeVisitor):
     def visit_AnnAssign(self, node):
         if node.value:
             self.bind(node.target, node.value, node.annotation)
-        elif collaborator_type(node.annotation):
+        elif self.typed(node.annotation):
             self.aliases.add(ast.unparse(node.target))
         self.generic_visit(node)
 
     def visit_FunctionDef(self, node):
         before = set(self.aliases)
         for argument in [*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs]:
-            if collaborator_type(argument.annotation):
+            if self.typed(argument.annotation):
                 self.aliases.add(argument.arg)
         self.generic_visit(node)
         # Attribute aliases initialized by a constructor belong to the class.
@@ -82,6 +91,8 @@ class PrivateAccess(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_ImportFrom(self, node):
+        for alias in node.names:
+            self.types[alias.asname or alias.name] = alias.name
         if node.level or (node.module or "").startswith("shinar.desktop"):
             for alias in node.names:
                 if alias.name.startswith("_"):
@@ -104,9 +115,10 @@ class RuntimeImports(ast.NodeVisitor):
     def __init__(self, package):
         self.package = package
         self.imports = set()
+        self.type_guards = {"TYPE_CHECKING", "typing.TYPE_CHECKING"}
 
     def visit_If(self, node):
-        if ast.unparse(node.test) in {"TYPE_CHECKING", "typing.TYPE_CHECKING"}:
+        if ast.unparse(node.test) in self.type_guards:
             for child in node.orelse:
                 self.visit(child)
         else:
@@ -114,8 +126,13 @@ class RuntimeImports(ast.NodeVisitor):
 
     def visit_Import(self, node):
         self.imports.update(alias.name for alias in node.names)
+        for alias in node.names:
+            if alias.name == "typing":
+                self.type_guards.add((alias.asname or alias.name) + ".TYPE_CHECKING")
 
     def visit_ImportFrom(self, node):
+        if node.module == "typing":
+            self.type_guards.update(alias.asname or alias.name for alias in node.names if alias.name == "TYPE_CHECKING")
         base = self.package
         if node.level:
             base = ".".join(base.split(".")[:len(base.split(".")) - node.level + 1])

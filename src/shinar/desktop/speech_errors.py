@@ -9,6 +9,35 @@ def safe_speech_code(error: Exception) -> str:
     return code if re.fullmatch(r"speech_[a-z_]+", code) else "speech_service_failed"
 
 
+def call_device_error(code: str) -> str:
+    messages = {
+        "output_overflow": QCoreApplication.translate(
+            "Desktop", "待播音频超出容量，已停止朗读；静音麦克风后可重试，文字回复继续。"
+        ),
+        "audio_output_failed": QCoreApplication.translate(
+            "Desktop", "播放设备未能输出声音；静音麦克风后可重试朗读，文字回复继续。"
+        ),
+        "input_gap": QCoreApplication.translate(
+            "Desktop", "麦克风音频传输中断，已暂停监听并丢弃未发送的语音；请恢复监听后重说。"
+        ),
+        "input_limit": QCoreApplication.translate(
+            "Desktop", "当前语音达到长度上限，已暂停监听；请缩短发言后恢复监听。"
+        ),
+        "audio_devices_changed": QCoreApplication.translate(
+            "Desktop", "所选音频设备已移除或改变，请在音频设置中重新选择，再恢复监听。"
+        ),
+        "microphone_failed": QCoreApplication.translate(
+            "Desktop", "麦克风无法采集声音，请检查系统麦克风权限和所选设备，再恢复监听。"
+        ),
+    }
+    return messages.get(
+        code,
+        QCoreApplication.translate(
+            "Desktop", "语音处理异常，已暂停监听；请恢复监听后重试，文字仍可使用。"
+        ),
+    )
+
+
 def speech_error_text(code: str, task: str, language: str) -> str:
     languages = {
         "en": QCoreApplication.translate("Desktop", "英语"),
@@ -49,7 +78,8 @@ def speech_error_text(code: str, task: str, language: str) -> str:
     if code == "speech_model_verification_failed":
         return (
             QCoreApplication.translate(
-                "Desktop", "%1的%2模型自检未通过，请检查模型与运行环境后重试；检查内容未发送到学习对话。"
+                "Desktop",
+                "%1的%2模型自检未通过，请检查模型与运行环境后重试；检查内容未发送到学习对话。",
             )
             .replace("%1", name)
             .replace("%2", kind)

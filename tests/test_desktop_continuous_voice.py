@@ -1,5 +1,7 @@
 """Real QML interaction with synthetic PCM/RTC; never evidence of physical speech."""
 
+from shinar.desktop.call_state import CallEvent
+
 import asyncio
 from threading import Event
 from types import SimpleNamespace
@@ -121,10 +123,14 @@ class SyntheticRtc:
 
 
 def configure(vm, monkeypatch, tmp_path):
-    import shinar.desktop.continuous_voice as module
+    import shinar.desktop.call_runtime as module
 
     monkeypatch.setattr(module, "managed_status", lambda *args: {"prepared": True})
-    monkeypatch.setattr(module, "prepared_assets", lambda *args: True)
+    import shinar.desktop.call_preparation as preparation
+    import shinar.desktop.call_work as work
+    monkeypatch.setattr(preparation, "managed_status", lambda *args: {"prepared": True})
+    monkeypatch.setattr(preparation, "prepared_assets", lambda *args: True)
+    monkeypatch.setattr(work, "vad_path", lambda *args, **kwargs: tmp_path / "vad.onnx")
     monkeypatch.setattr(module, "vad_path", lambda *args, **kwargs: tmp_path / "vad.onnx")
     (tmp_path / "vad.onnx").touch()
     from shinar.realtime.local_server import ARCHIVE_NAME
@@ -192,7 +198,7 @@ def test_qml_barge_in_cancels_old_reply_and_rejects_late_audio(desktop, monkeypa
     provider.stream_reply = stream
     speak(call, "one")
     until(lambda: entered.is_set() and call.bridge.frames)
-    old_generation = call._audio_generation
+    old_generation = call.snapshot.audio_generation
     first_turn = vm.messages[-1]["turnId"]
     vm.draft = "Still my next draft."
     speak(call, "two")
@@ -276,10 +282,10 @@ def test_playback_failure_keeps_generating_text_and_new_draft(desktop, monkeypat
 def test_old_microphone_generation_cannot_submit_after_mute_resume(desktop, monkeypatch, tmp_path):
     vm, window, _, provider, speech, audio, _ = desktop
     call = begin(vm, window, monkeypatch, tmp_path)
-    generation = call._mic_generation
+    generation = call.snapshot.mic_generation
     click(window, "muteMicrophoneButton")
     click(window, "muteMicrophoneButton")
-    until(lambda: not call.muted and call._mic_generation > generation)
+    until(lambda: not call.muted and call.snapshot.mic_generation > generation)
     call.process.event("input_started", utterance="old", revision=1, mic_generation=generation)
     call.process.event(
         "utterance", pcm_wav(), utterance="old", revision=1, mic_generation=generation
@@ -337,12 +343,12 @@ def test_pause_during_recognition_keeps_audio_and_text_send_does_not_discard_it(
     click(window, "muteMicrophoneButton")
     until(lambda: call.canSendPausedInput)
     assert provider.reply_calls == 0 and len(vm.messages) == 1
-    assert call._retained[0]["utterance"] == "pending"
+    assert call.snapshot.retained_utterance == "pending"
     speech.transcribe = original
     vm.draft = "A separate typed message."
     click(window, "sendMessageButton")
     until(lambda: provider.reply_calls == 1 and vm.messages[-1]["role"] == "assistant")
-    assert call.canSendPausedInput and call._retained[0]["utterance"] == "pending"
+    assert call.canSendPausedInput and call.snapshot.retained_utterance == "pending"
     click(window, "sendPausedInputButton")
     until(lambda: len(vm.messages) == 5 and vm.messages[-1]["role"] == "assistant")
     assert len(vm.messages) == 5 and not call.hasPendingInput and call.muted
@@ -356,11 +362,11 @@ def test_explicit_discard_keeps_microphone_paused_and_rejects_late_snapshot(
     call.process.paused_audio = ({"utterance": "noise", "revision": 1}, pcm_wav())
     click(window, "muteMicrophoneButton")
     until(lambda: call.canSendPausedInput)
-    old_pause = call._pause_id
+    old_pause = call.snapshot.pause_id
     click(window, "discardContinuousInput")
     until(lambda: not call.microphoneBusy)
     call.process.event("input_paused", pcm_wav(), utterance="noise", revision=2,
-                       pause_id=old_pause, mic_generation=call._mic_generation)
+                       pause_id=old_pause, mic_generation=call.snapshot.mic_generation)
     QTest.qWait(50)
     assert not call.hasPendingInput and call.muted and not call.bridge.recording
     assert len(vm.messages) == 1 and provider.reply_calls == 0 and speech.transcriptions == 0
@@ -396,7 +402,7 @@ def test_pausing_microphone_keeps_the_confirmed_reply_running(desktop, monkeypat
 def test_pcm_frames_do_not_refresh_hidden_settings_or_reopen_failed_output(
     desktop, monkeypatch, tmp_path
 ):
-    import shinar.desktop.continuous_voice_presentation as module
+    import shinar.desktop.call_preparation as module
 
     vm, window, *_ = desktop
     call = begin(vm, window, monkeypatch, tmp_path)
@@ -412,24 +418,17 @@ def test_pcm_frames_do_not_refresh_hidden_settings_or_reopen_failed_output(
     plans.clear()
     changes = []
     call.changed.connect(lambda: changes.append(call.outputState))
-    call._audio_generation = "test-output"
-    call.bridge.begin_output("test-output")
+    call.receive_event(CallEvent(call.snapshot.identity, "output_begin", 0, "test-output"))
+    changes.clear()
     for _ in range(100):
-        call._event(
-            call._id,
-            "transport",
-            0,
-            ({"kind": "playback", "generation": "test-output"}, b"\0" * 1920),
-        )
+        call.receive_event(CallEvent(call.snapshot.identity, "transport", 0, ({"kind": "playback", "generation": "test-output"}, b"\0" * 1920)))
     assert len(call.bridge.frames) == 100 and changes == ["playing"]
     assert not plans
     call.componentsChanged.emit()
     assert len(plans) == 1
     call.stop_speech()
     changes.clear()
-    call._event(
-        call._id, "transport", 0, ({"kind": "playback", "generation": "test-output"}, b"stale")
-    )
+    call.receive_event(CallEvent(call.snapshot.identity, "transport", 0, ({"kind": "playback", "generation": "test-output"}, b"stale")))
     assert call.outputState == "idle" and not changes
     click(window, "continuousVoiceButton")
     until(lambda: not vm.busy)
@@ -438,7 +437,7 @@ def test_pcm_frames_do_not_refresh_hidden_settings_or_reopen_failed_output(
 def test_permission_denial_does_not_connect_and_late_grant_cannot_start_after_stop(
     desktop, monkeypatch, tmp_path
 ):
-    import shinar.desktop.continuous_voice as module
+    import shinar.desktop.call_runtime as module
 
     vm, window, *_ = desktop
     load_and_start(vm, window)
@@ -469,7 +468,7 @@ def test_permission_denial_does_not_connect_and_late_grant_cannot_start_after_st
 
 
 def test_permission_grant_connects_once_and_faults_are_actionable(desktop, monkeypatch, tmp_path):
-    import shinar.desktop.continuous_voice as module
+    import shinar.desktop.call_runtime as module
 
     vm, window, *_ = desktop
     load_and_start(vm, window)
@@ -515,7 +514,7 @@ def test_finished_reading_rejects_late_frames_before_next_user_utterance(
     )
     generation = call.process.generation
     frames = len(call.bridge.frames)
-    assert not call._audio_generation and not call.bridge.generation
+    assert not call.snapshot.audio_generation and not call.bridge.generation
     for _ in range(50):
         call.process.event("playback", b"late silence", generation=generation)
     QTest.qWait(50)

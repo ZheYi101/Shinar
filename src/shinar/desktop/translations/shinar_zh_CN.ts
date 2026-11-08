@@ -402,7 +402,7 @@
 <context>
     <name>Desktop</name>
     <message>
-        <location filename="../workspace.py" line="+197"/>
+        <location filename="../workspace.py" line="+198"/>
         <source>已整理</source>
         <translation type="unfinished"></translation>
     </message>
@@ -437,49 +437,49 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+14"/>
-        <location filename="../speech_errors.py" line="+15"/>
         <location filename="../learning_presentation.py" line="+129"/>
+        <location filename="../speech_errors.py" line="+44"/>
+        <location filename="../workspace.py" line="+14"/>
         <source>日语</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
         <location filename="../speech_errors.py" line="-1"/>
-        <location filename="../learning_presentation.py" line="+1"/>
+        <location filename="../workspace.py" line="+1"/>
         <source>英语</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
         <location filename="../speech_errors.py" line="+2"/>
-        <location filename="../learning_presentation.py" line="+1"/>
+        <location filename="../workspace.py" line="+1"/>
         <source>中文</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
         <location filename="../speech_errors.py" line="+2"/>
-        <location filename="../learning_presentation.py" line="+1"/>
+        <location filename="../workspace.py" line="+1"/>
         <source>法语</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
         <location filename="../speech_errors.py" line="+1"/>
-        <location filename="../learning_presentation.py" line="+1"/>
+        <location filename="../workspace.py" line="+1"/>
         <source>德语</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
         <location filename="../speech_errors.py" line="+1"/>
-        <location filename="../learning_presentation.py" line="+1"/>
+        <location filename="../workspace.py" line="+1"/>
         <source>西班牙语</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location filename="../workspace.py" line="+5"/>
         <source>范围未确认</source>
         <translation type="unfinished"></translation>
     </message>
@@ -545,16 +545,16 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+12"/>
-        <location line="+149"/>
-        <location line="+111"/>
         <location filename="../learning_presentation.py" line="+327"/>
         <location line="+19"/>
+        <location filename="../viewmodel.py" line="+12"/>
+        <location line="+149"/>
+        <location line="+111"/>
         <source>全部</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-221"/>
+        <location filename="../viewmodel.py" line="-221"/>
         <source>{value0} 未配置或配置无效，请检查 SHINAR_{value1}_*。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1236,7 +1236,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../voice.py" line="+172"/>
+        <location filename="../voice.py" line="+147"/>
         <source>正在录音 · 结束后自动发送</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1296,15 +1296,15 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location filename="../call_coordinator.py" line="+689"/>
+        <location line="+44"/>
+        <location filename="../voice.py" line="+3"/>
         <location line="+20"/>
-        <location filename="../continuous_voice_presentation.py" line="+528"/>
-        <location line="+42"/>
         <source>回复未完成，已发送的发言已保留。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-12"/>
+        <location filename="../voice.py" line="-12"/>
         <source>模型服务余额不足（HTTP 402）。已发送的发言已保留，补充余额后可重试。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1381,12 +1381,12 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../continuous_voice_presentation.py" line="-483"/>
+        <location filename="../continuous_voice.py" line="+244"/>
         <source>未启用自动朗读；识别后的发言仍会发送。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+109"/>
+        <location line="+68"/>
         <source>正在请求麦克风权限…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1442,58 +1442,58 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../continuous_voice.py" line="+189"/>
-        <location filename="../voice_readiness.py" line="+333"/>
+        <location filename="../call_coordinator.py" line="-579"/>
+        <location filename="../voice_readiness.py" line="+336"/>
         <source>连续语音组件尚未准备，请前往设置 → 音频设备。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="-53"/>
         <source>麦克风权限未开启，请允许此应用使用麦克风，再重新开始语音。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+52"/>
+        <location line="+89"/>
         <source>音频设备不可用，请选择麦克风和播放设备后重试。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+342"/>
+        <location filename="../speech_errors.py" line="-35"/>
         <source>待播音频超出容量，已停止朗读；静音麦克风后可重试，文字回复继续。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+3"/>
         <source>播放设备未能输出声音；静音麦克风后可重试朗读，文字回复继续。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+3"/>
         <source>麦克风音频传输中断，已暂停监听并丢弃未发送的语音；请恢复监听后重说。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+3"/>
         <source>当前语音达到长度上限，已暂停监听；请缩短发言后恢复监听。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+3"/>
         <source>所选音频设备已移除或改变，请在音频设置中重新选择，再恢复监听。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+3"/>
         <source>麦克风无法采集声音，请检查系统麦克风权限和所选设备，再恢复监听。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+6"/>
         <source>语音处理异常，已暂停监听；请恢复监听后重试，文字仍可使用。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../continuous_voice_presentation.py" line="+111"/>
+        <location filename="../call_coordinator.py" line="+326"/>
         <source>语音连接未恢复，请重新开始语音。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1503,17 +1503,17 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+29"/>
+        <location line="+27"/>
         <source>麦克风已暂停；未发送的语音已保留，可继续说或发送已说内容。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+4"/>
         <source>麦克风已暂停，可发送文字；恢复后继续监听。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+8"/>
         <source>已丢弃未发送的语音；麦克风仍暂停。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1523,63 +1523,59 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location filename="../call_preparation.py" line="+116"/>
         <source>连续语音组件已准备。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+5"/>
-        <source>正在准备本机语音连接组件…</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+31"/>
+        <location filename="../call_coordinator.py" line="+24"/>
+        <location filename="../call_preparation.py" line="+9"/>
         <source>本机语音连接未建立，请在音频设备中检查连续语音组件后重试。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-363"/>
-        <location line="+371"/>
+        <location line="+8"/>
+        <location filename="../continuous_voice.py" line="-96"/>
         <source>本次语音未启用朗读；识别与文字回复可继续。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-324"/>
+        <location filename="../continuous_voice.py" line="+37"/>
         <source>预计下载 %1 MiB · 安装需可用空间 %2 MiB（含临时文件和余量，不是最终占用或运行内存）。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+82"/>
+        <location line="+51"/>
         <source>麦克风已暂停，可发送文字</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../continuous_voice.py" line="-287"/>
+        <location filename="../call_coordinator.py" line="-365"/>
         <source>正在暂停麦克风并保留未发送的语音…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <source>麦克风已暂停，可发送文字。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../continuous_voice_presentation.py" line="+217"/>
+        <location filename="../call_preparation.py" line="-15"/>
         <source>当前文件：%1 / %2 MiB；整项准备尚未完成。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+83"/>
+        <location filename="../call_coordinator.py" line="+424"/>
         <source>朗读未能播放，文字回复继续生成。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+29"/>
+        <location line="+27"/>
         <source>朗读音频未能送达播放设备，文字回复已保留；可重试朗读。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+15"/>
         <source>识别未完成，发言未发送。可重试识别或丢弃后继续。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1729,7 +1725,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../speech_errors.py" line="-3"/>
+        <location filename="../speech_errors.py" line="+11"/>
         <source>韩语</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1759,7 +1755,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+9"/>
         <source>%1的%2运行环境未准备，请在本地语音模型中继续准备。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1784,7 +1780,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../voice_readiness.py" line="-211"/>
+        <location filename="../voice_readiness.py" line="-209"/>
         <source>麦克风</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1849,7 +1845,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+161"/>
+        <location line="+159"/>
         <source>麦克风未能采集音频，请检查系统权限及所选输入设备。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3511,7 +3507,7 @@
 <context>
     <name>WorkspaceSidebar</name>
     <message>
-        <location filename="../qml/components/WorkspaceSidebar.qml" line="+25"/>
+        <location filename="../qml/components/WorkspaceSidebar.qml" line="+42"/>
         <location line="+4"/>
         <source>材料库</source>
         <translation type="unfinished"></translation>

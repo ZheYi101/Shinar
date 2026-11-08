@@ -16,6 +16,7 @@ from tests.support.boundaries import desktop_violations, import_cycles, private_
     "getattr(vm.workbench, '_event_store')",
     "peer = self.call\nsetattr(peer, '_tts_error', '')",
     "from .voice import _SpeechRoute as Route",
+    "from peer import LearningViewModel as VM\ndef action(peer: VM):\n    peer._draft = ''",
 ])
 def test_private_access_bypasses_are_rejected(source):
     assert private_accesses(source)
@@ -36,6 +37,8 @@ def test_type_checking_edges_do_not_create_runtime_cycles(tmp_path):
     (tmp_path / "a.py").write_text("from .b import B", encoding="utf-8")
     other = tmp_path / "b.py"
     other.write_text("from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from .a import A", encoding="utf-8")
+    assert not import_cycles(tmp_path, "example")
+    other.write_text("from typing import TYPE_CHECKING as TC\nif TC:\n    from .a import A", encoding="utf-8")
     assert not import_cycles(tmp_path, "example")
     other.write_text("def run():\n    from .a import A", encoding="utf-8")
     assert import_cycles(tmp_path, "example")

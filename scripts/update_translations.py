@@ -31,11 +31,7 @@ def main() -> None:
     catalog = desktop / "translations" / f"shinar_{args.locale}.ts"
     sources = [
         str(desktop / "qml"),
-        *(
-            str(desktop / name)
-            for name in ("workspace.py", "viewmodel.py", "audio.py", "speech_library.py",
-                         "voice.py", "continuous_voice.py", "voice_readiness.py", "speech_jobs.py", "speech_errors.py", "ai_services.py", "reader_runtime.py", "worker.py", "lifecycle.py", "shutdown.py", "learning_presentation.py", "reader_workspace.py", "speech_library_operations.py", "continuous_voice_presentation.py")
-        ),
+        *(str(path) for path in sorted(desktop.rglob("*.py"))),
     ]
     subprocess.run(
         [
