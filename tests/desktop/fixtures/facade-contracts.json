@@ -1,0 +1,1272 @@
+{
+  "LearningViewModel": {
+    "properties": {
+      "objectName": {
+        "type": "QString",
+        "writable": true,
+        "notify": "objectNameChanged(QString)",
+        "constant": false
+      },
+      "voiceController": {
+        "type": "QObject*",
+        "writable": false,
+        "notify": "",
+        "constant": true
+      },
+      "providerLabel": {
+        "type": "QString",
+        "writable": false,
+        "notify": "",
+        "constant": true
+      },
+      "modelServices": {
+        "type": "QVariantMap",
+        "writable": false,
+        "notify": "",
+        "constant": true
+      },
+      "sessionHistory": {
+        "type": "QVariantList",
+        "writable": false,
+        "notify": "historyChanged()",
+        "constant": false
+      },
+      "busy": {
+        "type": "bool",
+        "writable": false,
+        "notify": "busyChanged()",
+        "constant": false
+      },
+      "operationBusy": {
+        "type": "bool",
+        "writable": false,
+        "notify": "busyChanged()",
+        "constant": false
+      },
+      "status": {
+        "type": "QString",
+        "writable": false,
+        "notify": "statusChanged()",
+        "constant": false
+      },
+      "hasMaterial": {
+        "type": "bool",
+        "writable": false,
+        "notify": "materialChanged()",
+        "constant": false
+      },
+      "selectedMaterialId": {
+        "type": "QString",
+        "writable": false,
+        "notify": "materialChanged()",
+        "constant": false
+      },
+      "hasSession": {
+        "type": "bool",
+        "writable": false,
+        "notify": "sessionChanged()",
+        "constant": false
+      },
+      "materialSummary": {
+        "type": "QString",
+        "writable": false,
+        "notify": "materialChanged()",
+        "constant": false
+      },
+      "currentTask": {
+        "type": "QString",
+        "writable": false,
+        "notify": "sessionChanged()",
+        "constant": false
+      },
+      "sessionSummary": {
+        "type": "QString",
+        "writable": false,
+        "notify": "sessionChanged()",
+        "constant": false
+      },
+      "messages": {
+        "type": "QVariantList",
+        "writable": false,
+        "notify": "messagesChanged()",
+        "constant": false
+      },
+      "feedbackItems": {
+        "type": "QVariantList",
+        "writable": false,
+        "notify": "feedbackItemsChanged()",
+        "constant": false
+      },
+      "reviewItems": {
+        "type": "QVariantList",
+        "writable": false,
+        "notify": "reviewItemsChanged()",
+        "constant": false
+      },
+      "materials": {
+        "type": "QVariantList",
+        "writable": false,
+        "notify": "materialsChanged()",
+        "constant": false
+      },
+      "dueReviewCount": {
+        "type": "int",
+        "writable": false,
+        "notify": "dueReviewCountChanged()",
+        "constant": false
+      },
+      "materialTitle": {
+        "type": "QString",
+        "writable": false,
+        "notify": "materialChanged()",
+        "constant": false
+      },
+      "materialContent": {
+        "type": "QString",
+        "writable": false,
+        "notify": "materialChanged()",
+        "constant": false
+      },
+      "analysisSummary": {
+        "type": "QString",
+        "writable": false,
+        "notify": "materialChanged()",
+        "constant": false
+      },
+      "analysisOutline": {
+        "type": "QVariantList",
+        "writable": false,
+        "notify": "materialChanged()",
+        "constant": false
+      },
+      "analysisCharacters": {
+        "type": "QVariantList",
+        "writable": false,
+        "notify": "materialChanged()",
+        "constant": false
+      },
+      "materialPrepared": {
+        "type": "bool",
+        "writable": false,
+        "notify": "materialChanged()",
+        "constant": false
+      },
+      "materialPreparation": {
+        "type": "QString",
+        "writable": false,
+        "notify": "materialChanged()",
+        "constant": false
+      },
+      "materialRawContent": {
+        "type": "QString",
+        "writable": false,
+        "notify": "materialChanged()",
+        "constant": false
+      },
+      "materialNormalizedContent": {
+        "type": "QString",
+        "writable": false,
+        "notify": "materialChanged()",
+        "constant": false
+      },
+      "preferences": {
+        "type": "QObject*",
+        "writable": false,
+        "notify": "",
+        "constant": true
+      },
+      "systemDark": {
+        "type": "bool",
+        "writable": false,
+        "notify": "uiChanged()",
+        "constant": false
+      },
+      "errorMessage": {
+        "type": "QString",
+        "writable": false,
+        "notify": "uiChanged()",
+        "constant": false
+      },
+      "canRetryOperation": {
+        "type": "bool",
+        "writable": false,
+        "notify": "uiChanged()",
+        "constant": false
+      },
+      "draft": {
+        "type": "QString",
+        "writable": true,
+        "notify": "uiChanged()",
+        "constant": false
+      },
+      "customTopic": {
+        "type": "QString",
+        "writable": true,
+        "notify": "uiChanged()",
+        "constant": false
+      },
+      "practiceMode": {
+        "type": "QString",
+        "writable": true,
+        "notify": "uiChanged()",
+        "constant": false
+      },
+      "roleDescription": {
+        "type": "QString",
+        "writable": true,
+        "notify": "uiChanged()",
+        "constant": false
+      },
+      "selectedTopicId": {
+        "type": "QString",
+        "writable": false,
+        "notify": "uiChanged()",
+        "constant": false
+      },
+      "topics": {
+        "type": "QVariantList",
+        "writable": false,
+        "notify": "topicsChanged()",
+        "constant": false
+      },
+      "topicCategories": {
+        "type": "QVariantList",
+        "writable": false,
+        "notify": "topicsChanged()",
+        "constant": false
+      },
+      "topicFilter": {
+        "type": "QString",
+        "writable": true,
+        "notify": "topicsChanged()",
+        "constant": false
+      },
+      "filteredTopics": {
+        "type": "QVariantList",
+        "writable": false,
+        "notify": "topicsChanged()",
+        "constant": false
+      },
+      "topicSearch": {
+        "type": "QString",
+        "writable": true,
+        "notify": "topicsChanged()",
+        "constant": false
+      },
+      "selectedTopicTitle": {
+        "type": "QString",
+        "writable": false,
+        "notify": "uiChanged()",
+        "constant": false
+      },
+      "streamingText": {
+        "type": "QString",
+        "writable": false,
+        "notify": "uiChanged()",
+        "constant": false
+      },
+      "pendingUserText": {
+        "type": "QString",
+        "writable": false,
+        "notify": "uiChanged()",
+        "constant": false
+      },
+      "responseTiming": {
+        "type": "QString",
+        "writable": false,
+        "notify": "uiChanged()",
+        "constant": false
+      },
+      "preparationStatus": {
+        "type": "QString",
+        "writable": false,
+        "notify": "uiChanged()",
+        "constant": false
+      },
+      "topicTitle": {
+        "type": "QString",
+        "writable": false,
+        "notify": "sessionChanged()",
+        "constant": false
+      },
+      "sessionActive": {
+        "type": "bool",
+        "writable": false,
+        "notify": "sessionChanged()",
+        "constant": false
+      },
+      "voiceReady": {
+        "type": "bool",
+        "writable": false,
+        "notify": "uiChanged()",
+        "constant": false
+      },
+      "speechStatus": {
+        "type": "QString",
+        "writable": false,
+        "notify": "uiChanged()",
+        "constant": false
+      },
+      "voiceState": {
+        "type": "QString",
+        "writable": false,
+        "notify": "uiChanged()",
+        "constant": false
+      },
+      "recordingSeconds": {
+        "type": "int",
+        "writable": false,
+        "notify": "uiChanged()",
+        "constant": false
+      },
+      "inputDevices": {
+        "type": "QVariantList",
+        "writable": false,
+        "notify": "uiChanged()",
+        "constant": false
+      },
+      "outputDevices": {
+        "type": "QVariantList",
+        "writable": false,
+        "notify": "uiChanged()",
+        "constant": false
+      },
+      "selectedInputDeviceId": {
+        "type": "QString",
+        "writable": false,
+        "notify": "uiChanged()",
+        "constant": false
+      },
+      "selectedOutputDeviceId": {
+        "type": "QString",
+        "writable": false,
+        "notify": "uiChanged()",
+        "constant": false
+      },
+      "canRetryTranscription": {
+        "type": "bool",
+        "writable": false,
+        "notify": "uiChanged()",
+        "constant": false
+      },
+      "canSpeak": {
+        "type": "bool",
+        "writable": false,
+        "notify": "uiChanged()",
+        "constant": false
+      },
+      "speechLanguage": {
+        "type": "QString",
+        "writable": false,
+        "notify": "uiChanged()",
+        "constant": false
+      },
+      "reviewSummary": {
+        "type": "QString",
+        "writable": false,
+        "notify": "sessionChanged()",
+        "constant": false
+      },
+      "readingScopeConfirmed": {
+        "type": "bool",
+        "writable": false,
+        "notify": "materialChanged()",
+        "constant": false
+      },
+      "readingScopeLabel": {
+        "type": "QString",
+        "writable": false,
+        "notify": "materialChanged()",
+        "constant": false
+      },
+      "canResumeMaterialPreparation": {
+        "type": "bool",
+        "writable": false,
+        "notify": "materialChanged()",
+        "constant": false
+      },
+      "suggestedDirections": {
+        "type": "QVariantList",
+        "writable": false,
+        "notify": "uiChanged()",
+        "constant": false
+      }
+    },
+    "methods": {
+      "destroyed(QObject*)": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "destroyed()": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "objectNameChanged(QString)": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "deleteLater()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "busyChanged()": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "errorOccurred(QString)": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "statusChanged()": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "materialChanged()": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "sessionChanged()": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "messagesChanged()": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "feedbackItemsChanged()": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "reviewItemsChanged()": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "materialsChanged()": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "dueReviewCountChanged()": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "messageSent()": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "uiChanged()": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "topicsChanged()": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "historyChanged()": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "reviewReady()": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "practiceStarted()": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "selectSession(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "sendMessage(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "finishPractice()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "reviewOutcome(QString,QString,QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "updateReviewStatus(QString,QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "selectMaterial(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "exportSession(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "resetSession()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "report_error(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "confirmReadingPercent(int)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "confirmReadingPassage(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "resumeMaterialPreparation()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "useDirection(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "selectTopic(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "reanalyze()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "retryOperation()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "dismissError()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "startRecording()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "stopRecording()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "cancelRecording()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "rerecord()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "retryTranscription()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "speakReply()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "stopPlayback()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "selectAudioDevice(QString,bool)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "close()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "readingPreview(int)": {
+        "kind": "Slot",
+        "return": "QString"
+      }
+    }
+  },
+  "DesktopWorkspaceController": {
+    "properties": {
+      "objectName": {
+        "type": "QString",
+        "writable": true,
+        "notify": "objectNameChanged(QString)",
+        "constant": false
+      },
+      "route": {
+        "type": "QString",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      },
+      "browsingMaterialId": {
+        "type": "QString",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      },
+      "settingsCategory": {
+        "type": "QString",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      },
+      "collapsed": {
+        "type": "bool",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      },
+      "threadLocked": {
+        "type": "bool",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      },
+      "materials": {
+        "type": "QVariantList",
+        "writable": false,
+        "notify": "modelsChanged()",
+        "constant": false
+      },
+      "threads": {
+        "type": "QVariantList",
+        "writable": false,
+        "notify": "modelsChanged()",
+        "constant": false
+      },
+      "material": {
+        "type": "QVariantMap",
+        "writable": false,
+        "notify": "modelsChanged()",
+        "constant": false
+      },
+      "reference": {
+        "type": "QVariantMap",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      },
+      "editorCursor": {
+        "type": "int",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      },
+      "chatScroll": {
+        "type": "double",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      },
+      "openingDraft": {
+        "type": "QString",
+        "writable": true,
+        "notify": "changed()",
+        "constant": false
+      },
+      "error": {
+        "type": "QString",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      },
+      "importMode": {
+        "type": "QString",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      },
+      "importTitle": {
+        "type": "QString",
+        "writable": true,
+        "notify": "changed()",
+        "constant": false
+      },
+      "importText": {
+        "type": "QString",
+        "writable": true,
+        "notify": "changed()",
+        "constant": false
+      },
+      "importLanguage": {
+        "type": "QString",
+        "writable": true,
+        "notify": "changed()",
+        "constant": false
+      },
+      "importFile": {
+        "type": "QString",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      },
+      "inspecting": {
+        "type": "bool",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      },
+      "pendingEnd": {
+        "type": "int",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      },
+      "scopeEndPosition": {
+        "type": "int",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      },
+      "scopeQuote": {
+        "type": "QString",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      },
+      "sourceOpen": {
+        "type": "bool",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      },
+      "sourceText": {
+        "type": "QString",
+        "writable": false,
+        "notify": "documentChanged()",
+        "constant": false
+      },
+      "readerAvailable": {
+        "type": "bool",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      },
+      "readerId": {
+        "type": "QString",
+        "writable": false,
+        "notify": "documentChanged()",
+        "constant": false
+      },
+      "readerError": {
+        "type": "QString",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      },
+      "sections": {
+        "type": "QVariantList",
+        "writable": false,
+        "notify": "documentChanged()",
+        "constant": false
+      },
+      "searchResults": {
+        "type": "QVariantList",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      },
+      "historicalSource": {
+        "type": "bool",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      },
+      "sourceStale": {
+        "type": "bool",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      },
+      "documentReady": {
+        "type": "bool",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      },
+      "sourceLanguage": {
+        "type": "QString",
+        "writable": false,
+        "notify": "documentChanged()",
+        "constant": false
+      },
+      "sourceScroll": {
+        "type": "double",
+        "writable": false,
+        "notify": "documentChanged()",
+        "constant": false
+      },
+      "sourceLabel": {
+        "type": "QString",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      },
+      "hasSource": {
+        "type": "bool",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      },
+      "sourceHasMore": {
+        "type": "bool",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      }
+    },
+    "methods": {
+      "destroyed(QObject*)": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "destroyed()": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "objectNameChanged(QString)": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "deleteLater()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "changed()": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "modelsChanged()": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "documentChanged()": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "sourceAppend(QString)": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "selectionRequested(int,int)": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "readerSelectionRequested(QString,int,int)": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "editorRestoreRequested(int,double)": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "focusComposerRequested()": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "setCategory(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "toggleSidebar()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "prepareBrowsing(bool)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "refresh()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "navigate(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "browseMaterial(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "toggleMaterial(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "saveEditor(int,double)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "openThread(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "newThreadPage()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "startThread()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "setImportMode(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "inspectFile(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "commitImport()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "openScope(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "openScope()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "cancelScope()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "markAllRead()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "locateSentence(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "locatePercent(double)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "saveScope()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "toggleSource()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "selectReaderRange(QString,int,int,QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "saveReaderPosition(QString,int)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "readerFailed(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "saveSourceScroll(double)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "loadSource(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "loadMoreSource()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "selectSection(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "selectSource(int,int)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "clearSource()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "scheduleSourceSearch(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "searchSource(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "showSearchResult(int,int)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "previewMessage(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "closePreview()": {
+        "kind": "Slot",
+        "return": "void"
+      }
+    }
+  },
+  "SpeechLibraryViewModel": {
+    "properties": {
+      "objectName": {
+        "type": "QString",
+        "writable": true,
+        "notify": "objectNameChanged(QString)",
+        "constant": false
+      },
+      "downloadJobs": {
+        "type": "QObject*",
+        "writable": false,
+        "notify": "",
+        "constant": true
+      },
+      "downloadCount": {
+        "type": "int",
+        "writable": false,
+        "notify": "downloadsChanged()",
+        "constant": false
+      },
+      "downloadRevision": {
+        "type": "int",
+        "writable": false,
+        "notify": "downloadsChanged()",
+        "constant": false
+      },
+      "operationBusy": {
+        "type": "bool",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      },
+      "compute": {
+        "type": "QVariantMap",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      },
+      "lastSetupError": {
+        "type": "QVariantMap",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      },
+      "runtimes": {
+        "type": "QVariantMap",
+        "writable": false,
+        "notify": "runtimesChanged()",
+        "constant": false
+      },
+      "storageUsage": {
+        "type": "QVariantMap",
+        "writable": false,
+        "notify": "modelsChanged()",
+        "constant": false
+      },
+      "resourceSummary": {
+        "type": "QString",
+        "writable": false,
+        "notify": "resourcesChanged()",
+        "constant": false
+      },
+      "models": {
+        "type": "QVariantList",
+        "writable": false,
+        "notify": "modelsChanged()",
+        "constant": false
+      },
+      "busy": {
+        "type": "bool",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      },
+      "status": {
+        "type": "QString",
+        "writable": false,
+        "notify": "statusChanged()",
+        "constant": false
+      },
+      "language": {
+        "type": "QString",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      },
+      "scenario": {
+        "type": "QString",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      },
+      "operation": {
+        "type": "QString",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      },
+      "progress": {
+        "type": "double",
+        "writable": false,
+        "notify": "progressChanged()",
+        "constant": false
+      },
+      "cachePath": {
+        "type": "QString",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      },
+      "hardwareSummary": {
+        "type": "QString",
+        "writable": false,
+        "notify": "changed()",
+        "constant": false
+      }
+    },
+    "methods": {
+      "destroyed(QObject*)": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "destroyed()": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "objectNameChanged(QString)": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "deleteLater()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "changed()": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "statusChanged()": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "runtimesChanged()": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "modelsChanged()": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "progressChanged()": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "downloadsChanged()": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "configurationChanged()": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "inferenceStatus(QString)": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "resourcesChanged()": {
+        "kind": "Signal",
+        "return": "void"
+      },
+      "hasDownload(QString)": {
+        "kind": "Slot",
+        "return": "bool"
+      },
+      "setResourceMonitoring(bool)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "refresh()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "setFilter(QString,QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "preview(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "stopPreview()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "cancel()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "begin_shutdown()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "setCompute(QString,QVariant)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "prepareRuntime(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "checkRuntime(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "releaseModels()": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "install(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "preparePackage(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "acceptVoiceTerms(QString,bool)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "selectVoice(QString,QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "uninstall(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "verify(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "runBenchmark(QString,QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "benchmarkAndSelect(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "runPairBenchmark(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      },
+      "select(QString)": {
+        "kind": "Slot",
+        "return": "void"
+      }
+    }
+  }
+}
