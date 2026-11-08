@@ -39,6 +39,8 @@
 
 ## 工程
 
+- [桌面结构治理与审查修复](./engineering/DESKTOP_STRUCTURE_GOVERNANCE_2026-11-08.md)：递归门禁、偏好兼容、公开接口、连续通话状态所有者与 Python／测试目录治理，单列离线、可见 Mock 和 wheel 证据。
+
 - [Shinar 完整工程更名](./engineering/SHINAR_RENAME_2026-11-08.md)：目录、包／命令、GitHub 和发行标识迁移，旧数据／配置兼容及离线、可见 Mock、wheel 验证。
 
 - [Shinar 图标与侧栏字标](./engineering/SHINAR_IDENTITY_2026-11-08.md)：巴别塔图形出处、九种 ICO 尺寸、明暗窄窗 Mock 与新 wheel 资源验证。
