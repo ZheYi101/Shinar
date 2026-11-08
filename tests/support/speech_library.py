@@ -134,6 +134,9 @@ def _speech_library_scene(tmp_path, monkeypatch):
     try:
         yield app, library, vm, window, engine, tmp_path
     finally:
+        engine.lifecycle.close()
+        engine.ai_services.close()
+        engine.workspace.close()
         library.close()
         vm.close()
         window.close()

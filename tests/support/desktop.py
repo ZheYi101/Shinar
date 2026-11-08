@@ -50,10 +50,13 @@ def _desktop_scene(qt_app, tmp_path):
     try:
         yield vm, window, scaffold, provider, speech, audio, database
     finally:
+        engine.lifecycle.close()
+        engine.ai_services.close()
+        engine.workspace.close()
+        engine.speech_library.close()
         vm.close()
         assert not vm._worker._thread or not vm._worker._thread.is_alive()
         assert audio.cleared
         window.close()
-        window.property("workspaceController").close()
         engine.deleteLater()
         qt_app.processEvents()

@@ -257,4 +257,3 @@ def test_microphone_probe_checks_frames_and_releases_without_publishing(qt_app, 
     probe._state()
     probe._timer.timeout.emit()
     assert result == [""]
-

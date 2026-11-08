@@ -318,4 +318,3 @@ def test_stt_and_tts_download_together_with_live_component_progress(library_desk
     finally:
         for gate in gates.values():
             gate.set()
-

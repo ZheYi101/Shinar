@@ -443,4 +443,3 @@ def test_partial_reading_is_explicit_and_optional_direction_only_fills_draft(des
     click(window, "suggestedDirection0", scroll="practiceScroll")
     assert vm.draft == "友達が戻った理由について話したい。"
     assert len(vm.messages) == confirmed  # Suggestion is never an automatic sent answer.
-

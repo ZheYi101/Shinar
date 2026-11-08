@@ -98,6 +98,7 @@ def main():
 import sys
 from pathlib import Path
 sys.path.insert(0, sys.argv[1])
+import asyncio
 from PySide6.QtCore import QObject, QSettings, Qt
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQuick import QQuickWindow
@@ -106,6 +107,7 @@ from shinar.desktop import app as desktop
 from shinar.application import LearningWorkbench
 from shinar.infrastructure import SQLiteStore
 from shinar.providers import MockLearningLLMProvider
+from shinar.core import LanguageEnum, ProficiencyLevel
 from shinar.desktop.shell.preferences import DesktopPreferences
 from shinar.desktop.presentation.viewmodel import LearningViewModel
 from shinar.desktop.shell.window import DesktopWindowController
@@ -117,6 +119,30 @@ import shinar.desktop.shell.window as window_module
 root = Path(sys.argv[1])
 assert Path(desktop.__file__).is_relative_to(root)
 assert Path(window_module.__file__).is_relative_to(root)
+async def learning_probe():
+    path = root / 'learning-probe.sqlite3'
+    work = LearningWorkbench(MockLearningLLMProvider(), event_store=SQLiteStore(path))
+    try:
+        material = await work.load_material(title='Isolated wheel probe',
+            content='Two friends meet at the station. They discuss the afternoon train.',
+            source_language=LanguageEnum.ENGLISH, target_language=LanguageEnum.ENGLISH,
+            native_language=LanguageEnum.CHINESE, learner_level=ProficiencyLevel.B1,
+            auto_prepare=False)
+        assert material.read_through == 0
+        work.set_reading_scope(len(material.content))
+        await work.start_session()
+        await work.send_message('Why do the friends meet at the station?')
+        assert len(work.session.messages) == 3
+        identity = work.session.id
+    finally:
+        await work.aclose()
+    restored = LearningWorkbench(MockLearningLLMProvider(), event_store=SQLiteStore(path))
+    try:
+        assert restored.session.id == identity and len(restored.session.messages) == 3
+        assert restored.session_material().read_through == len(material.content)
+    finally:
+        await restored.aclose()
+asyncio.run(learning_probe())
 catalog_ids = {package.id for package in load_catalog()}
 assert 'sensevoice-int8-20240717' in catalog_ids
 assert 'sensevoice-int8-20250909' not in catalog_ids
@@ -158,7 +184,7 @@ engine.workspace.close()
 engine.speech_library.close()
 vm.close()
 window.close()
-print('Installed-wheel QML, WindowController and frameless controls smoke passed')
+print('Installed-wheel learning/restart, QML, WindowController and frameless controls smoke passed')
 """
         subprocess.run(
             [sys.executable, "-I", "-c", code, directory],

@@ -444,4 +444,3 @@ def test_missing_tts_keeps_continuous_stt_and_text_reply_available(desktop, monk
     assert vm.messages[-1]["role"] == "assistant"
     assert not vm.messages[-1].get("speechError")
     assert "output_begin" not in call.process.calls
-
