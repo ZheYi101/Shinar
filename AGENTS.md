@@ -103,3 +103,5 @@ uv run --locked ruff check --select F401 src/shinar/desktop src/shinar/applicati
 
 - 回答用户时直接说明做了什么、改了哪些文件、还有什么未决事项。
 - 需要用户决策时，只提出会影响交付结果的问题；能合理默认的事项先默认并记录。
+
+- 三个桌面门面沿用 Decision 0046：属性 Mixin 只读取／委托；语音库、材料投影、草稿、复盘、操作、导入、导航与阅读分别由普通 Python 所有者管理，禁止恢复可写状态别名。后台冻结输入并保留独立职责身份，控制器通过 refresh_learning(ProjectionChange) 请求学习投影更新。Qt 公开元对象契约由 tests/desktop/test_facade_contracts.py 固定。

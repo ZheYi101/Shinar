@@ -18,7 +18,7 @@
 | `infrastructure/epub_reader.py` | 原子保存／加载原件；静态 HTML 投影；nav／NCX 到来源坐标；`ReaderBook` | Qt、模型、数据库会话或用户界面文案 |
 | `application/source_document.py` | 通用来源章节、段落、哈希及 UTF-16 转换 | EPUB 引擎或浏览器状态 |
 | `application/learning_workbench.py` | 导入业务入口与原件保存时机；提供所属存储的资产目录 | DOM、WebEngine profile、浏览器定位 |
-| `desktop/workspace/controller.py` | 当前范围、选段、历史预览、加载代际与 UI 状态；冻结发送来源 | 新的格式解析器、浏览器资源策略或第二套会话业务 |
+| `desktop/workspace/controller.py` | 单一 Qt 门面、信号与任务主线程适配 | 新的格式解析器、浏览器资源策略或第二套会话业务 |
 | `desktop/workspace/reader_runtime.py` | 临时 profile、文件白名单、专用 `ReaderBridge` | 解析、任意文件 API、业务持久化 |
 | `qml/components/SourceReader.qml`、`FoliateSurface.qml` | 视图选择、工具与弹层、懒加载、主题／尺寸、加载超时与回退 | 书籍解析、授权和消息提交规则 |
 | `desktop/reader/reader.js`、`index.html` | foliate 包装、样式、DOM ↔ 来源坐标、导航与位置事件 | 学习事实、模型 prompt、数据库或原件路径 |
@@ -26,9 +26,13 @@
 
 允许 `epub_reader.py` 复用同层导入器的公开规范化／HTML 提取接口，保持新旧文本逐字对应；不再复制另一套清洗规则。WebEngine 的 Python 依赖只位于桌面装配入口与 `reader_runtime.py`，QML 依赖只位于 `FoliateSurface.qml`。业务层和格式适配器不得反向依赖这些模块。
 
-`ReaderWorkspaceMixin.loadSource()` 保管当前／历史状态和代际；无 Qt 的 `application/source_loading.py` 按 `SourceLoadRequest` 返回章节、显示书籍和错误码，原件读取／投影运行在受管进程。
-Workspace 与阅读职责基类属于同一个 QObject，路由、阅读状态和桥接仍有唯一所有者。
-Python 模块现位于 `desktop/workspace/`；`reading.py` 中的 `ReaderWorkspaceMixin` 与 `controller.py` 是同一个状态所有者。此次目录迁移不移动 QML、`desktop/reader/` 或 vendor，不改变 WebChannel、显示版本与来源索引。对应回归集中在 `tests/desktop/test_reader_workspace.py`，共享场景位于 `tests/support/`。
+`ReadingCoordinator.loadSource()` 唯一维护阅读、选段、预览、范围编辑以及文档／搜索身份。当前阅读保存为独立记录，范围编辑与历史预览分别保存显示记录；返回时恢复当前位置与选段。每线程阅读位置由阅读所有者保存，编辑器位置由 WorkspaceNavigation 保存。发送来源仍由 Workbench 冻结，预览与范围取消不能替换当前发送依据。
+
+`ImportEditor` 独占标题、正文、语言、文件预览与导入任务身份；标题版本保证用户重打相同标题也不被迟到文件结果覆盖。`WorkspaceNavigation` 独占路由、材料树、展开、侧栏和编辑位置。`ReaderPropertiesMixin` 仅委托普通阅读所有者，不维护共享字段或提交后台任务。三个协作者通过明确的 ReadingRuntime／现有 worker 接口协作，不持有完整 ViewModel 或 Workspace。
+
+`WorkspaceJobs` 使用既有 AsyncWorker 的具名任务，回调留在主线程；后台只接收复制冻结的来源输入。导入、文档和搜索分别拥有 TaskLane（实例、任务、代际、材料、会话），关闭或职责切换使旧身份失效，200ms 防抖前先使旧搜索失效。无 Qt 的 `application/source_loading.py` 继续按 SourceLoadRequest 返回章节、书籍及错误码；搜索仍只消费前 100 个匹配，原件读取／投影继续运行在受管进程。
+
+Python 模块位于 `desktop/workspace/`；QML、`desktop/reader/`、vendor、WebChannel、显示版本及来源索引不变。Qt profile 与 ReaderBridge 仍留在 reader_runtime.py；冻结快照不会把可变模型或容器交给 QML。测试集中在 tests/desktop，场景支持位于 tests/support。
 Workbench 仍通过具体存储路径推导资产目录；新增资产生命周期功能前再收敛该存储耦合，不提前引入通用 asset repository。
 
 ## 加载与失效流程
@@ -80,7 +84,7 @@ Workbench 仍通过具体存储路径推导资产目录；新增资产生命周�
 | 优先级与触发条件 | 目标职责 | 验收条件 |
 | --- | --- | --- |
 | 已落实基础边界；新增格式／引擎时继续遵守 | 无 Qt 的来源加载入口与有类型结果；受管进程产出文档、章节、范围和错误码，workspace 应用状态与本地化 | 精确映射、旧材料回退、跨章定位与晚到结果不变；单测无需 WebEngine |
-| 已归入 ReaderWorkspaceMixin；新增持久进度前继续验证 | 同一 QObject 的阅读职责管理状态／加载身份；新增书签、持久化另立契约 | 当前／预览／待保存三类状态隔离；发送快照仍由现有业务入口冻结 |
+| 已由 ReadingCoordinator 独占；新增持久进度前继续验证 | 普通阅读所有者管理状态／加载身份，Qt 门面仅适配；新增书签、持久化另立契约 | 当前／预览／待保存三类状态隔离；发送快照仍由现有业务入口冻结 |
 | P2：新增原件删除、导出、第二种资产或第二个存储后端前 | 定义必要的资产保存／读取／缺件语义，去掉业务对 SQLite 路径形状的假设 | 重复材料共用资产时不会误删，迁移、恢复和缺件回退都有测试；不先引入通用插件平台 |
 | 发行前：新引擎／Qt 或显示格式版本 | 核验上游差异、协议、资源、许可证和实际分发 | 位置／范围、可见窗口、wheel 与相应 ZIP／安装器分别验证 |
 

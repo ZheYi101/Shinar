@@ -303,11 +303,15 @@ class SpeechLibraryViewModel(QObject):
 
     @Slot(str)
     def _inference_status(self, value):
+        if self._operations.snapshot.closed:
+            return
         self._operations.status(value)
         self.statusChanged.emit()
 
     @Slot(bool)
     def setResourceMonitoring(self, enabled):
+        if self._operations.snapshot.closed:
+            return
         self._monitor.enable(enabled)
         if enabled:
             self._resource_timer.start()

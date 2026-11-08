@@ -5,7 +5,9 @@ from types import SimpleNamespace
 
 from shinar.application import LearningWorkbench
 from shinar.core import LanguageEnum, ProficiencyLevel
-from shinar.desktop.workspace.controller import DesktopWorkspaceController
+from shinar.desktop.workspace.reading_state import ReadingCoordinator
+from shinar.desktop.workspace.task_identity import TaskLane
+from shinar.desktop.workspace.jobs import WorkspaceJobs
 from shinar.infrastructure import SQLiteStore
 from shinar.providers import MockLearningLLMProvider
 
@@ -24,30 +26,36 @@ def test_search_consumes_only_the_first_hundred_matches(monkeypatch):
     monkeypatch.setattr(module.re, "compile", lambda *args: SimpleNamespace(finditer=matches))
     jobs = []
     workspace = SimpleNamespace(
-        _source_full="a" * 1000,
-        _source_end=1000,
-        _request_job=lambda *args: jobs.append(args),
+        _source_full="a" * 1000, _source_end=1000,
+        runtime=SimpleNamespace(submit=lambda *args: jobs.append(args)),
         _set_results=lambda value: None,
     )
-    DesktopWorkspaceController.searchSource(workspace, "a")
+    ReadingCoordinator.searchSource(workspace, "a")
     request = jobs[0][1]
     results = module.search_source(*request.args)
     assert len(results) == len(consumed) == 100
 
 
 def test_new_query_invalidates_results_before_debounce():
+    search, document = TaskLane(), TaskLane()
     workspace = SimpleNamespace(
-        _request={"search": 4, "document": 2},
-        _source_material="book",
-        _search_timer=SimpleNamespace(start=lambda: None),
+        search_tasks=search, document_tasks=document, _source_material="book",
+        runtime=SimpleNamespace(debounce=lambda: None),
     )
-    DesktopWorkspaceController.scheduleSourceSearch(workspace, "new query")
-    assert workspace._request["search"] == 5
-    assert workspace._pending_search == (2, "book", "new query")
+    old = search.request()
+    ReadingCoordinator.scheduleSourceSearch(workspace, "new query")
+    assert not search.accepts(old)
+    assert workspace._pending_search == (document.generation, "book", "new query")
 
 
 def test_closed_workspace_ignores_late_delivery():
-    DesktopWorkspaceController._completed(SimpleNamespace(_closed=True), None, "late error")
+    results, submitted = [], []
+    lane = TaskLane()
+    jobs = WorkspaceJobs(lambda task, operation: submitted.append(task), lambda _: None, lambda _: None)
+    jobs.start(lane, lambda: None, results.append, results.append, "material", "session")
+    jobs.close()
+    assert not jobs.deliver(submitted[0], "late", "")
+    assert not results
 
 
 def test_presentation_rejects_a_previous_turn():

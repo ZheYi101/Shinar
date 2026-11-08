@@ -87,3 +87,5 @@ $env:RUN_REAL_AI_TESTS='0'
 ## License
 
 开源许可证尚未确定。在确定前，请不要假设本项目已采用 MIT、Apache-2.0 或其他许可证。
+
+桌面属性 Mixin 只能读取快照或委托命令；状态写入与后台操作属于普通协作者，不能重新新增门面的可写字段别名。tests/desktop/test_facade_contracts.py 固定三个门面公开 Qt 元对象契约、共享状态零债务和无 Qt／完整门面依赖边界；新增异步结果必须保留原任务身份。

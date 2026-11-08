@@ -23,7 +23,7 @@ def test_scenario_failure_closes_every_owned_service(qt_app, tmp_path):
             workspace = window.property("workspaceController")
             raise ProbeFailure()
     assert not vm._worker._thread or not vm._worker._thread.is_alive()
-    assert audio.cleared and workspace._closed
+    assert audio.cleared and workspace.navigation_snapshot.closed
     assert os.environ.get("SHINAR_KIRIGAMI_MODE") == original
 
 

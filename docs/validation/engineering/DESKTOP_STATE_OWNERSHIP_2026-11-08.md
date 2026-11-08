@@ -2,6 +2,8 @@
 
 基准为 `d72819c`，分支 `codex/desktop-state-ownership`，仅本地提交。原始用例收集为 679 项，Qt 属性类型、读写性、通知信号和公开信号／槽重载固定在 `tests/desktop/fixtures/facade-contracts.json`。原始状态写入清单及收集记录位于忽略的 `build/state-ownership/`。
 
+逐字段的原写入方法、最终所有者和资源／任务责任见[迁移清单](DESKTOP_STATE_INVENTORY_2026-11-08.md)。
+
 ## 迁移清单
 
 | 门面 | 原共享状态 | 目标所有者 | 状态 |
@@ -12,9 +14,9 @@
 | LearningViewModel | 材料／话题筛选、准备轮询 | MaterialProjection | 已迁移 |
 | LearningViewModel | 草稿、版本、会话草稿、展示代际 | SessionEditing | 已迁移 |
 | LearningViewModel | 反馈与复习 DTO、操作回调与重试 | ReviewProjection、LearningOperations | 已迁移 |
-| Workspace | 导入编辑、文件预览、导入代际 | 导入协作者 | 待迁移 |
-| Workspace | 路由、侧栏、展开、编辑位置 | 导航协作者 | 待迁移 |
-| Workspace | 当前阅读、范围编辑、历史预览、搜索与文档身份 | 阅读协作者 | 待迁移 |
+| Workspace | 导入编辑、文件预览、导入代际 | ImportEditor | 已迁移 |
+| Workspace | 路由、侧栏、展开、编辑位置 | WorkspaceNavigation | 已迁移 |
+| Workspace | 当前阅读、范围编辑、历史预览、搜索与文档身份 | ReadingCoordinator | 已迁移 |
 
 语音库线程只持有 LibraryRequest（路径、序列化模型、语言／场景、计算配置）和自己的取消句柄，不持有 Qt 门面。LibraryEvent 保留原任务身份，Qt queued signal 回主线程校验后更新唯一所有者。阶段／完成／资源扫描均走具名事件。后台完成不等于当前请求有效，取消／重试／停用监测／关闭后旧事件不生效。快照嵌套容器冻结，QML 返回脱离所有者的列表与字典。
 
@@ -28,3 +30,7 @@ Qt 播放器、设备和计时器仍在语音库门面。模型服务沿用 View
 最终离线、可见 Windows Mock、翻译／vendor、wheel 与隔离安装证据将在全部迁移后补齐。真实 AI、真人语音及 Windows 安装器未验收。
 
 - ViewModel 阶段：对话展示、文本／分轮语音与桌面主路径 56 项通过；操作身份、草稿／复盘不可变快照、原治理回归及工作区兼容共 24 项通过。sessionHistory 仅使用摘要，不再触发整库正文读取。workspace 通过 refresh_learning(ProjectionChange) 请求投影更新。
+
+- Workspace 阶段：原阅读器／工作区 14 项、原治理／共享场景／Qt 契约 20 项、架构与体积边界 29 项通过；新增 5 项覆盖导入标题版本、输入冻结、独立身份、不可变嵌套容器以及范围／预览／线程恢复。共享写入债务降为零；旧状态字段别名、协作者 Qt／完整门面依赖均加入门禁。
+
+首轮完整离线为 687 passed、10 skipped（293.74 秒），原跳过原因不变；补查后的 Qt 契约／展示／阅读所有权 41 项通过。后续发行验收使用最终源码重新执行完整离线。

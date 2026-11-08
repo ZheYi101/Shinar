@@ -970,3 +970,19 @@ Mock 分发入口使用临时学习库与 INI 偏好。安装不关闭其他应�
 影响：仓内导入、补丁位置、翻译发现、资源检查和 WebEngine 允许路径同步迁移；QML／阅读器资源与第三方哈希不变。桌面测试迁入专属目录，共享场景由普通上下文管理器释放；脚本不导入具体测试模块。递归所有权、依赖、体积与 F401 检查接入既有 CI。
 
 未决：其余三个门面的共享状态在新增写入者或异步职责前继续拆分。真实 AI、真人语音及 Windows 新安装器单列验收，本轮只执行离线、可见 Mock 和 wheel 验证。
+
+
+<a id="decision-0046"></a>
+## Decision 0046: 三个桌面门面的瞬态状态所有权
+
+日期：2026-11-08。状态：采用。
+
+背景：Decision 0045 保留了语音库、LearningViewModel、Workspace 的共享状态债务。语音库线程直接修改错误字段，属性职责基类与控制器同时修改瞬态字段，缺乏独立任务身份。
+
+选择：语音库的 CatalogProjection、LibraryOperations、ResourceMonitor 分别拥有目录／操作／监测，下载仍走 SpeechPreparationJobs。ViewModel 的 MaterialProjection、SessionEditing、ReviewProjection、LearningOperations 分别拥有话题准备／草稿代际／复盘／业务回调。Workspace 的 ImportEditor、WorkspaceNavigation、ReadingCoordinator 分别拥有导入／导航／阅读；当前、范围编辑及历史预览分别保存记录。只保留读取和委托的属性 Mixin，每个门面仍是单一 QObject。新协作者不持有完整门面，Qt 通过职责运行接口提供信号、计时器及设备能力。
+
+并发：任务开始前冻结配置、材料及请求参数，身份包含实例、任务、职责代际及适用的材料／会话。结果回主线程后核对身份，再调用唯一状态所有者；业务、导入、文档、搜索、监测独立失效。回调只保存在父进程的协调器，后台不接收界面回调。草稿版本只决定确认清稿，展示仍通过 present_conversation；Workspace 通过 refresh_learning(ProjectionChange) 请求投影更新。
+
+影响：公开 Qt 属性、读写性、通知信号、信号／槽重载固定为回归契约；嵌套快照只读，QML 返回脱离所有者的普通容器。Workbench 保留业务及持久化写入，历史仅投影摘要。退出先失效和停设备，再等待真实线程、执行器与所属进程；5 秒协作取消和 15 秒总预算不变，语音库不接管 ViewModel 对模型服务的清理。
+
+边界：未引入 Store、事件总线、通用插件／任务框架；来源坐标、缓存身份、历史格式、产品能力及资源路径不变。静态、离线、可见 Mock 与 wheel 证据分别记在本轮验收记录，真实 AI、真人语音及 Windows 安装器单列。

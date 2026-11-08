@@ -402,7 +402,7 @@
 <context>
     <name>Desktop</name>
     <message>
-        <location filename="../workspace/controller.py" line="+184"/>
+        <location filename="../workspace/controller.py" line="+222"/>
         <source>已整理</source>
         <translation type="unfinished"></translation>
     </message>
@@ -432,12 +432,12 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+15"/>
         <source>新对话</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../presentation/properties.py" line="+129"/>
+        <location filename="../presentation/properties.py" line="+128"/>
         <location filename="../tasks/speech_errors.py" line="+44"/>
         <location filename="../workspace/controller.py" line="+14"/>
         <source>日语</source>
@@ -489,12 +489,12 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+134"/>
+        <location line="+110"/>
         <source>正在开始对话…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+136"/>
+        <location line="+114"/>
         <source>请输入材料正文。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -509,7 +509,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+50"/>
+        <location line="+52"/>
         <source>这段文字有多处匹配，请补充文字或直接点选末段。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -519,57 +519,56 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+38"/>
+        <location line="+34"/>
         <source>正在保存已读范围…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../workspace/reading.py" line="+115"/>
-        <location line="+78"/>
+        <location line="-539"/>
         <source>书籍排版暂不可用，已显示文本。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+119"/>
+        <location line="+3"/>
         <source>本章</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+98"/>
+        <location line="+1"/>
         <source>原文版本已改变，显示发送时保存的引文。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../presentation/viewmodel.py" line="+71"/>
+        <location filename="../presentation/viewmodel.py" line="+105"/>
         <source>就绪。当前模式：{value0}</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../presentation/properties.py" line="+327"/>
-        <location line="+19"/>
-        <location filename="../presentation/viewmodel.py" line="+12"/>
-        <location line="+149"/>
-        <location line="+111"/>
+        <location filename="../presentation/properties.py" line="+326"/>
+        <location line="+20"/>
+        <location filename="../presentation/viewmodel.py" line="-6"/>
+        <location line="+157"/>
+        <location line="+115"/>
         <source>全部</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../presentation/viewmodel.py" line="-221"/>
+        <location filename="../presentation/viewmodel.py" line="-231"/>
         <source>{value0} 未配置或配置无效，请检查 SHINAR_{value1}_*。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+8"/>
         <source>识别与合成服务已配置，实际可用性需连接验证。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+4"/>
         <source>Mock 离线模式：语音服务未启用。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../presentation/properties.py" line="-407"/>
+        <location filename="../presentation/properties.py" line="-406"/>
         <source>历史讨论</source>
         <translation type="unfinished"></translation>
     </message>
@@ -584,7 +583,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+46"/>
+        <location line="+45"/>
         <source>尚未加载材料。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -735,7 +734,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../presentation/viewmodel.py" line="+58"/>
+        <location filename="../presentation/viewmodel.py" line="+56"/>
         <source>正在生成复盘...</source>
         <translation type="unfinished"></translation>
     </message>
@@ -750,7 +749,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+12"/>
         <source>无效的复习状态。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -760,7 +759,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+10"/>
         <source>请等待当前操作完成。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -791,12 +790,12 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+33"/>
+        <location line="+39"/>
         <source>后台任务启动失败，请重试或重新启动应用。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+28"/>
+        <location line="+26"/>
         <source>操作未完成，内容已保留。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -811,7 +810,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+26"/>
+        <location line="+28"/>
         <source>练习已更新。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -821,7 +820,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../presentation/properties.py" line="+152"/>
+        <location filename="../presentation/properties.py" line="+156"/>
         <source>随便聊聊，不用先选话题</source>
         <translation type="unfinished"></translation>
     </message>
@@ -846,7 +845,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+62"/>
+        <location line="+67"/>
         <source>对话结束后，这里会显示本轮总结。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -866,7 +865,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../presentation/viewmodel.py" line="+91"/>
+        <location filename="../presentation/viewmodel.py" line="+86"/>
         <source>请粘贴原文中唯一的一句（至少 8 个字符），以便精确确定已读位置。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -876,12 +875,12 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+13"/>
         <source>正在继续基础理解…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+22"/>
         <source>正在重新分析...</source>
         <translation type="unfinished"></translation>
     </message>
@@ -916,12 +915,12 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../speech_library/viewmodel.py" line="+58"/>
+        <location filename="../speech_library/viewmodel.py" line="+64"/>
         <source>点击刷新，检测当前可用资源。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+118"/>
+        <location line="+192"/>
         <source>正在准备独立 Python 与安装工具…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -951,7 +950,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+9"/>
         <source>GPU {value0} · {value1} · 整卡显存 {value2} / {value3} MiB · 整卡使用率 {value4:.0f}%</source>
         <translation type="unfinished"></translation>
     </message>
@@ -971,32 +970,33 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../speech_library/operations.py" line="+73"/>
+        <location line="+280"/>
         <source>计算设置的数值无效。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location filename="../speech_library/formats.py" line="+61"/>
+        <location filename="../speech_library/viewmodel.py" line="-140"/>
         <source>请先停止语音并释放已加载模型，再修复运行环境。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+19"/>
+        <location filename="../speech_library/viewmodel.py" line="+9"/>
         <source>准备独立运行环境与必要运行库（GPU 下载可能较大）…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+40"/>
+        <location line="+11"/>
         <source>检查运行环境并执行真实计算探针…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+132"/>
         <source>正在释放空闲模型；运行中的推理会先完成。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../speech_library/viewmodel.py" line="+73"/>
+        <location line="-234"/>
         <source>尚未检测硬件</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1011,32 +1011,32 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+5"/>
         <source>（可用 {value0} MiB）</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+6"/>
         <source>{value0} · {value1} 逻辑核心 · {value2} · 磁盘剩余 {value3:.1f} GiB</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+36"/>
+        <location filename="../speech_library/formats.py" line="-3"/>
         <source>操作未完成，请检查网络、磁盘与本地运行依赖后重试。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="-6"/>
         <source>下载连接中断，已下载部分保留，请重试继续。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+3"/>
         <source>下载源暂不可用或拒绝请求，请稍后重试。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location filename="../speech_library/viewmodel.py" line="+133"/>
         <source>请先阅读并确认此版本的语音模型与角色条款。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1091,17 +1091,17 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+10"/>
         <source>后台下载继续进行，可在任务列表查看每项进度。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+4"/>
         <source>模型状态已更新。下载后请先测速，再选用。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+51"/>
+        <location filename="../speech_library/formats.py" line="-44"/>
         <source>ずんだもん：本轮支持 CPU，需确认模型与角色条款并保留署名。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1136,102 +1136,104 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+9"/>
         <source>；并发整句合成 p95 %1 ms</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+5"/>
+        <location line="+36"/>
         <source>当前计算设备不支持此模型，请切换自动或 CPU。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location filename="../speech_library/viewmodel.py" line="-396"/>
         <source>检测硬件与本地模型…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../speech_library/operations.py" line="+83"/>
+        <location line="+305"/>
         <source>卸载模型…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+4"/>
         <source>校验本地文件…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+33"/>
+        <location filename="../speech_library/formats.py" line="-16"/>
         <source>请先在计算与加速中准备对应运行环境。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location filename="../speech_library/viewmodel.py" line="+7"/>
+        <location line="+11"/>
         <source>使用内置示例测速（含预热与 5 次热态）…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-9"/>
         <source>使用所选录音测速（含预热与 5 次热态）…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location filename="../speech_library/formats.py" line="+3"/>
         <source>请先测速并保存本语言的 STT 与 TTS 候选。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+3"/>
         <source>模型已更新，请重新测速选择。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>运行时已更新，请重新测速选择。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+3"/>
         <source>模型加载配置已更新，请重新测速选择。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+3"/>
         <source>请先准备所选计算设备的运行环境。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location filename="../speech_library/viewmodel.py" line="+18"/>
         <source>STT + TTS 同时运行测速…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+131"/>
         <source>此配置已在严格评测与试听中排除，请选择其他模型。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+12"/>
         <source>此模型在当前设备上平均超过 500 ms，请改用 GPU 测速或选择其他识别模型。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+30"/>
+        <location line="+31"/>
         <source>已保存本语言的模型；后续语音按计算设置绑定，当前轮次保留原配置，连续语音需重新开始。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../speech_library/viewmodel.py" line="+20"/>
+        <location line="-282"/>
         <source>请先停止语音，再试听模型声音。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+19"/>
         <source>所选播放设备不可用，请在音频设置中重新选择。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+16"/>
         <source>试听播放失败，可重新测速生成音频并检查输出设备。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1620,7 +1622,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../speech_library/jobs.py" line="+238"/>
+        <location filename="../speech_library/jobs.py" line="+235"/>
         <source>等待下载名额</source>
         <translation type="unfinished"></translation>
     </message>

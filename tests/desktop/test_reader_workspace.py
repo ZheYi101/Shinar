@@ -64,7 +64,7 @@ def test_reader_selection_is_exact_and_repeated_passages_are_not_first_matches(r
     vm.sendMessage(vm.draft)
     until(lambda: not vm.busy)
     assert vm.messages[1]["source"]["focus"]["start_char"] == a
-    ws.selectReaderRange(ws.readerId, 0, ws._source_end + 1, "text")
+    ws.selectReaderRange(ws.readerId, 0, ws.reading_snapshot["end"] + 1, "text")
     assert ws.snapshot() == selected
     ws.selectReaderRange(ws.readerId, a, a + 9, "invented")
     assert ws.snapshot() == selected
@@ -95,7 +95,7 @@ def test_search_outside_selected_chapter_reopens_authorized_source(reader_worksp
     assert ws.snapshot().base is not None
     start = wb.material.content.rindex("Repeated.")
     ws.showSearchResult(start, start + 9)
-    until(lambda: ws.documentReady and ws._reader_target == (start, start + 9))
+    until(lambda: ws.documentReady and ws.reading_snapshot["target"] == (start, start + 9))
     assert ws.reader_document(ws.readerId)["target"] == (start, start + 9)
     ws.selectReaderRange(ws.readerId, start, start + 9, "text")
     assert ws.snapshot().quote == "Repeated."

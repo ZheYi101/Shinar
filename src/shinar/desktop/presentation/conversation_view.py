@@ -40,7 +40,7 @@ class ConversationViewMixin:
             self._conversation_feedback(event.session or session)
             self.restore_last_reply()
         if event.kind == "confirm" and event.sent_draft == (self.draft_revision, self.draft):
-            self.draft = ""
+            self._editing.draft("")
         if before.messages != self.presentation.messages or project:
             self.messagesChanged.emit()
         if event.history_changed:

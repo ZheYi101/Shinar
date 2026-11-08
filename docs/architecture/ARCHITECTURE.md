@@ -136,7 +136,7 @@ Qt／WebEngine 仅留在桌面边界，上游 JS 固定提交并随包携带许�
 
 | 触发条件／优先级 | 改进方向 | 完成条件 |
 | --- | --- | --- |
-| 下次扩展阅读格式、引擎或阅读状态前 | 沿用已有无 Qt 来源加载／有类型结果与 ReaderWorkspaceMixin 阅读职责，扩展时继续验证公开入口 | 授权、过期结果、旧资料回退与历史快照契约通过，详见阅读器专项 |
+| 下次扩展阅读格式、引擎或阅读状态前 | 沿用无 Qt 来源加载／有类型结果与 ReadingCoordinator 阅读所有者，扩展时继续验证公开入口 | 授权、过期结果、旧资料回退与历史快照契约通过，详见阅读器专项 |
 | 下次新增存储后端或资产生命周期功能前 | 将 Workbench 对具体 SQLite／资产目录的访问收敛到明确的存储接口 | 临时库、旧库恢复、重复导入和原件缺失有对应测试；不立即引入 ORM |
 | 下次修改大 provider 或 ViewModel 的跨职责功能时 | 沿用已分离的 prompt／解析、投影和操作职责，保持公开接口，避免重新聚集 | 同一轮只迁移一个职责，失败恢复与既有会话保持 |
 | 上游 foliate-js／PySide6 升级或正式发行前 | 更新 pin、许可与资源，检查 Chromium 分发并做窗口交互 | 依赖边界、来源映射、可见 Mock 和对应发行产物分别通过 |
@@ -154,3 +154,5 @@ Qt／WebEngine 仅留在桌面边界，上游 JS 固定提交并随包携带许�
 - `tests/test_maintainability.py` 约束自有生产文件 800 行、Python 函数 100 行和桌面控制器之间的公开协作边界；与行为、可见窗口及 wheel 证据分别验收。
 
 代码风格和小步维护方式见 [CONTRIBUTING](../../CONTRIBUTING.md)，现存维护性问题的历史背景见[维护性检查](../validation/engineering/MAINTAINABILITY_2026-10-28.md)。
+
+三个桌面门面状态所有权遵循 Decision 0046。WorkspaceNavigation、ImportEditor、ReadingCoordinator 分别独占导航／导入／阅读；ReaderPropertiesMixin 只委托，后台任务不携带界面回调。Qt 元对象公开契约、所有者不依赖 Qt／完整门面及共享写入零债务由 tests/desktop/test_facade_contracts.py 固定。

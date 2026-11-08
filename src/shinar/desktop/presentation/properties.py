@@ -557,11 +557,11 @@ class LearningPropertiesMixin:
 
     @Property(list, notify=uiChanged)
     def inputDevices(self):
-        return self._audio.input_devices if self._audio else []
+        return display_value(self._audio.input_devices) if self._audio else []
 
     @Property(list, notify=uiChanged)
     def outputDevices(self):
-        return self._audio.output_devices if self._audio else []
+        return display_value(self._audio.output_devices) if self._audio else []
 
     @Property(str, notify=uiChanged)
     def selectedInputDeviceId(self):

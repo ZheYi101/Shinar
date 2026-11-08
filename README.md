@@ -376,3 +376,5 @@ uv sync --dev --extra desktop --extra realtime
 逐模型的中英日严格评测见[语音评测记录](./docs/validation/speech/LOCAL_SPEECH_STRICT_EVALUATION_2026-10-28.md)：公开真人语料的 CER/WER、冷/热首结果、首 PCM、合成/播报字速、独立候选环境及匿名听评包分开记录。评测脚本与模型资产放在独立目录，不切换正常应用的语音 provider；未取得人工评分的听感项目保持未验收。
 
 本地语音的普通下载、分类型环境和声音选择见[设置闭环指南](docs/desktop/LOCAL_SPEECH_SETUP.md)；Windows 安装与免安装分发见[分发指南](docs/desktop/WINDOWS_DISTRIBUTION.md)，真人设备与安装证据分别记录。
+
+桌面状态职责和异步失效契约见 [Decision 0046](docs/decisions/TECH_DECISIONS.md#decision-0046)，本轮工程验收见[三个桌面门面所有权记录](docs/validation/engineering/DESKTOP_STATE_OWNERSHIP_2026-11-08.md)。

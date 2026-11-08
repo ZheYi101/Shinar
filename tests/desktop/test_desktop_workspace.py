@@ -20,7 +20,7 @@ def visible_item(window, name):
 
 
 def source_ready(ws):
-    until(lambda: ws._document_ready and bool(ws.sourceText))
+    until(lambda: ws.documentReady and bool(ws.sourceText))
     QTest.qWait(60)
 
 
@@ -211,7 +211,7 @@ def test_opening_remains_unsent_and_navigation_models_stay_stable(desktop, monke
     ws.startThread()
     until(lambda: not vm.busy)
     assert vm.sessionActive and vm._workbench.session.id != original_id
-    assert ws._source_section == "" and ws.sourceScroll == 0
+    assert ws.reading_snapshot["section"] == "" and ws.sourceScroll == 0
     assert vm.draft == opening
     assert not any(message["role"] == "user" for message in vm.messages)
     changes = []
@@ -275,7 +275,7 @@ def test_import_cancel_keeps_form_and_failed_replacement_cannot_import_old_file(
 def test_stale_history_preview_rejects_pending_document_result(desktop, monkeypatch):
     import asyncio
 
-    vm, window, *_ = desktop
+    vm, window, _, _, _, _, database = desktop
     vm._stt = vm._tts = None
     load_and_start(vm, window)
     ws = workspace_of(window)
@@ -286,8 +286,22 @@ def test_stale_history_preview_rejects_pending_document_result(desktop, monkeypa
     vm.draft = "This passage matters."
     vm.sendMessage(vm.draft)
     until(lambda: not vm.busy)
+    from shinar.desktop.workspace.controller import DesktopWorkspaceController
+    from shinar.desktop.tasks.worker import AsyncWorker
+    from PySide6.QtCore import QSettings
     jobs = []
-    monkeypatch.setattr(ws._worker, "submit", jobs.append)
+    class ManualWorker(AsyncWorker):
+        def submit_job(self, task, operation):
+            jobs.append((task, operation))
+    isolated = DesktopWorkspaceController(
+        vm, QSettings(str(database.parent / "late-delivery.ini"), QSettings.Format.IniFormat),
+        worker_factory=ManualWorker,
+    )
+    isolated.toggleSource()
+    first_task, first_operation = jobs.pop()
+    isolated._completed(first_task, asyncio.run(first_operation()), "")
+    isolated.selectSource(0, 5)
+    ws = isolated
     ws.loadSource("")
     material = vm._workbench.material
     vm._workbench._materials = [
@@ -296,9 +310,11 @@ def test_stale_history_preview_rejects_pending_document_result(desktop, monkeypa
     ]
     ws.previewMessage(vm.messages[1]["id"])
     assert ws.historicalSource and ws.sourceStale and ws.sourceText == sent.quote
-    result = asyncio.run(jobs.pop()())
-    ws._completed(result, "")
+    task, operation = jobs.pop()
+    result = asyncio.run(operation())
+    ws._completed(task, result, "")
     assert ws.sourceStale and ws.sourceText == sent.quote and not ws.documentReady
+    isolated.close()
 
 
 def test_source_resizing_and_recording_keep_business_thread(desktop):

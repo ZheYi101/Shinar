@@ -64,7 +64,7 @@ class LibraryOperations:
         def run():
             try:
                 result = operation(
-                    cancel, lambda kind, value: emit(LibraryEvent(identity, kind, value))
+                    cancel, lambda kind, value: emit(LibraryEvent(identity, kind, freeze(value)))
                 )
                 if cancel.is_set():
                     raise RuntimeError("speech_setup_cancelled")
