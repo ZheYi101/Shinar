@@ -6,7 +6,7 @@ from PySide6.QtGui import QGuiApplication, QInputMethodEvent
 from PySide6.QtTest import QTest
 
 from shinar.infrastructure import ai_configuration
-from test_desktop_workflow import desktop, qt_app, item, click, until, workspace_of  # noqa: F401
+from tests.test_desktop_workflow import desktop, qt_app, item, click, until, workspace_of  # noqa: F401
 
 
 def enter(window, name, value):
@@ -37,7 +37,7 @@ def choose(window, name, index):
 
 
 def test_qml_configure_probe_save_and_next_start_use_saved_api(desktop, monkeypatch, tmp_path):
-    from infrastructure.test_ai_configuration import fake_crypt
+    from tests.infrastructure.test_ai_configuration import fake_crypt
     from shinar.desktop import app
 
     vm, window, _, provider, _, _, database = desktop
@@ -125,7 +125,7 @@ def test_edited_connection_rejects_late_metadata_and_auth_errors_stay_inline(des
 
 
 def test_current_service_list_required_and_same_model_choice_is_saved(desktop, monkeypatch):
-    from infrastructure.test_ai_configuration import fake_crypt
+    from tests.infrastructure.test_ai_configuration import fake_crypt
 
     _, window, _, _, _, _, _ = desktop
     api = controller(window)

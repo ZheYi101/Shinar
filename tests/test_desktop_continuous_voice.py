@@ -8,7 +8,7 @@ from PySide6.QtCore import QObject, Signal, QTimer, Qt
 from PySide6.QtMultimedia import QAudioFormat
 from PySide6.QtTest import QTest
 
-from test_desktop_workflow import (
+from tests.test_desktop_workflow import (
     desktop,
     qt_app,
     click,

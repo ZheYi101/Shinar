@@ -54,7 +54,7 @@ class LearningPresentation:
 
     @Property(dict, constant=True)
     def modelServices(self) -> dict[str, str]:
-        settings = getattr(self._workbench.provider, "_settings", None)
+        settings = getattr(self._workbench.provider, "connection_settings", None)
         reasoning = getattr(settings, "reasoning_model", None)
         return {
             "reasoning": reasoning or self._provider_label,
@@ -122,7 +122,7 @@ class LearningPresentation:
         if material is None:
             return QCoreApplication.translate("Desktop", "尚未加载材料。")
         if self._workbench.session and self._workbench.session.material_id == material.id:
-            material = self._workbench._session_material()
+            material = self._workbench.session_material()
         else:
             material = scope_material(material)
         names = {
@@ -448,7 +448,7 @@ class LearningPresentation:
         material = scope_material(material) if material else None
         return (
             [
-                dict(topic.model_dump(), category_label=_topic_category_label(topic.category))
+                dict(topic.model_dump(), category_label=topic_category_label(topic.category))
                 for topic in material.analysis.topics
             ]
             if material and material.analysis
@@ -644,7 +644,7 @@ class LearningPresentation:
         return session.preparation.suggested_directions[:3]
 
 
-def _topic_category_label(category: str) -> str:
+def topic_category_label(category: str) -> str:
     value = (category or "").strip().casefold()
     # Providers use many near-synonyms. Keep the browsing vocabulary finite;
     # retain the original category in the topic payload for export and search.

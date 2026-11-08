@@ -5,7 +5,7 @@ import pytest
 
 from shinar.infrastructure import SQLiteStore
 from shinar.core.domain import SessionEvent, SessionEventType
-from test_voice_session import make_work
+from tests.application.test_voice_session import make_work
 
 
 def test_schema_one_upgrades_idempotently_without_user_data(tmp_path):

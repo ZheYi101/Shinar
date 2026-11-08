@@ -54,6 +54,22 @@ async def imported(work, text="A friend returns to the station.\nUNREAD_ENDING: 
         auto_prepare=False)
 
 
+def test_public_session_material_keeps_frozen_reading_scope_without_writes(tmp_path):
+    async def run():
+        work = LearningWorkbench(FreeProvider(), event_store=SQLiteStore(tmp_path / "query.sqlite3"))
+        material = await imported(work)
+        end = material.content.index("UNREAD_ENDING")
+        work.set_reading_scope(end)
+        await work.start_session()
+        before = work.session.model_dump(mode="json"), work.material.model_dump(mode="json")
+        result = work.session_material()
+        assert "UNREAD_ENDING" not in result.content
+        assert len(result.content) <= end
+        assert before == (work.session.model_dump(mode="json"), work.material.model_dump(mode="json"))
+        await work.aclose()
+    asyncio.run(run())
+
+
 def test_import_free_opening_partial_scope_and_restart(tmp_path):
     async def run():
         path = tmp_path / "free.sqlite3"

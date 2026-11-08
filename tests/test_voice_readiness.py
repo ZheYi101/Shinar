@@ -8,7 +8,7 @@ from PySide6.QtCore import QObject, QTimer, Signal, Qt
 from PySide6.QtTest import QTest
 
 from shinar.local_speech.profiles import LocalSpeechProvider
-from test_desktop_workflow import (
+from tests.test_desktop_workflow import (
     desktop, qt_app, load_and_start, until, item, click, workspace_of, pcm_wav,
 )  # noqa: F401
 

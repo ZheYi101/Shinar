@@ -33,6 +33,7 @@ from shinar.core import (
 from shinar.core.knowledge import SourceSpan, TurnSourceSnapshot
 from shinar.core.reading_scope import paragraph_boundary, reading_end
 from shinar.desktop.worker import AsyncWorker
+from shinar.desktop.settings import ProductSettings
 from shinar.infrastructure.blocking_jobs import BlockingRequest, run_blocking
 from shinar.application.source_loading import SourceLoadRequest
 from shinar.infrastructure.material_import import (
@@ -57,7 +58,7 @@ class DesktopWorkspaceController(QObject, ReaderWorkspace):
         super().__init__(parent)
         self.vm = viewmodel
         self.workbench = viewmodel.workbench
-        self.settings = settings if settings is not None else QSettings("Shinar", "Workspace")
+        self.settings = settings if settings is not None else ProductSettings("Workspace")
         self._route = "chat" if viewmodel.hasSession else "library"
         self._browsing = viewmodel.selectedMaterialId
         self._category = "appearance"

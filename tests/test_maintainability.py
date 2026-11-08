@@ -2,6 +2,7 @@
 
 import ast
 from pathlib import Path
+from tests.support.boundaries import desktop_violations, import_cycles
 
 SOURCE = Path(__file__).resolve().parents[1] / "src" / "shinar"
 
@@ -32,17 +33,12 @@ def test_production_files_and_functions_have_bounded_size():
 
 
 def test_desktop_collaborators_use_public_interfaces():
-    violations = []
-    collaborators = {"self.vm", "self.voice", "vm", "viewmodel", "self.workbench"}
-    for path in (SOURCE / "desktop").glob("*.py"):
-        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8-sig"))):
-            if (
-                isinstance(node, ast.Attribute)
-                and node.attr.startswith("_")
-                and ast.unparse(node.value) in collaborators
-            ):
-                violations.append(f"{path.name}:{node.lineno}: {ast.unparse(node)}")
+    violations = desktop_violations(SOURCE / "desktop")
     assert not violations, "\n".join(violations)
+
+
+def test_desktop_runtime_imports_are_acyclic():
+    assert not import_cycles(SOURCE / "desktop", "shinar.desktop")
 
 
 def test_plain_source_and_process_boundaries_do_not_import_qt():
@@ -59,7 +55,7 @@ def test_conversation_display_updates_use_the_single_facade():
     violations = []
     legacy = {"_messages", "_streaming_text", "_pending_user_text", "_response_timing",
               "_recording_seconds", "_error"}
-    for path in (SOURCE / "desktop").glob("*.py"):
+    for path in (SOURCE / "desktop").rglob("*.py"):
         if path.name == "conversation_presentation.py":
             continue
         tree = ast.parse(path.read_text(encoding="utf-8-sig"))
@@ -93,7 +89,7 @@ def test_conversation_display_updates_use_the_single_facade():
 
 def test_legacy_desktop_import_entrypoints_do_not_reappear():
     removed = {"loadMaterial", "importMaterial", "startPractice"}
-    for path in (SOURCE / "desktop").glob("*.py"):
+    for path in (SOURCE / "desktop").rglob("*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8-sig"))
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):

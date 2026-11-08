@@ -12,8 +12,8 @@ from PySide6.QtCore import QPoint, QPointF, Qt
 from PySide6.QtTest import QTest
 
 from shinar.local_speech.catalog import load_catalog
-from test_desktop_workflow import click, item, until
-from test_local_speech_desktop import library_desktop
+from tests.test_desktop_workflow import click, item, until
+from tests.test_local_speech_desktop import library_desktop
 
 
 @pytest.mark.parametrize("width", [360, 1180])

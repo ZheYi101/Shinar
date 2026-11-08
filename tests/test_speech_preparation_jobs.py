@@ -14,7 +14,7 @@ from shinar.local_speech.downloads import (
     TransferEvent,
     package_lock,
 )
-from test_desktop_workflow import qt_app, until  # noqa: F401
+from tests.test_desktop_workflow import qt_app, until  # noqa: F401
 
 
 def test_parallel_jobs_have_separate_progress_cancel_retry_and_capacity(qt_app):

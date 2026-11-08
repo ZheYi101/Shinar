@@ -345,7 +345,8 @@ class MaterialWorkbench():
         await task
         return next(item for item in self._materials if item.id == material.id)
 
-    def _session_material(self) -> LearningMaterial:
+    def session_material(self) -> LearningMaterial:
+        """Read the material at the active session's frozen authorization boundary."""
         end = self._session.options.read_through if self._session and self._session.options else None
         material = self._material
         knowledge = material.analysis.knowledge if material and material.analysis else None
@@ -354,6 +355,9 @@ class MaterialWorkbench():
             if cached:
                 material = material.model_copy(update={"analysis": analysis_with_knowledge(material.analysis, cached)})
         return scope_material(material, end)
+
+    def _session_material(self) -> LearningMaterial:
+        return self.session_material()
 
     def _cancel_preparation(self) -> None:
         self._generation += 1

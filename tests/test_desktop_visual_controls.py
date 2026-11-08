@@ -5,7 +5,7 @@ import pytest
 from PySide6.QtCore import QObject, QPointF, Qt
 from PySide6.QtTest import QTest
 
-from test_desktop_workflow import desktop, qt_app, click, item, until, workspace_of  # noqa: F401
+from tests.test_desktop_workflow import desktop, qt_app, click, item, until, workspace_of  # noqa: F401
 
 
 def test_theme_tiles_and_compact_controls_are_interactive(desktop):

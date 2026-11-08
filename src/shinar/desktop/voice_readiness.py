@@ -1,5 +1,10 @@
 """Conversation-page preflight, independent of recording and business operations."""
 
+from shinar.local_speech.installation import managed_status
+from shinar.realtime.continuous_assets import prepared_assets
+
+from shinar.desktop.speech_routing import SpeechRoute
+
 import asyncio
 from time import perf_counter
 from uuid import uuid4
@@ -221,10 +226,8 @@ class VoiceReadinessController(QObject):
         self.timings = {}
         self._job = "voice-preflight-" + uuid4().hex
         job, language, root = self._job, key[1], self.voice.call.root
-        from .voice import _SpeechRoute
-        from .continuous_voice import managed_status, prepared_assets
 
-        routes = {task: _SpeechRoute(self.vm, task) for task in ("stt", "tts")}
+        routes = {task: SpeechRoute(self.vm, task) for task in ("stt", "tts")}
         speak = self.vm.preferences.autoReadReplies
 
         async def check() -> None:

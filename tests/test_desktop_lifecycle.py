@@ -8,7 +8,7 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QSystemTrayIcon
 
 from shinar.desktop.preferences import DesktopPreferences
-from test_desktop_workflow import (  # noqa: F401
+from tests.test_desktop_workflow import (  # noqa: F401
     desktop,
     qt_app,
     click,

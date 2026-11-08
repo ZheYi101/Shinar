@@ -3,8 +3,8 @@ from threading import Event
 from PySide6.QtTest import QTest
 
 from shinar.local_speech.downloads import TransferEvent
-from test_desktop_workflow import desktop, qt_app, click, item, until, workspace_of  # noqa: F401
-from test_local_speech_desktop import library_desktop  # noqa: F401
+from tests.test_desktop_workflow import desktop, qt_app, click, item, until, workspace_of  # noqa: F401
+from tests.test_local_speech_desktop import library_desktop  # noqa: F401
 
 
 def test_local_model_labels_separate_download_disk_and_unmeasured_ram(library_desktop):

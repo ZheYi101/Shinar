@@ -367,13 +367,13 @@ def test_empty_library_has_no_form_modal(desktop):
 
 
 def test_topic_browsing_groups_provider_synonyms_into_a_small_vocabulary():
-    from shinar.desktop.viewmodel import _topic_category_label
-    assert {_topic_category_label(value) for value in ['narrative reliability', 'Narrator reliability and obsession',
+    from shinar.desktop.viewmodel import topic_category_label
+    assert {topic_category_label(value) for value in ['narrative reliability', 'Narrator reliability and obsession',
         'narration, character motivation', '叙事可靠性', 'author\'s defense', 'literary criticism']} == {'叙述与文体'}
-    assert _topic_category_label('relationships, choices, consequences') == '人物关系'
-    assert _topic_category_label('character motivation') == '人物'
-    assert _topic_category_label('ending') == '故事与情节'
-    assert _topic_category_label('a previously unseen category') == '综合讨论'
+    assert topic_category_label('relationships, choices, consequences') == '人物关系'
+    assert topic_category_label('character motivation') == '人物'
+    assert topic_category_label('ending') == '故事与情节'
+    assert topic_category_label('a previously unseen category') == '综合讨论'
 
 
 def test_material_threads_preserve_unfinished_threads_and_drafts(desktop):

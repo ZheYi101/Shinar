@@ -4,7 +4,7 @@ from PySide6.QtCore import QPointF, Qt
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtTest import QTest
 
-from test_desktop_workflow import (  # noqa: F401
+from tests.test_desktop_workflow import (  # noqa: F401
     desktop,
     qt_app,
     click,

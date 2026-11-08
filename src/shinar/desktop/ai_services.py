@@ -35,7 +35,7 @@ class AIServiceSettingsController(QObject):
     def __init__(self, vm, parent=None):
         super().__init__(parent)
         self.vm, self.worker = vm, vm.worker
-        database = getattr(vm.workbench._event_store, "path", None)
+        database = vm.workbench.storage_path
         if database is None:
             from shinar.infrastructure.sqlite_store import default_database_path
             database = default_database_path()
@@ -50,7 +50,7 @@ class AIServiceSettingsController(QObject):
         self._closed = self._restart = False
         self.probe = probe_models
         self._saved = self.store.path.is_file()
-        active = getattr(vm.workbench.provider, "_settings", None)
+        active = getattr(vm.workbench.provider, "connection_settings", None)
         self._environment = None
         if "Mock" not in vm.providerLabel:
             from shinar.providers.openai_compatible import OpenAICompatibleLLMSettings

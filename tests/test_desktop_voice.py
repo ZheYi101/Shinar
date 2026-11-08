@@ -13,7 +13,7 @@ from shinar.desktop.preferences import DesktopPreferences
 from shinar.desktop.viewmodel import LearningViewModel
 from shinar.infrastructure import SQLiteStore
 
-from test_desktop_workflow import (
+from tests.test_desktop_workflow import (
     desktop,
     FakeAudio,
     FakeSpeech,
@@ -207,7 +207,7 @@ def test_restart_exposes_pending_reply_without_automatic_request(desktop, tmp_pa
 def test_native_audio_queue_limits_order_and_stopped_is_not_end(qt_app, monkeypatch):
     from shinar.desktop.audio import AudioController
     from shinar.core.voice import SpeechSegment
-    from test_desktop_workflow import pcm_wav
+    from tests.test_desktop_workflow import pcm_wav
 
     class Player:
         def setSource(self, source):

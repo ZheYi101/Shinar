@@ -10,7 +10,7 @@ from shinar.application.speech_audio import SpeechPlayoutBuffer, trim_speech_pad
 from shinar.application.speech_text import SpeechTextBuffer
 from shinar.application.voice_session import VoiceSessionCoordinator
 from shinar.core.voice import SpeechSegment
-from test_voice_session import Speech, Dialogue, make_work, wav_bytes
+from tests.application.test_voice_session import Speech, Dialogue, make_work, wav_bytes
 
 
 def test_next_audio_is_synthesized_while_previous_segment_is_being_sent(tmp_path):

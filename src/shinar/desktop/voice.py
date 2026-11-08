@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from shinar.desktop.speech_routing import SpeechRoute
+
 import asyncio
 from concurrent.futures import Future
 from time import perf_counter, time
@@ -19,33 +21,6 @@ if TYPE_CHECKING:
     from shinar.desktop.viewmodel import LearningViewModel
 
 
-class _SpeechRoute:
-    """Capture routing once on the GUI thread, bind the model on the worker."""
-
-    def __init__(self, vm, task: str) -> None:
-        local = vm.local_speech
-        self.backend = (
-            local.provider(task) if local and local.enabled(task) else vm.speech_provider(task)
-        )
-        self._bound = None
-        self._error = None
-
-    async def bind(self, language: str):
-        if self._error:
-            raise self._error
-        if self._bound is not None:
-            return self._bound
-        if self.backend is None:
-            raise ValueError("speech_service_unavailable")
-        bind = getattr(self.backend, "bind", None)
-        self._bound = await bind(language) if bind else self.backend
-        return self._bound
-
-    async def prepare(self, language: str) -> None:
-        try:
-            await self.bind(language)
-        except Exception as exc:
-            self._error = exc
 
 
 class DesktopVoiceController(QObject):
@@ -208,7 +183,7 @@ class DesktopVoiceController(QObject):
     def _speak_enabled(self) -> bool:
         return bool(
             self.audio and self.vm.preferences.autoReadReplies and self.vm.speech_available("tts")
-            and not (self.call.active and self.call._tts_error)
+            and not (self.call.active and not self.call.tts_available)
         )
 
     @Slot()
@@ -401,7 +376,7 @@ class DesktopVoiceController(QObject):
             )
             self._cache_turn = self._turn
         job_id, session_id = self._job, self._session
-        stt, tts = _SpeechRoute(self.vm, "stt"), _SpeechRoute(self.vm, "tts")
+        stt, tts = SpeechRoute(self.vm, "stt"), SpeechRoute(self.vm, "tts")
         language = self.vm.speech_language()
         should_speak = self._job_speak
         if self.audio:

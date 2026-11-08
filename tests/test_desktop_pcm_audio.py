@@ -8,7 +8,7 @@ from PySide6.QtMultimedia import QAudioFormat, QtAudio
 
 from shinar.desktop.pcm_audio import PcmAudioBridge
 from shinar.realtime.pcm import DeviceFormat
-from test_desktop_workflow import qt_app  # noqa: F401
+from tests.test_desktop_workflow import qt_app  # noqa: F401
 
 
 class DeviceStub(QObject):

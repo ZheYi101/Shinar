@@ -27,7 +27,7 @@ from shinar.local_speech.catalog import Artifact, load_catalog
 from shinar.local_speech import RUNTIME_VERSION
 from shinar.local_speech.storage import atomic_json, read_json
 from shinar.providers import MockLearningLLMProvider
-from test_desktop_workflow import FakeAudio, click, item, until
+from tests.test_desktop_workflow import FakeAudio, click, item, until
 
 
 @pytest.fixture

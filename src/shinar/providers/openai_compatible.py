@@ -76,6 +76,11 @@ class _PreparationBudgetExceeded(Exception):
 
 
 class OpenAICompatibleLLMProvider(LearningLLMProvider):
+    @property
+    def connection_settings(self) -> OpenAICompatibleLLMSettings:
+        """Detached connection details for the local settings boundary."""
+        return self._settings.model_copy(deep=True)
+
     supports_semantic_preparation = True
     """LearningLLMProvider implementation for OpenAI-compatible endpoints."""
 

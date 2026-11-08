@@ -6,7 +6,7 @@ from PySide6.QtTest import QTest
 
 from shinar.desktop.i18n import resolve_display_language, suggested_native_language
 from shinar.desktop.preferences import DesktopPreferences
-from test_desktop_workflow import desktop, qt_app, item, load_and_start, workspace_of  # noqa: F401
+from tests.test_desktop_workflow import desktop, qt_app, item, load_and_start, workspace_of  # noqa: F401
 
 
 def test_system_language_order_fallback_and_learning_language_mapping():

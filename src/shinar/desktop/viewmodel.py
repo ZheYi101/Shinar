@@ -31,7 +31,7 @@ from shinar.desktop.preferences import DesktopPreferences
 from shinar.providers.speech import CompatibleSpeechProvider, SpeechSettings
 
 
-from shinar.desktop.learning_presentation import (LearningPresentation, _topic_category_label as _topic_category_label)
+from shinar.desktop.learning_presentation import (LearningPresentation, topic_category_label as topic_category_label)
 
 AsyncOperation = Callable[[], Coroutine[Any, Any, Any]]
 

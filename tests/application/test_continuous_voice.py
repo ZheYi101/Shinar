@@ -3,7 +3,7 @@ import asyncio
 from shinar.application.continuous_voice import ContinuousConversation
 from shinar.application.voice_session import VoiceSessionCoordinator
 from shinar.core.domain import MessageRole
-from test_voice_session import make_work, Speech, wav_bytes
+from tests.application.test_voice_session import make_work, Speech, wav_bytes
 
 
 class AudioProcess:

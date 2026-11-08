@@ -7,8 +7,8 @@ import pytest
 pytest.importorskip("PySide6")
 from PySide6.QtCore import QSettings
 
-from test_desktop_workflow import qt_app, until  # noqa: F401
-from infrastructure.test_epub_reader import make_epub
+from tests.test_desktop_workflow import qt_app, until  # noqa: F401
+from tests.infrastructure.test_epub_reader import make_epub
 from shinar.application import LearningWorkbench
 from shinar.core import LanguageEnum, ProficiencyLevel
 from shinar.desktop.preferences import DesktopPreferences

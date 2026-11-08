@@ -3,7 +3,7 @@
 from PySide6.QtCore import QPointF, Qt, QMetaObject, Q_ARG, Q_RETURN_ARG, QRectF
 from PySide6.QtTest import QTest
 
-from test_desktop_workflow import (  # noqa: F401
+from tests.test_desktop_workflow import (  # noqa: F401
     desktop,
     qt_app,
     item,

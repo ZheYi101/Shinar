@@ -1,5 +1,7 @@
 """QML continuous-call state. All model/RTC operations use the shared worker."""
 
+from shinar.desktop.speech_routing import SpeechRoute
+
 import asyncio
 from collections import deque
 from collections.abc import Callable
@@ -96,6 +98,10 @@ class ContinuousVoiceController(QObject, ContinuousVoicePresentation):
         self.componentsChanged.connect(self._refresh_setup_sizes)
         self._setupStorageReady.connect(self._set_setup_storage, Qt.ConnectionType.QueuedConnection)
         self.worker.jobCompleted.connect(self._job_done, Qt.ConnectionType.QueuedConnection)
+
+    @property
+    def tts_available(self) -> bool:
+        return not self._tts_error
 
     @property
     def root(self) -> Path:
@@ -273,9 +279,8 @@ class ContinuousVoiceController(QObject, ContinuousVoicePresentation):
             status = managed_status(self.root, "rtc-cpu")
             if status.get("prepared"):
                 process.python = status["python"]
-        from .voice import _SpeechRoute
 
-        stt, tts = _SpeechRoute(self.vm, "stt"), _SpeechRoute(self.vm, "tts")
+        stt, tts = SpeechRoute(self.vm, "stt"), SpeechRoute(self.vm, "tts")
         language = self.vm.speech_language()
         speak = self.voice.speak_enabled()
         self.runner = ContinuousConversation(
@@ -507,9 +512,8 @@ class ContinuousVoiceController(QObject, ContinuousVoicePresentation):
     def send_text(self, text, *, retry_turn=None, speech_only=False):
         if not self.canSendText or not (text.strip() or retry_turn):
             return
-        from .voice import _SpeechRoute
 
-        stt, tts = _SpeechRoute(self.vm, "stt"), _SpeechRoute(self.vm, "tts")
+        stt, tts = SpeechRoute(self.vm, "stt"), SpeechRoute(self.vm, "tts")
         speak = self.voice.speak_enabled() or speech_only
         source = self.vm.source_context_provider()
         self._sent_revision = (
@@ -531,9 +535,8 @@ class ContinuousVoiceController(QObject, ContinuousVoicePresentation):
             self._submit_input(header, data, source, retry=True)
 
     def _submit_input(self, header, data, source, *, retry=False):
-        from .voice import _SpeechRoute
 
-        stt, tts = _SpeechRoute(self.vm, "stt"), _SpeechRoute(self.vm, "tts")
+        stt, tts = SpeechRoute(self.vm, "stt"), SpeechRoute(self.vm, "tts")
         self._retained = (header, data, source)
         self._input, self._error = "recognizing", ""
         if self._muted:
