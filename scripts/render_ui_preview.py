@@ -17,8 +17,8 @@ from PySide6.QtQuick import QQuickWindow  # Registers the concrete window wrappe
 from shinar.application import LearningWorkbench
 from shinar.core import LanguageEnum, ProficiencyLevel
 from shinar.desktop.app import create_engine
-from shinar.desktop.preferences import DesktopPreferences
-from shinar.desktop.viewmodel import LearningViewModel
+from shinar.desktop.shell.preferences import DesktopPreferences
+from shinar.desktop.presentation.viewmodel import LearningViewModel
 from shinar.infrastructure import SQLiteStore
 from shinar.providers import MockLearningLLMProvider
 

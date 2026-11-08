@@ -12,13 +12,8 @@ from contextvars import ContextVar
 from collections.abc import Iterator
 
 from shinar.core.domain import (
-    LanguageEnum,
     LearningMaterial,
-    MaterialTrack,
-    MaterialSourceType,
-    NormalizationStatus,
     PracticeSession,
-    ProficiencyLevel,
     ReviewItem,
     ReviewOutcome,
     ReviewRating,
@@ -26,9 +21,7 @@ from shinar.core.domain import (
     SessionUserProfile,
     SessionStatus,
     SessionSummary,
-    DiscussionTopic,
     PracticeOptions,
-    SubtitleCue,
     new_id,
     Message,
     MessageRole,
@@ -42,15 +35,12 @@ from shinar.kernel import (
     SessionStepResult,
 )
 from shinar.infrastructure import SQLiteStore
-from shinar.infrastructure.material_import import ImportedMaterial
-from shinar.application.material_preparation import prepare_material, MAX_TOPICS, preparation_cache_key
-from shinar.core.preparation_validation import validate_dialogue_preparation, validate_prepared_topic
+from shinar.core.preparation_validation import validate_prepared_topic
 from shinar.core.reading_scope import scope_material, reading_end
-from shinar.core.material_context import dialogue_knowledge
 from shinar.application.source_index import build_source_index
 from shinar.application.semantic_preparation import SemanticPreparation, analysis_with_knowledge
 from shinar.core.knowledge_context import assemble_turn_context, digest, estimate_tokens, prime_turn_index
-from shinar.core.knowledge import SourceSection, TurnSourceSnapshot
+from shinar.core.knowledge import TurnSourceSnapshot
 from shinar.core.source_reference import freeze_source_context
 from shinar.infrastructure.blocking_jobs import BlockingRequest, run_blocking
 from shinar.core.knowledge_context import install_turn_index

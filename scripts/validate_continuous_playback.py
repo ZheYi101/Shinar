@@ -22,13 +22,12 @@ from PySide6.QtGui import QGuiApplication
 from PySide6.QtTest import QTest
 
 from shinar.application import LearningWorkbench
-from shinar.application.continuous_voice import ContinuousConversation
 from shinar.desktop.app import create_engine
-from shinar.desktop.pcm_audio import PcmAudioBridge
-from shinar.desktop.preferences import DesktopPreferences
-from shinar.desktop.speech_library import SpeechLibraryViewModel
-from shinar.desktop.viewmodel import LearningViewModel
-from shinar.desktop.voice import _SpeechRoute
+from shinar.desktop.voice.pcm_audio import PcmAudioBridge
+from shinar.desktop.shell.preferences import DesktopPreferences
+from shinar.desktop.speech_library.viewmodel import SpeechLibraryViewModel
+from shinar.desktop.presentation.viewmodel import LearningViewModel
+from shinar.desktop.voice.routing import SpeechRoute
 from shinar.infrastructure import SQLiteStore
 from shinar.local_speech.installation import managed_status
 from shinar.providers.mock import MockLearningLLMProvider
@@ -40,6 +39,7 @@ from validate_ui_workspace import click, wait_until
 
 class ProbeEvents(QObject):
     received = Signal(str)
+    transport = Signal(object, bytes)
 
 
 def main(args):
@@ -89,6 +89,7 @@ def main(args):
     max_event_gap = 0
     bridge = process = None
     errors = []
+    faults = []
 
     def delivered(generation):
         nonlocal drained
@@ -97,17 +98,14 @@ def main(args):
     def stage(kind):
         nonlocal done
         if kind == "capture":
-            call._muted = False
             capture.start(10)
         elif kind == "begin":
-            call._event(call._id, "output_begin", 1, "1")
+            bridge.begin_output("1")
         elif kind == "done":
             capture.stop()
             done = True
         elif kind == "closing":
             capture.stop()
-            call._muted = True
-            call._connection = "stopping"
 
     events.received.connect(stage, Qt.ConnectionType.QueuedConnection)
     try:
@@ -123,7 +121,9 @@ def main(args):
         ws.newThreadPage()
         click(window, "startDiscussionButton")
         wait_until(lambda: vm.sessionActive and not vm.busy)
-        bridge = call._new_bridge()
+        # This device diagnostic owns its transport directly; it never fabricates
+        # a conversation or writes the production call coordinator's state.
+        bridge = PcmAudioBridge(vm.audio, window)
         assert isinstance(bridge, PcmAudioBridge)
         config = bridge.formats()
         config.update(cache=str(call.root / "sfu"), vad=str(vad_path(call.root)), pause_ms=650)
@@ -131,12 +131,20 @@ def main(args):
         bridge.open()  # QAudioSource is constructed, but resume()/start() is NEVER called.
         bridge.drained.connect(delivered)
         identity = uuid4().hex
-        call._id, call._connection = identity, "active"
+
+        def transport(header, payload):
+            if header["kind"] == "playback":
+                bridge.enqueue(header["generation"], payload)
+            elif header["kind"] == "output_drained":
+                bridge.finish_output(header["generation"])
+
+        events.transport.connect(transport, Qt.ConnectionType.QueuedConnection)
+        bridge.fault.connect(faults.append)
 
         def receive(header, payload):
             if header["kind"] == "playback":
                 report["playback_frames"] += 1
-            call._emit(identity, "transport", (header, payload))
+            events.transport.emit(header, payload)
             if args.legacy_refresh and header["kind"] == "playback":
                 # Reproduce the old shared-notify binding load on the GUI thread.
                 events.received.emit("legacy")
@@ -144,22 +152,23 @@ def main(args):
         def legacy(kind):
             if kind == "legacy":
                 call.componentsChanged.emit()
-                call.notify()
+                call.changed.emit()
 
         events.received.connect(legacy)
         process = AudioSessionProcess(
             identity, receive, python=managed_status(call.root, "rtc-cpu")["python"]
         )
         call.process = process
-        call.runner = ContinuousConversation(vm._workbench, process, lambda *args: None)
-        route = _SpeechRoute(vm, "tts")
+        route = SpeechRoute(vm, "tts")
         sample = b"\x80" if bridge.input_spec.sample == "uint8" else b"\0"
         silent_frame = sample * (bridge.input_spec.rate // 100 * bridge.input_spec.frame_bytes)
         capture.timeout.connect(
-            lambda: call._capture(
-                {"captured_at": monotonic(), "capture_delay_ms": 10}, silent_frame
-            )
+            lambda: call.post(lambda: process.send(
+                "capture", silent_frame, captured_at=monotonic(), capture_delay_ms=10
+            ))
         )
+        bridge.rendered.connect(lambda header, data: call.post(lambda: process.send("rendered", data, **header)))
+        bridge.credit.connect(lambda: call.post(lambda: process.send("credit")))
 
         async def run():
             try:
@@ -195,7 +204,7 @@ def main(args):
                     await asyncio.sleep(0.3)
                 await process.request("output_done", timeout=30)
                 deadline = monotonic() + 15
-                while not drained and monotonic() < deadline and not call.faults:
+                while not drained and monotonic() < deadline and not faults:
                     await asyncio.sleep(0.02)
                 report["stats"] = await process.request("stats")
             except Exception as error:
@@ -219,14 +228,14 @@ def main(args):
             sleep(0.005)
         report.update(
             drained=drained,
-            voice_faults=list(call.faults),
+            voice_faults=faults,
             max_event_gap_ms=max_event_gap * 1000,
             written_bytes=bridge._written,
             callback_errors=errors,
         )
         if library:
             report["output"] = "normal_settings_local_tts"
-        report["passed"] = bool(done and drained and not call.faults and not errors)
+        report["passed"] = bool(done and drained and not faults and not errors)
         assert bridge.input_io is None, "Probe must never open the physical microphone."
         window.grabWindow().save(str(output / "playback.png"))
     finally:

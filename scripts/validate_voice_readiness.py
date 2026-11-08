@@ -13,7 +13,7 @@ import traceback
 from uuid import uuid4
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path[:0] = [str(ROOT / "src"), str(ROOT / "tests"), str(ROOT / "scripts")]
+sys.path[:0] = [str(ROOT / "src"), str(ROOT), str(ROOT / "scripts")]
 os.environ["RUN_REAL_AI_TESTS"] = "0"
 os.environ.setdefault("QT_QUICK_BACKEND", "software")
 
@@ -23,14 +23,15 @@ from PySide6.QtTest import QTest
 
 from shinar.application import LearningWorkbench
 from shinar.desktop.app import create_engine
-from shinar.desktop.preferences import DesktopPreferences
-from shinar.desktop.speech_library import SpeechLibraryViewModel
-from shinar.desktop.viewmodel import LearningViewModel
+from shinar.desktop.shell.preferences import DesktopPreferences
+from shinar.desktop.speech_library.viewmodel import SpeechLibraryViewModel
+from shinar.desktop.presentation.viewmodel import LearningViewModel
 from shinar.infrastructure import SQLiteStore
 from shinar.providers.mock import MockLearningLLMProvider
-from test_desktop_workflow import FakeAudio, FakeSpeech, click, item, load_and_start
-import test_desktop_workflow as workflow
-from test_voice_readiness import Probe
+from tests.support.audio import FakeAudio, FakeSpeech
+from tests.support.qt import click, item
+from tests.support.scenarios import load_and_start
+from tests.support.continuous import Probe
 from validate_voice_handoff import TestInputBridge
 
 
@@ -45,7 +46,6 @@ def wait(predicate, timeout=180):
 
 def main(args):
     # Real cold model loads exceed the offline fixture's five-second deadline.
-    workflow.until = lambda predicate, timeout=5000: wait(predicate, max(180, timeout / 1000))
     root = ROOT / "build/voice-readiness" / uuid4().hex
     root.mkdir(parents=True)
     warnings, callbacks, captures = [], [], []
@@ -107,7 +107,7 @@ def main(args):
         "human_listening_acceptance": False,
     }
     try:
-        load_and_start(vm, window)
+        load_and_start(vm, window, wait=lambda predicate: wait(predicate, 180))
         wait(lambda: not readiness.busy and not vm.busy)
         report.update(preflight=list(readiness.checks), preflight_ms=dict(readiness.timings))
         assert not call.active and call.process is None

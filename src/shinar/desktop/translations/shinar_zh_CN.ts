@@ -402,7 +402,7 @@
 <context>
     <name>Desktop</name>
     <message>
-        <location filename="../workspace.py" line="+198"/>
+        <location filename="../workspace/controller.py" line="+184"/>
         <source>已整理</source>
         <translation type="unfinished"></translation>
     </message>
@@ -437,49 +437,49 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../learning_presentation.py" line="+129"/>
-        <location filename="../speech_errors.py" line="+44"/>
-        <location filename="../workspace.py" line="+14"/>
+        <location filename="../presentation/properties.py" line="+129"/>
+        <location filename="../tasks/speech_errors.py" line="+44"/>
+        <location filename="../workspace/controller.py" line="+14"/>
         <source>日语</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../speech_errors.py" line="-1"/>
-        <location filename="../workspace.py" line="+1"/>
+        <location filename="../tasks/speech_errors.py" line="-1"/>
+        <location filename="../workspace/controller.py" line="+1"/>
         <source>英语</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../speech_errors.py" line="+2"/>
-        <location filename="../workspace.py" line="+1"/>
+        <location filename="../tasks/speech_errors.py" line="+2"/>
+        <location filename="../workspace/controller.py" line="+1"/>
         <source>中文</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../speech_errors.py" line="+2"/>
-        <location filename="../workspace.py" line="+1"/>
+        <location filename="../tasks/speech_errors.py" line="+2"/>
+        <location filename="../workspace/controller.py" line="+1"/>
         <source>法语</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../speech_errors.py" line="+1"/>
-        <location filename="../workspace.py" line="+1"/>
+        <location filename="../tasks/speech_errors.py" line="+1"/>
+        <location filename="../workspace/controller.py" line="+1"/>
         <source>德语</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../speech_errors.py" line="+1"/>
-        <location filename="../workspace.py" line="+1"/>
+        <location filename="../tasks/speech_errors.py" line="+1"/>
+        <location filename="../workspace/controller.py" line="+1"/>
         <source>西班牙语</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../workspace.py" line="+5"/>
+        <location filename="../workspace/controller.py" line="+5"/>
         <source>范围未确认</source>
         <translation type="unfinished"></translation>
     </message>
@@ -524,7 +524,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../reader_workspace.py" line="+115"/>
+        <location filename="../workspace/reading.py" line="+115"/>
         <location line="+78"/>
         <source>书籍排版暂不可用，已显示文本。</source>
         <translation type="unfinished"></translation>
@@ -540,21 +540,21 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../viewmodel.py" line="+77"/>
+        <location filename="../presentation/viewmodel.py" line="+71"/>
         <source>就绪。当前模式：{value0}</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../learning_presentation.py" line="+327"/>
+        <location filename="../presentation/properties.py" line="+327"/>
         <location line="+19"/>
-        <location filename="../viewmodel.py" line="+12"/>
+        <location filename="../presentation/viewmodel.py" line="+12"/>
         <location line="+149"/>
         <location line="+111"/>
         <source>全部</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../viewmodel.py" line="-221"/>
+        <location filename="../presentation/viewmodel.py" line="-221"/>
         <source>{value0} 未配置或配置无效，请检查 SHINAR_{value1}_*。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -569,7 +569,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../learning_presentation.py" line="-407"/>
+        <location filename="../presentation/properties.py" line="-407"/>
         <source>历史讨论</source>
         <translation type="unfinished"></translation>
     </message>
@@ -735,7 +735,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../viewmodel.py" line="+58"/>
+        <location filename="../presentation/viewmodel.py" line="+58"/>
         <source>正在生成复盘...</source>
         <translation type="unfinished"></translation>
     </message>
@@ -821,7 +821,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../learning_presentation.py" line="+152"/>
+        <location filename="../presentation/properties.py" line="+152"/>
         <source>随便聊聊，不用先选话题</source>
         <translation type="unfinished"></translation>
     </message>
@@ -866,7 +866,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../viewmodel.py" line="+91"/>
+        <location filename="../presentation/viewmodel.py" line="+91"/>
         <source>请粘贴原文中唯一的一句（至少 8 个字符），以便精确确定已读位置。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -886,7 +886,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../audio.py" line="+49"/>
+        <location filename="../voice/audio.py" line="+49"/>
         <source>录音失败，请检查麦克风权限和音频设备。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -916,7 +916,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../speech_library.py" line="+71"/>
+        <location filename="../speech_library/viewmodel.py" line="+58"/>
         <source>点击刷新，检测当前可用资源。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -971,7 +971,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../speech_library_operations.py" line="+73"/>
+        <location filename="../speech_library/operations.py" line="+73"/>
         <source>计算设置的数值无效。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -996,7 +996,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../speech_library.py" line="+73"/>
+        <location filename="../speech_library/viewmodel.py" line="+73"/>
         <source>尚未检测硬件</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1151,7 +1151,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../speech_library_operations.py" line="+83"/>
+        <location filename="../speech_library/operations.py" line="+83"/>
         <source>卸载模型…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1221,7 +1221,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../speech_library.py" line="+20"/>
+        <location filename="../speech_library/viewmodel.py" line="+20"/>
         <source>请先停止语音，再试听模型声音。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1236,7 +1236,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../voice.py" line="+147"/>
+        <location filename="../voice/turns.py" line="+147"/>
         <source>正在录音 · 结束后自动发送</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1296,26 +1296,26 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../call_coordinator.py" line="+689"/>
+        <location filename="../voice/continuous/coordinator.py" line="+682"/>
         <location line="+44"/>
-        <location filename="../voice.py" line="+3"/>
+        <location filename="../voice/turns.py" line="+3"/>
         <location line="+20"/>
         <source>回复未完成，已发送的发言已保留。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../voice.py" line="-12"/>
+        <location filename="../voice/turns.py" line="-12"/>
         <source>模型服务余额不足（HTTP 402）。已发送的发言已保留，补充余额后可重试。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+4"/>
-        <location filename="../worker.py" line="+95"/>
+        <location filename="../tasks/worker.py" line="+95"/>
+        <location filename="../voice/turns.py" line="+4"/>
         <source>模型服务认证失败（HTTP 401）。请检查本地 API Key 后重试。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location filename="../voice/turns.py" line="+3"/>
         <source>模型服务暂时限流（HTTP 429）。已发送的发言已保留，请稍后重试。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1351,7 +1351,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../worker.py" line="-36"/>
+        <location filename="../tasks/worker.py" line="-36"/>
         <source>应用正在关闭。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1381,7 +1381,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../continuous_voice.py" line="+244"/>
+        <location filename="../voice/continuous/controller.py" line="+244"/>
         <source>未启用自动朗读；识别后的发言仍会发送。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1442,8 +1442,8 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../call_coordinator.py" line="-579"/>
-        <location filename="../voice_readiness.py" line="+336"/>
+        <location filename="../voice/continuous/coordinator.py" line="-579"/>
+        <location filename="../voice/readiness.py" line="+336"/>
         <source>连续语音组件尚未准备，请前往设置 → 音频设备。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1458,7 +1458,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../speech_errors.py" line="-35"/>
+        <location filename="../tasks/speech_errors.py" line="-35"/>
         <source>待播音频超出容量，已停止朗读；静音麦克风后可重试，文字回复继续。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1493,7 +1493,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../call_coordinator.py" line="+326"/>
+        <location filename="../voice/continuous/coordinator.py" line="+326"/>
         <source>语音连接未恢复，请重新开始语音。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1523,24 +1523,24 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../call_preparation.py" line="+116"/>
+        <location filename="../voice/continuous/preparation.py" line="+116"/>
         <source>连续语音组件已准备。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../call_coordinator.py" line="+24"/>
-        <location filename="../call_preparation.py" line="+9"/>
+        <location filename="../voice/continuous/coordinator.py" line="+24"/>
+        <location filename="../voice/continuous/preparation.py" line="+9"/>
         <source>本机语音连接未建立，请在音频设备中检查连续语音组件后重试。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+8"/>
-        <location filename="../continuous_voice.py" line="-96"/>
+        <location filename="../voice/continuous/controller.py" line="-96"/>
+        <location filename="../voice/continuous/coordinator.py" line="+8"/>
         <source>本次语音未启用朗读；识别与文字回复可继续。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../continuous_voice.py" line="+37"/>
+        <location line="+37"/>
         <source>预计下载 %1 MiB · 安装需可用空间 %2 MiB（含临时文件和余量，不是最终占用或运行内存）。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1550,7 +1550,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../call_coordinator.py" line="-365"/>
+        <location filename="../voice/continuous/coordinator.py" line="-365"/>
         <source>正在暂停麦克风并保留未发送的语音…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1560,12 +1560,12 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../call_preparation.py" line="-15"/>
+        <location filename="../voice/continuous/preparation.py" line="-15"/>
         <source>当前文件：%1 / %2 MiB；整项准备尚未完成。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../call_coordinator.py" line="+424"/>
+        <location filename="../voice/continuous/coordinator.py" line="+424"/>
         <source>朗读未能播放，文字回复继续生成。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1580,7 +1580,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../speech_jobs.py" line="+77"/>
+        <location filename="../tasks/preparation_progress.py" line="+54"/>
         <source>已取消，已下载部分保留，可继续。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1620,7 +1620,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+204"/>
+        <location filename="../speech_library/jobs.py" line="+238"/>
         <source>等待下载名额</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1645,7 +1645,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-269"/>
+        <location filename="../tasks/preparation_progress.py" line="-61"/>
         <source>下载</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1720,12 +1720,12 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+265"/>
+        <location filename="../speech_library/jobs.py" line="+10"/>
         <source> · %1 MiB/s</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../speech_errors.py" line="+11"/>
+        <location filename="../tasks/speech_errors.py" line="+11"/>
         <source>韩语</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1780,7 +1780,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../voice_readiness.py" line="-209"/>
+        <location filename="../voice/readiness.py" line="-209"/>
         <source>麦克风</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1850,7 +1850,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../ai_services.py" line="+14"/>
+        <location filename="../shell/ai_services.py" line="+14"/>
         <source>请输入有效的 HTTP 或 HTTPS API 基础地址，不包含账号、查询参数或片段。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1963,7 +1963,7 @@
 <context>
     <name>DesktopLifecycleController</name>
     <message>
-        <location filename="../lifecycle.py" line="+37"/>
+        <location filename="../shell/lifecycle.py" line="+37"/>
         <source>打开 Shinar</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2385,7 +2385,7 @@
 <context>
     <name>ReaderBridge</name>
     <message>
-        <location filename="../reader_runtime.py" line="+55"/>
+        <location filename="../workspace/reader_runtime.py" line="+55"/>
         <source>已读至此</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2815,7 +2815,7 @@
 <context>
     <name>ShutdownCoordinator</name>
     <message>
-        <location filename="../shutdown.py" line="+53"/>
+        <location filename="../shell/shutdown.py" line="+53"/>
         <location line="+11"/>
         <source>后台清理未完成，请重试退出。</source>
         <translation type="unfinished"></translation>

@@ -15,7 +15,7 @@
 
 原服务页只有只读状态。本轮新增页内 API 地址、密码式密钥输入、双角色模型 ID、可选模型列表、保存与恢复环境入口。首次未配置时进入服务页；连接探针只发送 `GET /v1/models`，不会请求生成。保存后清空输入框，Windows DPAPI 当前用户密文保存在应用数据目录的 `ai-services.json`；活动 provider 不变，重启后加载。显式界面配置优先于环境，CLI 仍读环境。界面全部使用 Qt 翻译入口，更新翻译源及随包 QM。
 
-主要代码：`infrastructure/ai_configuration.py`、`providers/service_probe.py`、`desktop/ai_services.py`、`desktop/app.py`、`qml/components/AIServiceSettings.qml` 及设置页。打包扫描增加 `ai-services.json` 拒绝项。机制与使用方式见 [Windows 分发指南](../../desktop/WINDOWS_DISTRIBUTION.md) 和 Decision 0040。
+主要代码：`infrastructure/ai_configuration.py`、`providers/service_probe.py`、`desktop/shell/ai_services.py`、`desktop/app.py`、`qml/components/AIServiceSettings.qml` 及设置页。打包扫描增加 `ai-services.json` 拒绝项。机制与使用方式见 [Windows 分发指南](../../desktop/WINDOWS_DISTRIBUTION.md) 和 Decision 0040。
 
 ## 已执行验证
 

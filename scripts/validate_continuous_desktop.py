@@ -12,7 +12,7 @@ from time import monotonic
 from uuid import uuid4
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path[:0] = [str(ROOT / "src"), str(ROOT / "tests")]
+sys.path[:0] = [str(ROOT / "src"), str(ROOT)]
 
 from PySide6.QtCore import QSettings, QTimer, qInstallMessageHandler, Qt
 from PySide6.QtGui import QGuiApplication, QFontDatabase, QInputMethodEvent
@@ -20,9 +20,9 @@ from PySide6.QtTest import QTest
 
 from shinar.application import LearningWorkbench
 from shinar.desktop.app import create_engine
-from shinar.desktop.preferences import DesktopPreferences
-from shinar.desktop.speech_library import SpeechLibraryViewModel
-from shinar.desktop.viewmodel import LearningViewModel
+from shinar.desktop.shell.preferences import DesktopPreferences
+from shinar.desktop.speech_library.viewmodel import SpeechLibraryViewModel
+from shinar.desktop.presentation.viewmodel import LearningViewModel
 from shinar.infrastructure import SQLiteStore
 from shinar.local_speech.profiles import LocalSpeechProfile
 from shinar.providers.mock import MockLearningLLMProvider
@@ -148,7 +148,7 @@ def main(args, *, before_human=None):
         audio = None
         stt, tts = speech.provider("stt"), speech.provider("tts")
     else:
-        from test_desktop_workflow import FakeAudio, FakeSpeech
+        from tests.support.audio import FakeAudio, FakeSpeech
 
         speech, audio = FakeSpeech(), FakeAudio()
         stt = tts = speech
@@ -184,8 +184,7 @@ def main(args, *, before_human=None):
     mock_patches = []
     if not args.human:
         from unittest.mock import patch
-        from test_desktop_continuous_voice import SyntheticBridge, SyntheticRtc
-        from test_voice_readiness import Probe
+        from tests.support.continuous import SyntheticBridge, SyntheticRtc, Probe
         from shinar.realtime.local_server import ARCHIVE_NAME
 
         call.bridge_factory, call.process_factory = SyntheticBridge, SyntheticRtc
@@ -197,9 +196,13 @@ def main(args, *, before_human=None):
         vad.touch()
         mock_patches = [
             patch.object(app, "checkPermission", lambda permission: Qt.PermissionStatus.Granted),
-            patch("shinar.desktop.continuous_voice.managed_status", lambda *args: {"prepared": True}),
-            patch("shinar.desktop.continuous_voice.prepared_assets", lambda *args: True),
-            patch("shinar.desktop.continuous_voice.vad_path", lambda *args, **kwargs: vad),
+            patch("shinar.desktop.voice.continuous.runtime.managed_status", lambda *args: {"prepared": True}),
+            patch("shinar.desktop.voice.continuous.preparation.managed_status", lambda *args: {"prepared": True}),
+            patch("shinar.desktop.voice.continuous.preparation.prepared_assets", lambda *args: True),
+            patch("shinar.desktop.voice.continuous.runtime.vad_path", lambda *args, **kwargs: vad),
+            patch("shinar.desktop.voice.continuous.work.vad_path", lambda *args, **kwargs: vad),
+            patch("shinar.desktop.voice.readiness.managed_status", lambda *args: {"prepared": True}),
+            patch("shinar.desktop.voice.readiness.prepared_assets", lambda *args: True),
         ]
         for pending_patch in mock_patches:
             pending_patch.start()
@@ -369,7 +372,7 @@ def main(args, *, before_human=None):
             app.exec()
             timer.stop()
         else:
-            from test_desktop_workflow import pcm_wav
+            from tests.support.audio import pcm_wav
 
             for width in [int(n) for n in args.widths.split(",")]:
                 window.setWidth(width)

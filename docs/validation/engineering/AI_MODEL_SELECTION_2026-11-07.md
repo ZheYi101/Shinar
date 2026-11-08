@@ -11,7 +11,7 @@
 - 旧界面保存项与环境配置仍可启动；更新安装包不要求重新配置已选模型。仅再次通过界面保存时要求读取目录。未提供模型列表接口的服务继续可使用环境配置，QML 不另开手写入口。
 - 密钥仍使用 Windows 当前用户 DPAPI；配置仅重启后绑定到 provider，活动学习会话不改变。新增文案进入 Qt 翻译源，未引入依赖或新技术栈。
 
-主要变更为 `desktop/ai_services.py`、`qml/components/AIServiceSettings.qml`、`providers/service_probe.py`、对应测试及包内交互检查。读取目录逻辑沿用长期 asyncio worker；下拉框复用现有 `MComboBox`。
+主要变更为 `desktop/shell/ai_services.py`、`qml/components/AIServiceSettings.qml`、`providers/service_probe.py`、对应测试及包内交互检查。读取目录逻辑沿用长期 asyncio worker；下拉框复用现有 `MComboBox`。
 
 ## 验证
 

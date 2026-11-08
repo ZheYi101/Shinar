@@ -55,6 +55,17 @@ def main():
         if path.is_file()
     )
     with ZipFile(wheel) as archive, TemporaryDirectory(prefix="shinar-wheel-") as directory:
+        python_modules = {
+            "shinar/desktop/" + path.relative_to(source.parent).as_posix()
+            for path in source.parent.rglob("*.py")
+        }
+        packaged_modules = {
+            name for name in archive.namelist()
+            if name.startswith("shinar/desktop/") and name.endswith(".py")
+        }
+        if packaged_modules != python_modules:
+            raise SystemExit("Desktop Python module inventory differs from source: " +
+                             ", ".join(sorted(packaged_modules ^ python_modules)))
         missing = expected.difference(archive.namelist())
         if missing:
             raise SystemExit("Missing resources: " + ", ".join(sorted(missing)))
@@ -95,14 +106,14 @@ from shinar.desktop import app as desktop
 from shinar.application import LearningWorkbench
 from shinar.infrastructure import SQLiteStore
 from shinar.providers import MockLearningLLMProvider
-from shinar.desktop.preferences import DesktopPreferences
-from shinar.desktop.viewmodel import LearningViewModel
-from shinar.desktop.window import DesktopWindowController
+from shinar.desktop.shell.preferences import DesktopPreferences
+from shinar.desktop.presentation.viewmodel import LearningViewModel
+from shinar.desktop.shell.window import DesktopWindowController
 from shinar.local_speech.catalog import load_catalog
 from shinar.local_speech.installation import manifest, runtime_spec
 from shinar.local_speech.model_profile import voices
 from shinar.local_speech.samples import benchmark_audio
-import shinar.desktop.window as window_module
+import shinar.desktop.shell.window as window_module
 root = Path(sys.argv[1])
 assert Path(desktop.__file__).is_relative_to(root)
 assert Path(window_module.__file__).is_relative_to(root)

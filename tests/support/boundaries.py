@@ -17,13 +17,18 @@ class PrivateAccess(ast.NodeVisitor):
         self.aliases = set()
         self.violations = set()
         self.types = {}
+        self.modules = set()
+        self.accessors = {"getattr", "setattr", "delattr"}
 
     def typed(self, annotation):
         if annotation is None:
             return False
+        if isinstance(annotation, ast.Constant) and isinstance(annotation.value, str):
+            return collaborator_type(ast.Name(id=self.types.get(annotation.value, annotation.value)))
         return collaborator_type(annotation) or any(
             collaborator_type(ast.Name(id=self.types.get(node.id, "")))
-            for node in ast.walk(annotation) if isinstance(node, ast.Name)
+            for node in ast.walk(annotation)
+            if isinstance(node, ast.Name)
         )
 
     def foreign(self, value):
@@ -31,10 +36,13 @@ class PrivateAccess(ast.NodeVisitor):
         if key in self.aliases:
             return True
         if isinstance(value, ast.Name):
-            return value.id in ROLES
+            return value.id in ROLES | self.modules or self.typed(value)
         if isinstance(value, ast.Attribute):
-            return (isinstance(value.value, ast.Name) and value.value.id == "self"
-                    and value.attr.lstrip("_") in ROLES) or self.foreign(value.value)
+            return (
+                isinstance(value.value, ast.Name)
+                and value.value.id == "self"
+                and value.attr.lstrip("_") in ROLES
+            ) or self.foreign(value.value)
         if isinstance(value, ast.Call):
             return self.typed(value.func)
         return False
@@ -51,6 +59,8 @@ class PrivateAccess(ast.NodeVisitor):
     def visit_Assign(self, node):
         for target in node.targets:
             self.bind(target, node.value)
+            if isinstance(node.value, ast.Name) and node.value.id in self.accessors:
+                self.accessors.add(ast.unparse(target))
         self.generic_visit(node)
 
     def visit_AnnAssign(self, node):
@@ -78,25 +88,41 @@ class PrivateAccess(ast.NodeVisitor):
         self.aliases = before
 
     def visit_Attribute(self, node):
-        if node.attr.startswith("_") and not node.attr.startswith("__") and self.foreign(node.value):
+        if (
+            node.attr.startswith("_")
+            and not node.attr.startswith("__")
+            and self.foreign(node.value)
+        ):
             self.violations.add((node.lineno, ast.unparse(node)))
         self.generic_visit(node)
 
     def visit_Call(self, node):
-        if (isinstance(node.func, ast.Name) and node.func.id in {"getattr", "setattr", "delattr"}
-            and len(node.args) >= 2 and self.foreign(node.args[0])
-            and isinstance(node.args[1], ast.Constant) and isinstance(node.args[1].value, str)
-            and node.args[1].value.startswith("_")):
+        if (
+            isinstance(node.func, ast.Name)
+            and node.func.id in self.accessors
+            and len(node.args) >= 2
+            and self.foreign(node.args[0])
+            and isinstance(node.args[1], ast.Constant)
+            and isinstance(node.args[1].value, str)
+            and node.args[1].value.startswith("_")
+        ):
             self.violations.add((node.lineno, ast.unparse(node)))
         self.generic_visit(node)
 
     def visit_ImportFrom(self, node):
         for alias in node.names:
             self.types[alias.asname or alias.name] = alias.name
-        if node.level or (node.module or "").startswith("shinar.desktop"):
+            if node.module == "builtins" and alias.name in {"getattr", "setattr", "delattr"}:
+                self.accessors.add(alias.asname or alias.name)
+        if node.level or (node.module or "").startswith(("shinar.desktop", "shinar.application")):
             for alias in node.names:
                 if alias.name.startswith("_"):
                     self.violations.add((node.lineno, ast.unparse(node)))
+
+    def visit_Import(self, node):
+        for alias in node.names:
+            if alias.name.startswith(("shinar.desktop", "shinar.application")):
+                self.modules.add(alias.asname or alias.name.split(".")[0])
 
 
 def private_accesses(source: str) -> list[tuple[int, str]]:
@@ -106,9 +132,11 @@ def private_accesses(source: str) -> list[tuple[int, str]]:
 
 
 def desktop_violations(root: Path) -> list[str]:
-    return [f"{path.relative_to(root)}:{line}: {expression}"
-            for path in sorted(root.rglob("*.py"))
-            for line, expression in private_accesses(path.read_text(encoding="utf-8-sig"))]
+    return [
+        f"{path.relative_to(root)}:{line}: {expression}"
+        for path in sorted(root.rglob("*.py"))
+        for line, expression in private_accesses(path.read_text(encoding="utf-8-sig"))
+    ]
 
 
 class RuntimeImports(ast.NodeVisitor):
@@ -132,10 +160,12 @@ class RuntimeImports(ast.NodeVisitor):
 
     def visit_ImportFrom(self, node):
         if node.module == "typing":
-            self.type_guards.update(alias.asname or alias.name for alias in node.names if alias.name == "TYPE_CHECKING")
+            self.type_guards.update(
+                alias.asname or alias.name for alias in node.names if alias.name == "TYPE_CHECKING"
+            )
         base = self.package
         if node.level:
-            base = ".".join(base.split(".")[:len(base.split(".")) - node.level + 1])
+            base = ".".join(base.split(".")[: len(base.split(".")) - node.level + 1])
             module = ".".join(filter(None, (base, node.module)))
         else:
             module = node.module or ""
@@ -156,7 +186,7 @@ def import_cycles(root: Path, package: str) -> list[list[str]]:
 
     def visit(name):
         if name in visiting:
-            cycles.append(visiting[visiting.index(name):] + [name])
+            cycles.append(visiting[visiting.index(name) :] + [name])
             return
         if name in done:
             return

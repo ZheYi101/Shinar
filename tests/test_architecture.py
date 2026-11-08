@@ -76,7 +76,7 @@ def dependency_allowed(
 
 
 def test_webengine_dependencies_stay_in_desktop_reader_adapters() -> None:
-    allowed_python = {"desktop/app.py", "desktop/reader_runtime.py"}
+    allowed_python = {"desktop/app.py", "desktop/workspace/reader_runtime.py"}
     violations = []
     for path in sorted(PACKAGE.rglob("*.py")):
         relative = path.relative_to(PACKAGE).as_posix()
@@ -114,12 +114,45 @@ def test_reader_vendor_files_and_licenses_match_the_pinned_manifest() -> None:
         assert hashlib.sha256((root / name).read_bytes()).hexdigest() == checksum, name
 
 
+def test_production_and_validation_tools_do_not_depend_on_test_cases():
+    violations = []
+    paths = [*PACKAGE.rglob("*.py"), *SOURCE.parent.joinpath("scripts").glob("*.py")]
+    for path in paths:
+        tree = ast.parse(path.read_text(encoding="utf-8-sig"))
+        production = path.is_relative_to(PACKAGE)
+        for line, module in imported_modules(tree, ""):
+            parts = module.split(".")
+            if (production and parts[0] == "tests") or (
+                not production and any(part.startswith("test_") for part in parts)
+            ):
+                violations.append(f"{path.name}:{line}: {module}")
+        if not production:
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Attribute) and node.attr == "__wrapped__":
+                    violations.append(f"{path.name}:{node.lineno}: fixture internals")
+                if isinstance(node, (ast.Assign, ast.Expr)) and "sys.path" in ast.unparse(node):
+                    if any(isinstance(part, ast.Constant) and part.value == "tests" for part in ast.walk(node)):
+                        violations.append(f"{path.name}:{node.lineno}: tests directory injection")
+    assert not violations, "\n".join(violations)
+
+
+def test_scenario_support_is_independent_of_pytest_and_test_modules():
+    root = SOURCE.parent / "tests/support"
+    for path in root.glob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for _, module in imported_modules(tree, ""):
+            assert module != "pytest" and not any(part.startswith("test_") for part in module.split(".")), path
+        for node in tree.body:
+            if isinstance(node, (ast.Assign, ast.Expr)):
+                assert "os.environ" not in ast.unparse(node), path
+
+
 @pytest.mark.parametrize(
     ("dependency", "allowed"),
     [
         ("shinar.core.knowledge.SourceSection", True),
         ("shinar.corex", False),
-        ("shinar.desktop.workspace", False),
+        ("shinar.desktop.workspace.controller", False),
         ("shinar.infrastructure.sqlite_store", False),
         ("PySide6.QtCore", False),
         ("httpx", False),

@@ -6,8 +6,7 @@ from shinar.infrastructure import ai_configuration as module
 from shinar.infrastructure.ai_configuration import AIConnection, AIConfigurationStore
 
 
-def fake_crypt(value, *, decrypt=False):
-    return bytes(c ^ 123 for c in value)
+from tests.support.configuration import fake_crypt
 
 
 def test_encrypted_atomic_settings_and_replacement_preserve_previous_on_failure(tmp_path, monkeypatch):

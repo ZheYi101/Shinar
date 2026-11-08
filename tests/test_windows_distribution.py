@@ -79,7 +79,7 @@ def test_identity_module_does_not_eagerly_import_qt():
         [
             sys.executable,
             "-c",
-            "import sys; import shinar.desktop.identity; assert 'PySide6.QtGui' not in sys.modules",
+            "import sys; import shinar.desktop.shell.identity; assert 'PySide6.QtGui' not in sys.modules",
         ],
         capture_output=True,
         text=True,

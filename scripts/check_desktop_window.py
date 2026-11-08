@@ -17,8 +17,8 @@ from PySide6.QtQuick import QQuickWindow
 
 from shinar.application import LearningWorkbench
 from shinar.desktop.app import create_engine
-from shinar.desktop.preferences import DesktopPreferences
-from shinar.desktop.viewmodel import LearningViewModel
+from shinar.desktop.shell.preferences import DesktopPreferences
+from shinar.desktop.presentation.viewmodel import LearningViewModel
 from shinar.infrastructure import SQLiteStore
 from shinar.providers import MockLearningLLMProvider
 

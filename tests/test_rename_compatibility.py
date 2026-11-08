@@ -112,7 +112,7 @@ def test_old_speech_environment_remains_usable(monkeypatch):
 
 def test_preferences_fall_back_per_key_and_write_only_to_shinar(monkeypatch, tmp_path):
     from PySide6.QtCore import QSettings
-    import shinar.desktop.settings as module
+    import shinar.desktop.shell.settings as module
 
     stores = {name: QSettings(str(tmp_path / f"{name}.ini"), QSettings.Format.IniFormat)
               for name in ("Shinar", "LinguaLoop")}

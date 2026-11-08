@@ -10,7 +10,7 @@ from threading import Event
 from time import monotonic, sleep
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path[:0] = [str(ROOT / "src"), str(ROOT / "tests")]
+sys.path[:0] = [str(ROOT / "src"), str(ROOT)]
 
 
 def main():
@@ -22,20 +22,19 @@ def main():
     os.environ["RUN_REAL_AI_TESTS"] = "0"
     os.environ["QT_QPA_PLATFORM"] = "windows" if args.visible else "offscreen"
 
-    import pytest
+    from contextlib import ExitStack
     from PySide6.QtCore import QPoint, QPointF, Qt
     from PySide6.QtGui import QGuiApplication, QWheelEvent
     from PySide6.QtTest import QTest
     from shinar.local_speech.catalog import load_catalog
     from shinar.local_speech.downloads import DownloadCancelled, TransferEvent
-    from test_local_speech_desktop import library_desktop
-    from test_desktop_workflow import click, item
+    from tests.support.speech_library import speech_library_scene
+    from tests.support.qt import click, item
 
-    patch = pytest.MonkeyPatch()
+    resources = ExitStack()
     fixture_root = args.output / "isolated"
     fixture_root.mkdir(exist_ok=True)
-    fixture = library_desktop.__wrapped__(fixture_root, patch)
-    app, library, vm, window, engine, _ = next(fixture)
+    app, library, vm, window, engine, _ = resources.enter_context(speech_library_scene(fixture_root))
     stop = Event()
     captures, wheels = [], []
 
@@ -162,11 +161,7 @@ def main():
         print(json.dumps({"passed": True, "captures": len(captures), "wheel_checks": len(wheels)}))
     finally:
         stop.set()
-        try:
-            next(fixture)
-        except StopIteration:
-            pass
-        patch.undo()
+        resources.close()
 
 
 if __name__ == "__main__":

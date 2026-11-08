@@ -42,8 +42,8 @@ def main():
     from PySide6.QtQuick import QQuickWindow
     from PySide6.QtTest import QTest
     from shinar.desktop.app import create_workbench, create_engine
-    from shinar.desktop.viewmodel import LearningViewModel
-    from shinar.desktop.preferences import DesktopPreferences
+    from shinar.desktop.presentation.viewmodel import LearningViewModel
+    from shinar.desktop.shell.preferences import DesktopPreferences
     from benchmark_prepared_dialogue import AuditClient
 
     if args.qt_dialogs:
@@ -94,7 +94,7 @@ def main():
     vm._stt = vm._tts = None
     engine_kwargs = {}
     if args.settings_dir:
-        from shinar.desktop.speech_library import SpeechLibraryViewModel
+        from shinar.desktop.speech_library.viewmodel import SpeechLibraryViewModel
         engine_kwargs = {"window_settings": QSettings(str(args.settings_dir / "window.ini"), QSettings.Format.IniFormat),
                          "speech_library": SpeechLibraryViewModel(root=args.settings_dir / "speech")}
     engine = create_engine(vm, **engine_kwargs)

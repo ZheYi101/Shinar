@@ -45,6 +45,8 @@ Shinar 是一个把沉浸式输入转化为语音输出练习的开源语言学�
 - 开始跨模块改动前阅读 `docs/architecture/ARCHITECTURE.md`；阅读器改动还须阅读 `docs/architecture/READER_ARCHITECTURE.md`。总览描述当前实现，专项文档维护契约，技术决策记录取舍，路线图列未完成项；不要把规划当作现有依赖。
 - 保持单一业务入口：材料、会话、已读授权与确认消息由 Workbench／core 管理；QML 与 WebEngine 不另建会话、预算、模型调用或持久化流程。新增能力先明确数据所有者、依赖方向、异步失效条件与失败回退。
 - 对话瞬态展示只能由 ViewModel 的 `present_conversation(ConversationEvent)` 更新；控制器读取只读快照，不直接写展示字段或发送门面的对话信号。异步事件保留原任务身份与代际，草稿版本只控制确认清稿，不阻止有效回复显示。
+- 桌面 Python 根目录仅保留包／装配／打包入口；其余按 `shell/presentation/workspace/voice/speech_library/tasks` 归属。QML 和固定阅读器资源路径保持独立稳定。边界扫描递归覆盖子包；运行时依赖环排除 `TYPE_CHECKING`。同一 QObject 的职责基类命名为 `*Mixin`，不视为第二个所有者。
+- 连续语音的 `CallCoordinator` 唯一拥有通话状态，`CallPreparation` 独立拥有准备和扫描状态；通过公开运行接口调用 Qt 能力，不保存完整 ViewModel 或其他控制器。通话、准备、麦克风与播放身份分别失效，准备完成不自动开聊。
 - 规范化原文、哈希和 Python 字符区间是来源事实。DOM、CFI、页码和滚动位置只作显示定位；不能用首次引文匹配替代精确坐标，不能因升级引擎或修复排版重写历史快照。改变规范化／来源索引语义须显式版本化并说明兼容方案。
 - EPUB 解析、原件读写和显示投影留在无 Qt 的 `infrastructure/epub_reader.py`；通用来源操作留在 `application/source_document.py`。Qt profile、资源白名单与 WebChannel 只在桌面适配边界。JS 负责渲染与坐标转换，不能决定已读授权或生成对话依据。
 - WebChannel 只注册专用 `ReaderBridge`，不注册完整 workspace／viewmodel，不增加任意方法调用、文件读取或脚本执行接口。Python 对每个请求复核文档身份、代际、路由和范围；导航、关闭、换线程后的旧回调不得写入当前状态。文件／ZIP 工作在后台完成，Qt 对象留主线程。
@@ -78,7 +80,7 @@ Shinar 是一个把沉浸式输入转化为语音输出练习的开源语言学�
 - 涉及 LLM 输出时，测试应覆盖 prompt 构造、结构化解析、错误回退和 provider mock。
 - 新增代码使用 4 空格、明确的业务命名和公共接口类型标注；使用 Ruff 检查，格式化只覆盖本次负责的模块，避免全库机械改写。细则见 `CONTRIBUTING.md`。
 - 保持 core/kernel 不依赖 Qt、HTTP 客户端、具体 provider 或 SQLite adapter；架构测试负责检查这些导入边界。
-- `tests/test_architecture.py` 同时约束来源处理依赖、WebEngine 使用范围和固定 vendor 完整性。阅读器位置／范围变更运行 `tests/infrastructure/test_epub_reader.py`、`tests/test_reader_workspace.py`；WebChannel／QML／JS 变更另运行可见 Windows Mock 检查 `scripts/validate_reader_workspace.py`，不能拿离屏 DOM 非空代替画面可见。
+- `tests/test_architecture.py` 同时约束来源处理依赖、WebEngine 使用范围和固定 vendor 完整性。阅读器位置／范围变更运行 `tests/infrastructure/test_epub_reader.py`、`tests/desktop/test_reader_workspace.py`；WebChannel／QML／JS 变更另运行可见 Windows Mock 检查 `scripts/validate_reader_workspace.py`，不能拿离屏 DOM 非空代替画面可见。
 - 普通回归显式设置 `RUN_REAL_AI_TESTS=0`；真实测试必须标记 `real_ai`，同时使用 `--run-real-ai` 和 `RUN_REAL_AI_TESTS=1`。仅 `.env` 中留有 `1` 不能触发普通 pytest 的真实调用。
 - 真实文本验收使用完整实际材料，检查预处理、预制/自定义题、多轮讨论、后台准备、复盘、历史切换和重启恢复。对话需覆盖具体情节、异议、错误前提、改口及自然结束，不能仅检查非空输出。
 - 用户要求实机验收时，通过可见软件窗口的实际导入、选题、输入和发送产出记录；不直接向数据库注入测试历史。离屏渲染、Mock 和真实服务证据分别说明。
@@ -91,6 +93,7 @@ Shinar 是一个把沉浸式输入转化为语音输出练习的开源语言学�
 uv sync --dev --extra desktop
 $env:RUN_REAL_AI_TESTS='0'
 uv run --locked ruff check src tests scripts
+uv run --locked ruff check --select F401 src/shinar/desktop src/shinar/application
 .venv\Scripts\python.exe -m pytest -q
 ```
 

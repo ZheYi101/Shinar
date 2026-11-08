@@ -34,14 +34,14 @@ uv run python scripts/benchmark_prepared_dialogue.py --real
 | 项目 | 等级 | 命令/定位 | 结果与限制 |
 | --- | --- | --- | --- |
 | 独立失效恢复与路由 | 单元/应用服务 | `RUN_REAL_AI_TESTS=0 pytest -q tests/test_prepared_dialogue_acceptance.py` | 首轮 2 passed；最终扩展为 **5 passed，2.68 秒**，含默认不联网、失效/重试/旧偏好、长篇/尾章细节与真实调用上限守卫；不以 mock 证明 HTTP 可用 |
-| 全仓离线首次回归 | 单元/应用服务/Mock Qt | `RUN_REAL_AI_TESTS=0 pytest -q --ignore=tests/test_llm.py` | 86 passed / 1 failed，20.03 秒；失败为新 QTest 键盘大小写断言，UI 负责人确认运行期间正在修正 harness；未据此推定产品输入失效 |
+| 全仓离线首次回归 | 单元/应用服务/Mock Qt | `RUN_REAL_AI_TESTS=0 pytest -q --ignore=tests/engine/test_real_provider.py` | 86 passed / 1 failed，20.03 秒；失败为新 QTest 键盘大小写断言，UI 负责人确认运行期间正在修正 harness；未据此推定产品输入失效 |
 | UI 负责人局部修复 | 实现者自验 | `test_text_streaming_categories_custom_topic_and_shortcut` | 负责人报告 1 passed，修正大小写期望及 offscreen Shortcut 上下文；待独立全仓复验 |
-| 全仓离线第二次回归 | 独立单元/服务/Mock Qt | `RUN_REAL_AI_TESTS=0 pytest -q --ignore=tests/test_llm.py` | 107 passed，23.47 秒；严格空引用/无分支修复候选及 UI 核心路径通过。后续性能/长篇修订还需另验 |
+| 全仓离线第二次回归 | 独立单元/服务/Mock Qt | `RUN_REAL_AI_TESTS=0 pytest -q --ignore=tests/engine/test_real_provider.py` | 107 passed，23.47 秒；严格空引用/无分支修复候选及 UI 核心路径通过。后续性能/长篇修订还需另验 |
 | 长篇均衡夹具 | 独立应用服务 | `tests/test_prepared_dialogue_acceptance.py::test_long_material_topic_budget_retains_every_chapter_including_last` | 9 章/108,000 字符/72 个原候选题，60 题预算下每章包含末章均保留；无 HTTP，不代表整本真实质量 |
 | 尾章细节自提题首验 | 独立 provider prompt 捕获 | `test_custom_topic_can_reach_detail_in_last_raw_chunk_beyond_summary` | 初验失败：目标细节位于末 chunk 内偏移约 6,000 字符、摘要/预制题未记录，lexical 选中 chunk 后没有把实际匹配处原文送给模型；已交后端修复，未放宽断言 |
-| 冻结后全仓离线复验 | 独立单元/服务/Mock Qt | `RUN_REAL_AI_TESTS=0 pytest -q --ignore=tests/test_llm.py` | **115 passed，23.42 秒**；包括尾章匹配窗口修复、均衡、严格引用、旧候选消费和 UI 核心交互。不包含真实 HTTP 或实际语音 |
+| 冻结后全仓离线复验 | 独立单元/服务/Mock Qt | `RUN_REAL_AI_TESTS=0 pytest -q --ignore=tests/engine/test_real_provider.py` | **115 passed，23.42 秒**；包括尾章匹配窗口修复、均衡、严格引用、旧候选消费和 UI 核心交互。不包含真实 HTTP 或实际语音 |
 | 最终背景候选全仓首验 | 独立单元/服务/Mock Qt | `RUN_REAL_AI_TESTS=0 pytest -q` | 118 passed / 1 failed / 1 skipped，23.56 秒；失败为分类点击后未筛选。UI 负责人后续 viewport 诊断证明点击中心在材料可视区外，修复测试滚动/定位且保留业务断言；未将其直接认定为分类产品失效 |
-| UI 最后诊断与修复 | 实现者自验 | `tests/test_desktop_workflow.py` | 负责人报告 9 passed，16.83 秒；除修复分类点击 harness，还发现真实 composer 在后台状态出现时按钮上移 37px，固定状态区并加入前后坐标不变断言。两者分开归因；等待最终独立全仓复验 |
+| UI 最后诊断与修复 | 实现者自验 | `tests/desktop/test_desktop_workflow.py` | 负责人报告 9 passed，16.83 秒；除修复分类点击 harness，还发现真实 composer 在后台状态出现时按钮上移 37px，固定状态区并加入前后坐标不变断言。两者分开归因；等待最终独立全仓复验 |
 | 首次 RTC 配置候选全仓复验（历史） | 独立单元/服务/Mock Qt/RTC 协议 | `RUN_REAL_AI_TESTS=0 pytest -q` | 138 passed / 1 skipped，29.31 秒；包含最后 UI 点击/布局修复与 17 项 RTC 离线协议/生命周期测试。该轮不曾覆盖 native ICE URL 合法性，不能把离线全绿当真实 RTC 通过 |
 | 合法配置最终全仓复验 | 独立单元/服务/Mock Qt/RTC 协议与诊断 | `RUN_REAL_AI_TESTS=0 pytest -q` | **166 passed / 1 skipped，25.81 秒**；包含 45 项 RTC 配置/协议/生命周期/诊断回归，generic timeout 和外层 deadline 不再误推断 native 创建。被跳过项为显式关闭的真实 AI 测试；RTC 实测失败仍单列 |
 | 第二候选分发包（历史） | 构建/隔离加载 | `uv build --wheel --out-dir build/package-check`；`python scripts/check_wheel_resources.py build/package-check/lingualoop-0.1.0-py3-none-any.whl` | 39 QML/SVG/许可证资源齐全；隔离解包加载 WindowController、隐藏 frameless QML、窗口三按钮/拖动区/缩放句柄通过；当时 19 个后端源模块与工作树逐字节一致 |

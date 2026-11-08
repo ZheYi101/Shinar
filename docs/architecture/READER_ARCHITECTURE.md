@@ -18,16 +18,17 @@
 | `infrastructure/epub_reader.py` | 原子保存／加载原件；静态 HTML 投影；nav／NCX 到来源坐标；`ReaderBook` | Qt、模型、数据库会话或用户界面文案 |
 | `application/source_document.py` | 通用来源章节、段落、哈希及 UTF-16 转换 | EPUB 引擎或浏览器状态 |
 | `application/learning_workbench.py` | 导入业务入口与原件保存时机；提供所属存储的资产目录 | DOM、WebEngine profile、浏览器定位 |
-| `desktop/workspace.py` | 当前范围、选段、历史预览、加载代际与 UI 状态；冻结发送来源 | 新的格式解析器、浏览器资源策略或第二套会话业务 |
-| `desktop/reader_runtime.py` | 临时 profile、文件白名单、专用 `ReaderBridge` | 解析、任意文件 API、业务持久化 |
+| `desktop/workspace/controller.py` | 当前范围、选段、历史预览、加载代际与 UI 状态；冻结发送来源 | 新的格式解析器、浏览器资源策略或第二套会话业务 |
+| `desktop/workspace/reader_runtime.py` | 临时 profile、文件白名单、专用 `ReaderBridge` | 解析、任意文件 API、业务持久化 |
 | `qml/components/SourceReader.qml`、`FoliateSurface.qml` | 视图选择、工具与弹层、懒加载、主题／尺寸、加载超时与回退 | 书籍解析、授权和消息提交规则 |
 | `desktop/reader/reader.js`、`index.html` | foliate 包装、样式、DOM ↔ 来源坐标、导航与位置事件 | 学习事实、模型 prompt、数据库或原件路径 |
 | `desktop/reader/foliate/` | 固定提交的第三方解析／布局引擎 | Shinar 产品逻辑 |
 
 允许 `epub_reader.py` 复用同层导入器的公开规范化／HTML 提取接口，保持新旧文本逐字对应；不再复制另一套清洗规则。WebEngine 的 Python 依赖只位于桌面装配入口与 `reader_runtime.py`，QML 依赖只位于 `FoliateSurface.qml`。业务层和格式适配器不得反向依赖这些模块。
 
-`ReaderWorkspace.loadSource()` 保管当前／历史状态和代际；无 Qt 的 `application/source_loading.py` 按 `SourceLoadRequest` 返回章节、显示书籍和错误码，原件读取／投影运行在受管进程。
+`ReaderWorkspaceMixin.loadSource()` 保管当前／历史状态和代际；无 Qt 的 `application/source_loading.py` 按 `SourceLoadRequest` 返回章节、显示书籍和错误码，原件读取／投影运行在受管进程。
 Workspace 与阅读职责基类属于同一个 QObject，路由、阅读状态和桥接仍有唯一所有者。
+Python 模块现位于 `desktop/workspace/`；`reading.py` 中的 `ReaderWorkspaceMixin` 与 `controller.py` 是同一个状态所有者。此次目录迁移不移动 QML、`desktop/reader/` 或 vendor，不改变 WebChannel、显示版本与来源索引。对应回归集中在 `tests/desktop/test_reader_workspace.py`，共享场景位于 `tests/support/`。
 Workbench 仍通过具体存储路径推导资产目录；新增资产生命周期功能前再收敛该存储耦合，不提前引入通用 asset repository。
 
 ## 加载与失效流程
@@ -79,7 +80,7 @@ Workbench 仍通过具体存储路径推导资产目录；新增资产生命周�
 | 优先级与触发条件 | 目标职责 | 验收条件 |
 | --- | --- | --- |
 | 已落实基础边界；新增格式／引擎时继续遵守 | 无 Qt 的来源加载入口与有类型结果；受管进程产出文档、章节、范围和错误码，workspace 应用状态与本地化 | 精确映射、旧材料回退、跨章定位与晚到结果不变；单测无需 WebEngine |
-| 已归入 ReaderWorkspace；新增持久进度前继续验证 | 同一 QObject 的阅读职责管理状态／加载身份；新增书签、持久化另立契约 | 当前／预览／待保存三类状态隔离；发送快照仍由现有业务入口冻结 |
+| 已归入 ReaderWorkspaceMixin；新增持久进度前继续验证 | 同一 QObject 的阅读职责管理状态／加载身份；新增书签、持久化另立契约 | 当前／预览／待保存三类状态隔离；发送快照仍由现有业务入口冻结 |
 | P2：新增原件删除、导出、第二种资产或第二个存储后端前 | 定义必要的资产保存／读取／缺件语义，去掉业务对 SQLite 路径形状的假设 | 重复材料共用资产时不会误删，迁移、恢复和缺件回退都有测试；不先引入通用插件平台 |
 | 发行前：新引擎／Qt 或显示格式版本 | 核验上游差异、协议、资源、许可证和实际分发 | 位置／范围、可见窗口、wheel 与相应 ZIP／安装器分别验证 |
 
@@ -92,7 +93,7 @@ Workbench 仍通过具体存储路径推导资产目录；新增资产生命周�
 升级流程：查看当前锁定提交到目标提交的 API／资源／安全差异 → 更新必要模块、pin 和全部许可／哈希 → 跑架构与映射／工作区测试 → 跑可见窗口交互 → 构建 wheel 并检查资源 → 对要发行的 Windows 实际产物运行分发探针。PySide6 仍使用项目锁定版本；完整安装器未重建时明确标记未更新。
 
 - 普通 pytest 中的架构检查拒绝来源处理依赖 Qt／业务 adapter、WebEngine 依赖扩散与 vendor 文件／许可漂移。它只检查静态导入与文件，不替代运行时内容安全或授权测试。
-- `tests/infrastructure/test_epub_reader.py` 验证文本位置、重复句、Unicode／ruby、裁剪、静态化和原件恢复；`tests/test_reader_workspace.py` 验证选择、历史、跨章与过期请求。
+- `tests/infrastructure/test_epub_reader.py` 验证文本位置、重复句、Unicode／ruby、裁剪、静态化和原件恢复；`tests/desktop/test_reader_workspace.py` 验证选择、历史、跨章与过期请求。
 - `scripts/validate_reader_workspace.py` 使用独立库和合成材料，检查窗口输入、复制、发送、历史与三语明暗／窄窗，并验证正文像素；不是用户真实 EPUB 或真实 AI 验收。
 - `scripts/check_wheel_resources.py` 检查随包页面、字体、许可、上游哈希与隔离 QML；`scripts/check_windows_distribution.py` 另查 QtWebEngineProcess、Chromium／ICU／locales 和模块。静态通过不代表发行包、长期 GPU 使用或复杂书籍已验收。
 

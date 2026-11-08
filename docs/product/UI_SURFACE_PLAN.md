@@ -101,7 +101,7 @@
 - Windows 真实平台隐藏窗口：`scripts/check_desktop_window.py` 得到 `platform=windows, visible=false, win32_style=0x860b0000, native_caption=false, device_pixel_ratio=1.0`。只证明 HWND 样式中没有原生标题栏；未显示窗口。
 - 预览：`scripts/render_ui_preview.py` 使用独立临时 SQLite / QSettings 与 Mock provider，不读取用户数据库或 `.env`，输出 `build/ui-preview/`。`material-topics.png` 展示话题网格，`streaming.png` 展示真实异步 mock delta 更新，另有浅深色及窄窗口截图。
 
-UI 负责人本地复验：`RUN_REAL_AI_TESTS=0` 下运行 `python -m pytest tests/test_desktop_workflow.py tests/test_desktop_imports.py tests/test_desktop_native_window.py -q`，结果 **16 passed in 19.48s**。这是 Mock / Qt 与隐藏 HWND 证据，不是 DeepSeek 真实请求或语音验收。
+UI 负责人本地复验：`RUN_REAL_AI_TESTS=0` 下运行 `python -m pytest tests/desktop/test_desktop_workflow.py tests/desktop/test_desktop_imports.py tests/desktop/test_desktop_native_window.py -q`，结果 **16 passed in 19.48s**。这是 Mock / Qt 与隐藏 HWND 证据，不是 DeepSeek 真实请求或语音验收。
 
 历史分发验证：`uv build --wheel --out-dir build/package-check` 成功；`python scripts/check_wheel_resources.py build/package-check/shinar-0.1.0-py3-none-any.whl` 验证 **39 个 QML / SVG / license 资源完整**，从隔离临时目录导入 wheel 内的 `WindowController`，以临时 SQLite / QSettings 和隐藏窗口加载全部 QML，核对 frameless flags、窗口按钮、拖动区与缩放句柄。该历史候选 SHA256 为 `D05017B125D0AB515A0EFE9D920795D1B9B073876978FC48FF238F892A413449`，后被下述固定状态区修复替代，不能作为最终候选。未安装到用户全局环境、未发布。增强探针首次通过 QObject ownership 树查 Repeater 句柄失败，改用 QQuickItem 视觉树遍历后通过；wheel 内容及应用源码未因此更改。最终包身份与独立分发验收以 ROADMAP / TEXT_ACCEPTANCE 为准。
 
@@ -109,6 +109,6 @@ UI 负责人本地复验：`RUN_REAL_AI_TESTS=0` 下运行 `python -m pytest tes
 
 最终回归追加：独立全仓最初出现分类点击后仍显示 12/12 的失败。加强命中诊断后证实分类中心相对材料 viewport 为 `(143, -99)`，位于视口上方；旧夹具只检查全窗口范围，滚动采用未完成布局的坐标而误点标题区域。夹具现对实时布局校准滚动位置、确认在 viewport 内，hover 后重新定位中心，并验证实际 `mousePress` 的 `down` 状态后松开；只点击一次，分类数量和精确自定义草稿断言保留。按住分类时触发材料轮询的回归未发现按钮失效，不能把原失败归因于轮询重建。
 
-同轮严格诊断另捕获真实布局问题：后台准备状态首次出现令录音按钮从 `(188, 739)` 移至 `(188, 702)`，上移 37px。对话输入区现保留固定 40px 的两行状态空间，后台准备和计时更新不再改变发送 / 录音命中区域；新增 idle → ready + timing 前后按钮坐标保持不变的断言。修复后 `python -m pytest tests/test_desktop_workflow.py -q` **9 passed in 16.83s**；页面源码至此冻结，待独立全仓和最终 wheel 复验。截图已按冻结版本刷新，仍仅使用 Mock。
+同轮严格诊断另捕获真实布局问题：后台准备状态首次出现令录音按钮从 `(188, 739)` 移至 `(188, 702)`，上移 37px。对话输入区现保留固定 40px 的两行状态空间，后台准备和计时更新不再改变发送 / 录音命中区域；新增 idle → ready + timing 前后按钮坐标保持不变的断言。修复后 `python -m pytest tests/desktop/test_desktop_workflow.py -q` **9 passed in 16.83s**；页面源码至此冻结，待独立全仓和最终 wheel 复验。截图已按冻结版本刷新，仍仅使用 Mock。
 
 尚未覆盖：物理鼠标拖动、Windows Snap 行为、跨 DPI / 多显示器实际移动、真实云端语音和 LiveKit 连续通话。Qt Test 与隐藏 HWND 检查不能替代这些目标环境验收。全套最终测试数量以 ROADMAP 独立验收记录为准。

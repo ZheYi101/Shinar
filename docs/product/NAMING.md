@@ -41,7 +41,7 @@ Shinar 是《圣经·创世记》11:2 中的地名，中文《和合本》译为
 | Windows 启动器与安装器源码 | `Shinar.exe`／`packaging/windows/Shinar.iss` |
 | 全新用户库默认路径（Windows） | `%LOCALAPPDATA%\Shinar\shinar.sqlite3` |
 
-兼容规则集中在 `shinar.configuration` 和 `shinar.desktop.settings`：显式 `SHINAR_*` 优先于旧 `LINGUALOOP_*`；全新用户使用 Shinar 路径，已有旧库优先原地复用原数据库文件和相邻 EPUB 资产。配置、旧模型缓存和偏好分别回读，写入新偏好命名空间，不在本次工程迁移中修改个人 `.env`、移动学习库或复制密钥。
+兼容规则集中在 `shinar.configuration` 和 `shinar.desktop.shell.settings`：显式 `SHINAR_*` 优先于旧 `LINGUALOOP_*`；全新用户使用 Shinar 路径，已有旧库优先原地复用原数据库文件和相邻 EPUB 资产。配置、旧模型缓存和偏好分别回读，写入新偏好命名空间，不在本次工程迁移中修改个人 `.env`、移动学习库或复制密钥。
 
 独立模型工作进程只接收普通数据和规范化后的环境变量，不依赖主包安装；固定 Melo 支持包仍需要其旧私有环境变量，由适配边界兼容提供。历史报告、归档、外部参考和旧构建产物保留当时名称与实际坐标；更名不改写其验证事实。新发行包使用新名称，旧版安装器的卸载项和快捷方式属于旧发行，不作为本次已升级的证据。
 

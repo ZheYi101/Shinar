@@ -11,7 +11,7 @@
 - 模型常驻复用，默认空闲 120 秒释放，可立即释放或手动释放。进程持有模型锁；Windows 使用完整子进程树释放，防止虚拟环境启动器遗留模型。GPU 显存和使用率按 2 秒采样，整卡与进程读数分开，驱动不支持时显示未知。
 - 运行环境由软件在语音缓存建立独立 venv，固定 ORT GPU 1.23.2 / CUDA 12.8 / cuDNN 9.10。需要 NVIDIA 驱动，通常不需完整 CUDA Toolkit；真实 CUDA MatMul profiling 通过后才写就绪标记。支持 Python 3.11–3.13 非冻结桌面版。
 
-主要实现：`src/shinar/local_speech/compute.py`、`runtime.py`、`runtime_probe.py`、`sensevoice.py`、`service.py`、`inference_worker.py`、`resources.py`、`processes.py`，以及 `desktop/speech_library.py`、`desktop/viewmodel.py`、设置 QML。运行策略与范围见 [Decision 0025](../../decisions/TECH_DECISIONS.md#decision-0025)。
+主要实现：`src/shinar/local_speech/compute.py`、`runtime.py`、`runtime_probe.py`、`sensevoice.py`、`service.py`、`inference_worker.py`、`resources.py`、`processes.py`，以及 `desktop/speech_library/viewmodel.py`、`desktop/presentation/viewmodel.py`、设置 QML。运行策略与范围见 [Decision 0025](../../decisions/TECH_DECISIONS.md#decision-0025)。
 
 ## 验证结果
 

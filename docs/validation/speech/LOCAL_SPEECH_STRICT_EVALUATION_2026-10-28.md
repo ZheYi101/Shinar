@@ -198,7 +198,7 @@ $env:PYTHONPATH=(Join-Path $PWD 'src')
 
 ```powershell
 $env:RUN_REAL_AI_TESTS='0'
-.venv/Scripts/python.exe -m pytest tests/local_speech tests/test_local_speech_desktop.py tests/providers/test_speech.py -q
+.venv/Scripts/python.exe -m pytest tests/local_speech tests/desktop/test_local_speech_desktop.py tests/providers/test_speech.py -q
 ```
 
 本机证据均在 ignored `build/local-speech-evaluation/strict/`：

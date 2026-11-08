@@ -178,7 +178,7 @@ def _is_same_or_child(path: Path, root: Path) -> bool:
 def create_engine(viewmodel: Any, *, window_settings=None, initial_visible: bool = True,
                   speech_library=None) -> Any:
     qt = _load_qt()
-    from shinar.desktop.identity import configure_application_identity
+    from shinar.desktop.shell.identity import configure_application_identity
     configure_application_identity(qt["QGuiApplication"].instance())
     from PySide6.QtQuickControls2 import QQuickStyle
     if QQuickStyle.name() != "Material":
@@ -197,10 +197,10 @@ def create_engine(viewmodel: Any, *, window_settings=None, initial_visible: bool
     if use_kirigami:
         _configure_kirigami_dll_path()
     engine = qt["QQmlApplicationEngine"]()
-    from shinar.desktop.i18n import DesktopLanguageController
+    from shinar.desktop.shell.i18n import DesktopLanguageController
     engine.language_controller = DesktopLanguageController(viewmodel.preferences, engine, engine)
     engine.rootContext().setContextProperty("desktopLanguage", engine.language_controller)
-    from shinar.desktop.speech_library import SpeechLibraryViewModel
+    from shinar.desktop.speech_library.viewmodel import SpeechLibraryViewModel
     if speech_library is None and "Mock" in viewmodel.providerLabel:
         from tempfile import TemporaryDirectory
         engine.mock_resources = TemporaryDirectory(prefix="shinar-ui-mock-")
@@ -212,15 +212,15 @@ def create_engine(viewmodel: Any, *, window_settings=None, initial_visible: bool
     if hasattr(viewmodel, "configure_local_speech"):
         viewmodel.configure_local_speech(library)
     qt["QGuiApplication"].instance().aboutToQuit.connect(library.close)
-    from shinar.desktop.window import DesktopWindowController
+    from shinar.desktop.shell.window import DesktopWindowController
     controller = DesktopWindowController(window_settings, engine)
-    from shinar.desktop.lifecycle import DesktopLifecycleController
+    from shinar.desktop.shell.lifecycle import DesktopLifecycleController
     engine.lifecycle = DesktopLifecycleController(viewmodel.preferences, controller, engine)
     engine.rootContext().setContextProperty("desktopLifecycle", engine.lifecycle)
-    from shinar.desktop.workspace import DesktopWorkspaceController
+    from shinar.desktop.workspace.controller import DesktopWorkspaceController
     workspace = DesktopWorkspaceController(viewmodel, window_settings, engine)
     engine.workspace = workspace
-    from shinar.desktop.ai_services import AIServiceSettingsController
+    from shinar.desktop.shell.ai_services import AIServiceSettingsController
     engine.ai_services = AIServiceSettingsController(viewmodel, engine)
     engine.rootContext().setContextProperty("aiServices", engine.ai_services)
     qt["QGuiApplication"].instance().aboutToQuit.connect(engine.ai_services.close)
@@ -228,11 +228,11 @@ def create_engine(viewmodel: Any, *, window_settings=None, initial_visible: bool
         workspace.setCategory("services")
         workspace.navigate("settings")
     engine.rootContext().setContextProperty("workspace", workspace)
-    from shinar.desktop.reader_runtime import ReaderRuntime
+    from shinar.desktop.workspace.reader_runtime import ReaderRuntime
     engine.reader_runtime = ReaderRuntime(workspace, engine)
     engine.rootContext().setContextProperty("readerRuntime", engine.reader_runtime)
     qt["QGuiApplication"].instance().aboutToQuit.connect(workspace.close)
-    from shinar.desktop.shutdown import ShutdownCoordinator
+    from shinar.desktop.shell.shutdown import ShutdownCoordinator
     engine.shutdown = ShutdownCoordinator(qt["QGuiApplication"].instance(), engine)
     engine.shutdown.register("connection-settings", engine.ai_services.close, lambda: True)
     for name, participant in (("workspace", workspace), ("learning", viewmodel), ("speech-library", library)):
@@ -305,10 +305,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         qt = _load_qt()
         os.environ.setdefault("QT_QUICK_CONTROLS_STYLE", "Material")
         os.environ.setdefault("QT_QUICK_CONTROLS_MATERIAL_THEME", "Light")
-        from shinar.desktop.identity import set_windows_app_id
+        from shinar.desktop.shell.identity import set_windows_app_id
         set_windows_app_id()
         app = qt["QApplication"](["shinar-desktop", *list(argv or sys.argv[1:])])
-        from shinar.desktop.viewmodel import LearningViewModel
+        from shinar.desktop.presentation.viewmodel import LearningViewModel
 
         viewmodel = LearningViewModel(create_workbench(use_mock=config.use_mock), config.provider_label)
         engine = create_engine(viewmodel)

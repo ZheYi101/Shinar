@@ -19,8 +19,8 @@ sys.path[:0] = [str(ROOT / "src"), str(ROOT / "scripts")]
 
 from PySide6.QtCore import QCoreApplication, QEvent, QMicrophonePermission, QTimer, Qt
 
-from shinar.desktop.pcm_audio import PcmAudioBridge
-from shinar.desktop.voice import _SpeechRoute
+from shinar.desktop.voice.pcm_audio import PcmAudioBridge
+from shinar.desktop.voice.routing import SpeechRoute
 from shinar.realtime.pcm import DeviceFormat, PcmConverter
 import validate_continuous_desktop as desktop_check
 from validate_ui_workspace import click
@@ -201,7 +201,7 @@ def self_test(vm, window, ws, library, provider, report):
     probe.formats()
     input_spec = probe.input_spec
     probe.deleteLater()
-    route = _SpeechRoute(vm, "tts")
+    route = SpeechRoute(vm, "tts")
 
     async def prepare():
         backend = await route.bind("ja")
@@ -281,7 +281,7 @@ def self_test(vm, window, ws, library, provider, report):
     assert not call.faults
     click(window, "stopSpeechButton")
     wait_until(lambda: call.outputState == "idle")
-    assert not call._audio_generation and not call.bridge.generation
+    assert not call.snapshot.audio_generation and not call.bridge.generation
     assert provider.calls == calls
     report["reading_retry_added_llm_calls"] = provider.calls - calls
     click(window, "continuousVoiceButton")

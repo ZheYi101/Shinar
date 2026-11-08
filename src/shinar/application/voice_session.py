@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import re
 from collections.abc import Awaitable, Callable
 from time import perf_counter
 
@@ -19,7 +18,6 @@ from shinar.core.conversation import ConversationTurn
 from shinar.kernel import SessionStepResult
 from .learning_workbench import LearningWorkbench
 from .speech_generation import SpeechGeneration
-from .speech_audio import SpeechPlayoutBuffer, trim_speech_padding
 
 AudioConsumer = Callable[[SpeechSegment], Awaitable[None]]
 LANGUAGES = {"chinese": "zh", "english": "en", "japanese": "ja"}

@@ -31,5 +31,7 @@ jobs:
         run: uv sync --locked --dev --extra desktop
       - name: Check Python correctness
         run: uv run --locked ruff check src tests scripts
+      - name: Reject unused imports in governed modules
+        run: uv run --locked ruff check --select F401 src/shinar/desktop src/shinar/application
       - name: Run offline regressions
         run: uv run --locked python -m pytest -q

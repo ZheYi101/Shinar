@@ -115,8 +115,8 @@ def main() -> None:
     from PySide6.QtCore import QTimer
     from shiboken6 import isValid
     from shinar.application import LearningWorkbench
-    from shinar.desktop.preferences import DesktopPreferences
-    from shinar.desktop.viewmodel import LearningViewModel
+    from shinar.desktop.shell.preferences import DesktopPreferences
+    from shinar.desktop.presentation.viewmodel import LearningViewModel
     from shinar.infrastructure import SQLiteStore
     from shinar.providers import MockLearningLLMProvider
 

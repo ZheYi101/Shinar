@@ -17,6 +17,11 @@ from tests.support.boundaries import desktop_violations, import_cycles, private_
     "peer = self.call\nsetattr(peer, '_tts_error', '')",
     "from .voice import _SpeechRoute as Route",
     "from peer import LearningViewModel as VM\ndef action(peer: VM):\n    peer._draft = ''",
+    "import shinar.desktop.presentation.viewmodel as model\nmodel._private()",
+    "from shinar.application.learning_workbench import _private as load",
+    "from builtins import getattr as read\nread(vm.workbench, '_event_store')",
+    "lookup = getattr\nlookup(vm, '_draft')",
+    "from peer import LearningViewModel as VM\ndef action(peer: 'VM'):\n    peer._draft = ''",
 ])
 def test_private_access_bypasses_are_rejected(source):
     assert private_accesses(source)

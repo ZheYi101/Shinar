@@ -14,7 +14,7 @@
 
 主要实现位于 `desktop/qml/components/ConversationMessage.qml`、`SidebarItem.qml`、`MIconButton.qml`、
 `pages/ConversationPage.qml`、`pages/SettingsPage.qml`、`design/AppTheme.qml`，以及
-`desktop/identity.py`、`desktop/packaged.py`、`packaging/windows/` 和构建／检查脚本。
+`desktop/shell/identity.py`、`desktop/packaged.py`、`packaging/windows/` 和构建／检查脚本。
 契约及使用方式见[布局修订](../../product/UI_LAYOUT_DESIGN.md#2026-11-06-使用体验修订)、
 [工作区](../../desktop/WORKSPACE.md)和[Windows 分发](../../desktop/WINDOWS_DISTRIBUTION.md)。
 
@@ -23,7 +23,7 @@
 | 对象 | 结果 | 证据范围 |
 | --- | --- | --- |
 | Ruff 与离线回归 | 440 passed、10 skipped；`RUN_REAL_AI_TESTS=0` | 包含架构、Qt、语音状态、输入法、来源与恢复回归；不含真实服务验收 |
-| 新交互回归 | 消息长文在 360／800／1180px 换行、悬停点击复制、Enter／Shift+Enter、侧栏切换保留草稿、悬停／按压和减少动效 | `tests/test_desktop_comfort.py`，真实 QML 事件，Mock provider／合成音频 |
+| 新交互回归 | 消息长文在 360／800／1180px 换行、悬停点击复制、Enter／Shift+Enter、侧栏切换保留草稿、悬停／按压和减少动效 | `tests/desktop/test_desktop_comfort.py`，真实 QML 事件，Mock provider／合成音频 |
 | 浅色页面 | 82 张截图，360／600／800／1180／1440px | `build/ui-comfort-final/report.json`，独立临时库，离屏 |
 | 深色与缩放 | 34 张截图，360／1180px、150% Qt 缩放 | `build/ui-comfort-dark-150/report.json`，不修改 Windows 系统缩放 |
 | wheel | 107 项资源、hash 与隔离加载检查通过 | `scripts/check_wheel_resources.py`，包含新 QML／SVG、应用图标、字体和许可证 |

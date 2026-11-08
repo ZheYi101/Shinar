@@ -19,8 +19,8 @@ from PySide6.QtTest import QTest
 
 from shinar.application import LearningWorkbench
 from shinar.desktop.app import _load_qt, create_engine
-from shinar.desktop.preferences import DesktopPreferences
-from shinar.desktop.viewmodel import LearningViewModel
+from shinar.desktop.shell.preferences import DesktopPreferences
+from shinar.desktop.presentation.viewmodel import LearningViewModel
 from shinar.infrastructure import SQLiteStore
 from shinar.providers import MockLearningLLMProvider
 from validate_ui_workspace import SyntheticAudio, click, visible_item

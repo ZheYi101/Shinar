@@ -24,7 +24,9 @@ def test_production_files_and_functions_have_bounded_size():
             violations.append(f"{label}: file exceeds 800 physical lines")
         if path.suffix != ".py":
             continue
-        for node in ast.walk(ast.parse(text)):
+        tree = ast.parse(text)
+        compile(tree, str(path), "exec")
+        for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 size = node.end_lineno - node.lineno + 1
                 if size > 100:
@@ -39,6 +41,32 @@ def test_desktop_collaborators_use_public_interfaces():
 
 def test_desktop_runtime_imports_are_acyclic():
     assert not import_cycles(SOURCE / "desktop", "shinar.desktop")
+
+
+def test_desktop_root_contains_only_entrypoints():
+    assert {path.name for path in (SOURCE / "desktop").glob("*.py")} == {
+        "__init__.py", "app.py", "packaged.py",
+    }
+
+
+def test_continuous_call_state_has_one_owner():
+    state = {"_connection", "_input", "_output", "_reply", "_muted", "_generation",
+             "_audio_generation", "_mic_generation", "_retained", "_permission_pending",
+             "_paused_input", "_microphone_busy", "_pause_id"}
+    root = SOURCE / "desktop/voice/continuous"
+    violations = []
+    for path in root.glob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if path.name != "coordinator.py" and isinstance(node, ast.Attribute):
+                if node.attr in state and isinstance(node.ctx, (ast.Store, ast.Del)):
+                    violations.append(f"{path.name}:{node.lineno}: {node.attr}")
+            if path.name in {"coordinator.py", "preparation.py"}:
+                if isinstance(node, ast.ClassDef):
+                    assert not node.bases, f"{path.name}: call collaborators must be plain Python objects"
+                if isinstance(node, ast.Attribute):
+                    assert node.attr not in {"vm", "viewmodel", "voice"}, f"{path.name}: full desktop context"
+    assert not violations, "\n".join(violations)
 
 
 def test_plain_source_and_process_boundaries_do_not_import_qt():
@@ -63,7 +91,7 @@ def test_conversation_display_updates_use_the_single_facade():
             if isinstance(node, ast.Attribute) and isinstance(node.ctx, (ast.Store, ast.Del)):
                 target = ast.unparse(node)
                 if ".presentation." in target or target.startswith("self._conversation.") or (
-                    path.name in {"viewmodel.py", "learning_presentation.py"}
+                    path.name in {"viewmodel.py", "properties.py"}
                     and ast.unparse(node.value) == "self" and node.attr in legacy
                 ):
                     violations.append(f"{path.name}:{node.lineno}: display assignment {target}")

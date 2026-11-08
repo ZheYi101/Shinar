@@ -28,9 +28,9 @@ from PySide6.QtWebEngineQuick import QtWebEngineQuick
 from shinar.application import LearningWorkbench
 from shinar.infrastructure import SQLiteStore
 from shinar.providers import MockLearningLLMProvider
-from shinar.desktop.preferences import DesktopPreferences
-from shinar.desktop.viewmodel import LearningViewModel
-from shinar.desktop.identity import set_windows_app_id
+from shinar.desktop.shell.preferences import DesktopPreferences
+from shinar.desktop.presentation.viewmodel import LearningViewModel
+from shinar.desktop.shell.identity import set_windows_app_id
 from shinar.local_speech.installation import _check_platform, runtime_spec
 from shinar.realtime.audio_ipc import encode_message, read_file_message
 import io

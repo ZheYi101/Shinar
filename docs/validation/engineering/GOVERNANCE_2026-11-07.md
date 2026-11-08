@@ -9,10 +9,10 @@
 | --- | ---: | ---: |
 | `application/learning_workbench.py` | 1245 | 791 |
 | `application/semantic_preparation.py` | 896 | 772 |
-| `desktop/continuous_voice.py` | 1148 | 693 |
-| `desktop/speech_library.py` | 985 | 640 |
-| `desktop/viewmodel.py` | 1430 | 680 |
-| `desktop/workspace.py` | 1058 | 673 |
+| `desktop/voice/continuous/controller.py` | 1148 | 693 |
+| `desktop/speech_library/viewmodel.py` | 985 | 640 |
+| `desktop/presentation/viewmodel.py` | 1430 | 680 |
+| `desktop/workspace/controller.py` | 1058 | 673 |
 | `providers/openai_compatible.py` | 1096 | 682 |
 
 初始 17 个超过 100 行的函数均已销账；当前所有自有生产 Python 函数最多 **100 行**。

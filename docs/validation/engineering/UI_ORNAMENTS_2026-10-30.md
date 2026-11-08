@@ -34,7 +34,7 @@ $env:RUN_REAL_AI_TESTS='0'
 $env:QT_SCALE_FACTOR='1'
 .venv\Scripts\python.exe scripts/validate_ui_workspace.py --review-fixture --height 960 --widths 360,600,800,1180,1440 --output build/ui-ornaments/reference-aligned/final-light
 .venv\Scripts\python.exe scripts/validate_ui_workspace.py --review-fixture --height 960 --widths 360,800,1440 --theme dark --output build/ui-ornaments/reference-aligned/final-dark
-.venv\Scripts\python.exe -m pytest tests/test_desktop_visual_controls.py tests/test_desktop_workflow.py -q
+.venv\Scripts\python.exe -m pytest tests/desktop/test_desktop_visual_controls.py tests/desktop/test_desktop_workflow.py -q
 ```
 
 本轮为离屏 QML 与 Mock 交互验证，不替代可见 Windows 窗口、真人语音或真实业务模型验收。深色只检查兼容，整体深色视觉定稿仍是后续事项。个人审美确认仍以用户查看实际效果后的反馈为准。

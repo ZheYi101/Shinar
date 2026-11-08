@@ -38,15 +38,20 @@
 uv sync --locked --dev --extra desktop
 $env:RUN_REAL_AI_TESTS='0'
 uv run --locked ruff check src tests scripts
+uv run --locked ruff check --select F401 src/shinar/desktop src/shinar/application
 uv run --locked python -m pytest -q
 ```
 
-当前 Ruff 门禁覆盖导入位置、语法、未定义名称/错误赋值、可变默认参数、默认参数中的调用及无效语句。完整格式、导入排序、未使用导入和全库类型检查尚未设为强制门禁；现有风格债务按模块清理，避免一次性重写运行代码。规则配置显式保存于仓库，不继承个人全局规则。
+当前 Ruff 门禁覆盖导入位置、语法、未定义名称/错误赋值、可变默认参数、默认参数中的调用及无效语句。桌面与 application 另强制 F401；完整格式、导入排序和全库类型检查尚未设为强制门禁。现有风格债务按模块清理，规则配置不继承个人全局规则。
 
 `tests/test_maintainability.py` 同时检查自有生产 Python／QML／JS 文件不超过 800 物理行，
 Python 函数（含嵌套函数，按 AST 起止位置）不超过 100 行；第三方 foliate、生成文件和测试夹具除外。
 职责模块共享同一业务／QObject 门面的生命周期，不另建状态副本；桌面控制器通过公开接口协作。
 不要通过压缩代码、移动到 vendor 或增加无理由豁免绕过门禁。
+
+桌面边界检查递归扫描子包，识别导入／简单赋值别名、嵌套属性和字符串 `getattr/setattr` 私有访问；同一 QObject 的 `*Mixin` 属于同一所有者。运行时导入环排除 `TYPE_CHECKING` 专用导入。连续语音通话状态只能由 `CallCoordinator` 更新，对话展示只能经既有统一入口更新。
+
+Qt 回归集中在 `tests/desktop`，其 `conftest.py` 管理 Qt fixture 和测试平台；共享 Fake、合成音频、交互与场景工厂位于 `tests/support`。普通上下文管理器负责场景释放，不依赖 pytest，不在导入时设置平台环境。验证脚本可使用支持模块，但不能导入具体 `test_*.py`、访问 fixture `__wrapped__` 或向路径注入 tests 目录。测试 monkeypatch 必须指向真正执行操作的模块，不能靠未使用重导出维持旧补丁。LangGraph 实验测试位于 `tests/engine`。
 
 新增或单独整理模块时，对本次负责的文件执行格式化并检查 diff，例如：
 
@@ -65,7 +70,7 @@ git diff --check
 
 ```powershell
 $env:RUN_REAL_AI_TESTS='1'
-uv run --locked python -m pytest tests/test_llm.py --run-real-ai -q
+uv run --locked python -m pytest tests/engine/test_real_provider.py --run-real-ai -q
 $env:RUN_REAL_AI_TESTS='0'
 ```
 

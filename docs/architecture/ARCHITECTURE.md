@@ -4,7 +4,7 @@
 
 ## 当前运行结构
 
-2026-11-08 完整定名迁移：源码与分发包使用 `shinar`，目录和品牌使用 Shinar，配置前缀为 `SHINAR_*`。`configuration.py` 以标准库实现旧变量／用户路径的只读兼容；`desktop/settings.py` 按键回读旧 Qt 偏好并写入新命名空间。此边界不移动真实学习库、不改变数据库结构、缓存身份或来源坐标；具体迁移表见[命名记录](../product/NAMING.md#完整工程迁移)。
+2026-11-08 完整定名迁移：源码与分发包使用 `shinar`，目录和品牌使用 Shinar，配置前缀为 `SHINAR_*`。`configuration.py` 以标准库实现旧变量／用户路径的只读兼容；`desktop/shell/settings.py` 按键回读旧 Qt 偏好并写入新命名空间。此边界不移动真实学习库、不改变数据库结构、缓存身份或来源坐标；具体迁移表见[命名记录](../product/NAMING.md#完整工程迁移)。
 
 默认运行形态是本地 Python 应用：PySide6／QML 桌面与 CLI 复用 `LearningWorkbench`、deterministic runner、领域模型和可替换 provider。SQLite 保存业务状态；长期 asyncio worker 承担后台工作。没有常驻应用服务器、ORM、云数据库或通用前端 JS 框架。
 
@@ -40,6 +40,19 @@ flowchart TB
 
 `desktop/app.py` 是桌面装配入口。`LearningViewModel` 与 `DesktopWorkspaceController` 分别管理业务 UI 投影和页面／来源编辑状态；QML 通过公开属性、槽和信号交互。增加服务依赖时从装配／现有公开用例接入，不能让页面读取数据库、调用模型或复制材料准备流程。
 
+桌面 Python 按以下职责组织，根目录只保留 `__init__.py`、`app.py` 和 `packaged.py`。包入口不批量导入门面，不保留旧平铺模块转发；仓内调用者使用新模块的明确公开类型。QML、翻译、图标、`reader/` 与固定 vendor 的位置不变。
+
+| 包 | 主要对象与状态所有者 |
+| --- | --- |
+| `desktop.shell` | 窗口、生命周期、退出、身份、语言、偏好和 AI 设置 |
+| `desktop.presentation` | `LearningViewModel`；`LearningPropertiesMixin` 与 `ConversationViewMixin` 属于同一 QObject，瞬态展示由 `ConversationPresentation` 写入 |
+| `desktop.workspace` | `DesktopWorkspaceController`；`ReaderWorkspaceMixin` 复用该 QObject 的阅读、导航和编辑状态 |
+| `desktop.voice` | 分轮录音、预检、Qt 音频和公开 `SpeechRoute`；`continuous/` 保管连续通话协作 |
+| `desktop.speech_library` | `SpeechLibraryViewModel`；`SpeechLibraryOperationsMixin` 复用该 QObject 的目录和操作状态；下载任务列表单独管理任务 |
+| `desktop.tasks` | 共享 worker、准备进度格式化、语音错误展示；不反向依赖具体语音门面 |
+
+同一 QObject 的具名 Mixin 是职责分组，尚未隔离全部共享状态。ViewModel、Workspace 和语音库的进一步状态拆分保留为债务：出现第二个状态写入者或新增异步状态前，先冻结公开快照与失效规则，再抽出普通协作者，不能继续扩张 Mixin 或增加第二个 QObject 所有者。
+
 桌面入口使用 `QApplication` 承载原有 QML 窗口和 Qt 系统托盘菜单；Qt Widgets 只用于原生托盘边界。
 `DesktopWindowController` 保管窗口几何并在原生关闭事件中委托 `DesktopLifecycleController` 判断关闭策略。
 后者管理关闭询问、隐藏／恢复和显式退出；策略 `closeBehavior` 属于 QSettings 外观偏好，默认 `ask`。
@@ -53,10 +66,20 @@ flowchart TB
 
 - `LearningWorkbench` 保管会话确认、生成、提交和恢复；`MaterialWorkbench` 在同一实例上维护导入、已读范围和参考准备职责，不产生第二个会话或持久化所有者。
 - `SemanticPreparation` 保管准备流程与清单；`PreparationRequests` 单独拥有请求锁、预算预留／结算及校验缓存。provider 的配置、prompt／请求包与解析分别在独立职责模块。
-- ViewModel、Workspace、连续语音与语音库各自保留一个 QObject 门面；无独立 QObject 的职责基类维护投影、阅读状态、事件归约或安装／测速操作。QML 信号和属性由同一实例发布，避免重复元对象与两份状态。
-- `ConversationPresentation` 是瞬态对话展示的唯一写入者，对外只暴露递归只读的 `ConversationSnapshot`；QML 读取脱离所有者的普通值。文本、分轮语音和连续语音通过 ViewModel 的 `present_conversation(ConversationEvent)` 更新，`ConversationView` 普通职责基类统一投影消息、条件清稿和发送相关 Qt 信号。不存在可写字段别名。
+- ViewModel、Workspace 与语音库各自保留一个 QObject 门面及明确命名的 Mixin；连续语音使用普通 Python 协作者，事件归约不再由 Presentation 基类承担。
+- `ConversationPresentation` 是瞬态对话展示的唯一写入者，对外只暴露递归只读的 `ConversationSnapshot`；QML 读取脱离所有者的普通值。文本、分轮语音和连续语音通过 ViewModel 的 `present_conversation(ConversationEvent)` 更新，`ConversationViewMixin` 普通职责基类统一投影消息、条件清稿和发送相关 Qt 信号。不存在可写字段别名。
 - `SourceLoadRequest/Result` 在无 Qt 的来源加载边界交换普通数据。Workspace 在主线程冻结偏好、材料、范围及目录，后台不读取 Qt 对象；缺件／投影失败返回错误码并文本回退。
 - `BlockingRequest/run_blocking` 只开放包内具名操作，按事件循环最多两个文件／安装任务子进程。解析、投影、长材料索引、原件保存和运行环境安装等待实际进程清理；父进程安装索引缓存并提交学习数据。
+
+### 连续语音的状态与运行接口
+
+`ContinuousVoiceController` 保留唯一 Qt 门面，`CallCoordinator` 唯一写入通话状态，返回不可变 `CallSnapshot`；`CallPreparation` 独立管理安装任务、进度、容量缓存和资源扫描，返回准备快照。准备成功只改变准备状态，用户仍须显式开通话。
+
+`CallRuntime` 是门面拥有的 Qt 资源适配器，通过 `CallRuntimePort` 提供录音、播放、权限、后台任务和展示等明确能力。协调器与准备协作者不持有完整 ViewModel 或分轮控制器。Qt 设备、桥、信号保留主线程；worker 输入在主线程冻结，`SpeechRoute` 捕获后端后在 worker 绑定语言模型。
+
+`CallEvent` 原样携带通话或准备身份、类别和任务代际，经 queued signal 回主线程后先校验再归约。回复代际、音频身份、麦克风代际和暂停操作身份分别校验，不能混成同一个计数器。准备有独立取消事件与身份；更换资源根目录使旧扫描代际失效；准备结果不能重新激活旧通话。展示 token 继续沿用原任务，经统一对话展示入口处理；确认历史由 Workbench 提交。
+
+退出依次失效准备与通话、关闭采集／播放，再由既有 worker 和受管任务链等待实际进程、客户端和默认执行器结束。取消 future 不代表清理完成。分轮语音通过 `tts_available` 读取通话朗读能力，不读取私有错误字段。AI 设置使用公开 `storage_path`，会话材料通过 `session_material()` 查询，保留当前会话冻结范围。
 
 CLI 与桌面使用相同 Workbench 用例；CLI 导入先保存，显式确认已读范围后才能开始。默认 Mock 支持当前语义主线；旧 topic-bank provider 的兼容测试显式使用 `LegacyMockLearningLLMProvider`。
 
@@ -111,7 +134,7 @@ Qt／WebEngine 仅留在桌面边界，上游 JS 固定提交并随包携带许�
 
 | 触发条件／优先级 | 改进方向 | 完成条件 |
 | --- | --- | --- |
-| 下次扩展阅读格式、引擎或阅读状态前 | 沿用已有无 Qt 来源加载／有类型结果与 ReaderWorkspace 阅读职责，扩展时继续验证公开入口 | 授权、过期结果、旧资料回退与历史快照契约通过，详见阅读器专项 |
+| 下次扩展阅读格式、引擎或阅读状态前 | 沿用已有无 Qt 来源加载／有类型结果与 ReaderWorkspaceMixin 阅读职责，扩展时继续验证公开入口 | 授权、过期结果、旧资料回退与历史快照契约通过，详见阅读器专项 |
 | 下次新增存储后端或资产生命周期功能前 | 将 Workbench 对具体 SQLite／资产目录的访问收敛到明确的存储接口 | 临时库、旧库恢复、重复导入和原件缺失有对应测试；不立即引入 ORM |
 | 下次修改大 provider 或 ViewModel 的跨职责功能时 | 沿用已分离的 prompt／解析、投影和操作职责，保持公开接口，避免重新聚集 | 同一轮只迁移一个职责，失败恢复与既有会话保持 |
 | 上游 foliate-js／PySide6 升级或正式发行前 | 更新 pin、许可与资源，检查 Chromium 分发并做窗口交互 | 依赖边界、来源映射、可见 Mock 和对应发行产物分别通过 |

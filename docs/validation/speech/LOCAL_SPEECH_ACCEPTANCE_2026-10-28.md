@@ -66,8 +66,8 @@ Windows x64，i9-14900HX，32 逻辑核心，约 32GiB RAM；检测到 RTX 4060 
 | `src/shinar/local_speech/catalog.json`、`catalog.py` | 固定模型包、语言、来源、许可说明、哈希和候选列表 |
 | `src/shinar/local_speech/downloads.py`、`storage.py`、`hardware.py` | 下载/校验/安全展开、缓存与锁、硬件准入 |
 | `src/shinar/local_speech/benchmark.py`、`runtime_worker.py`、`library.py`、`__main__.py` | 子进程推理、冷/热/并发测速、报告匹配、CLI |
-| `src/shinar/desktop/speech_library.py`、`src/shinar/desktop/qml/components/LocalSpeechLibrary.qml` | 桌面模型库、任务进度、试听和候选保存 |
-| `tests/local_speech/`、`tests/test_local_speech_desktop.py` | 本地模型库与 Qt 交互回归 |
+| `src/shinar/desktop/speech_library/viewmodel.py`、`src/shinar/desktop/qml/components/LocalSpeechLibrary.qml` | 桌面模型库、任务进度、试听和候选保存 |
+| `tests/local_speech/`、`tests/desktop/test_local_speech_desktop.py` | 本地模型库与 Qt 交互回归 |
 | `tests/providers/test_speech.py`、`src/shinar/providers/speech.py` | 原有独立云端 STT/TTS adapter 及其 mock 测试，不是本地模型接线 |
 | `scripts/validate_local_speech_desktop.py` | 可重跑的离屏 Qt 操作与截图探针 |
 | `build/local-speech-evaluation/cache/models/`、`cache/reports/` | 已下载模型、原始测速 JSON 与 TTS 样本；ignored，不提交 |
@@ -87,8 +87,8 @@ Windows x64，i9-14900HX，32 逻辑核心，约 32GiB RAM；检测到 RTX 4060 
 显式设置 `RUN_REAL_AI_TESTS=0` 后执行：
 
 ```powershell
-.venv/Scripts/python.exe -m pytest tests/local_speech tests/test_local_speech_desktop.py tests/providers/test_speech.py -q
-.venv/Scripts/ruff.exe check src/shinar/local_speech src/shinar/desktop/speech_library.py tests/local_speech tests/test_local_speech_desktop.py tests/providers/test_speech.py scripts/validate_local_speech_desktop.py
+.venv/Scripts/python.exe -m pytest tests/local_speech tests/desktop/test_local_speech_desktop.py tests/providers/test_speech.py -q
+.venv/Scripts/ruff.exe check src/shinar/local_speech src/shinar/desktop/speech_library/viewmodel.py tests/local_speech tests/desktop/test_local_speech_desktop.py tests/providers/test_speech.py scripts/validate_local_speech_desktop.py
 ```
 
 结果为 **43 passed，17.52 秒**，Ruff 通过。其中 provider 测试为 mock；Qt 测试为离屏交互。本次只核对已有真实推理报告及模型完整性，没有新增真实识别、合成或真人录音证据。上轮全量回归未完成的状态仍保留，本次未重跑整仓，不能用这 43 项代替整仓通过。

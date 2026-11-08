@@ -5,10 +5,9 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import Awaitable, Callable
-from time import perf_counter
 from typing import Any, TypeVar
 
-from shinar.core.domain import LearningMaterial, MaterialAnalysis, PracticeSession, new_id
+from shinar.core.domain import LearningMaterial, MaterialAnalysis, PracticeSession
 from shinar.core.knowledge import (
     BriefPoint,
     ConversationMemory,
@@ -16,14 +15,10 @@ from shinar.core.knowledge import (
     GroundedNote,
     MaterialKnowledge,
     MemoryItem,
-    ModelBudgetExceeded,
     ReadingBrief,
-    ReasoningRequest,
-    ReasoningResponse,
     SourceSpan,
     SourceUnit,
     TurnContext,
-    model_call_usage,
 )
 from shinar.core.knowledge_context import (
     AUXILIARY_KINDS,
@@ -44,7 +39,7 @@ from shinar.core.knowledge_context import (
 
 
 from shinar.application.preparation_requests import (
-    PreparationRequests, PreparationFailure, PreparationTruncated, parse_object,
+    PreparationRequests, PreparationFailure, PreparationTruncated,
 )
 
 

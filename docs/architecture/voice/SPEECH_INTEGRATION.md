@@ -40,7 +40,7 @@
 | Core 语音端口 | `core/voice.py` 只有整段 `transcribe(bytes)`、`synthesize(text)` | 增加带身份/格式/能力的会话契约，保留旧接口兼容 |
 | 本地模型 | `local_speech/service.py` 有常驻进程、设备策略和报告门禁 | 增加会话预热、模型级能力、音频分块、取消和统一资源预约 |
 | 模型选择 | 已有按语言/场景/STT/TTS 保存与两个设置页 | 增加音色、备用配置、组合准入、实际运行配置快照 |
-| Qt 音频 | `desktop/audio.py` 录制/播放临时 WAV | 新增 `QAudioSource/QAudioSink` 连续 PCM 桥；旧路径保留开发回退 |
+| Qt 音频 | `desktop/voice/audio.py` 录制/播放临时 WAV | 新增 `QAudioSource/QAudioSink` 连续 PCM 桥；旧路径保留开发回退 |
 | 对话流 | LLM delta 能显示，结束后才调用整段朗读 | delta 同时送分句器；文字、合成和播放并行 |
 | 后台任务 | `AsyncWorker.submit` 的通用完成信号配单个 `_on_success` | 语音有独立任务注册和事件通道，不能并发复用单回调 |
 | 打断 | RTC 有 `TurnRef/generation` 与旧事件门 | 门控扩展到 LLM、模型 IPC、应用音频队列及设备缓冲 |
@@ -468,9 +468,9 @@ Kotoba 是可选质量路径，排在三语默认链路之后。SenseVoice 2025 
 | `application/speech_text.py` | 流式文本安全分句、可说文本投影、字符 span 与 segment |
 | `application/learning_workbench.py`、`kernel/session_runner.py` | 已确认输入/生成分离、取消、幂等；保留原文与阅读范围规则 |
 | 持久化 repository 端口及 SQLite adapter | turn 状态、事务 A/B、代际 CAS、兼容迁移 |
-| `desktop/pcm_audio.py` | QAudioSource/Sink、设备时钟、短队列、reset、播放参考 |
+| `desktop/voice/pcm_audio.py` | QAudioSource/Sink、设备时钟、短队列、reset、播放参考 |
 | `desktop/voice_viewmodel.py` | 多状态展示与用户操作，不加载模型；复用当前 ViewModel 的会话选择 |
-| `desktop/worker.py` | 每任务句柄/取消与独立语音事件信号，消除通用回调串扰 |
+| `desktop/tasks/worker.py` | 每任务句柄/取消与独立语音事件信号，消除通用回调串扰 |
 | `realtime/audio_session_worker.py` | 两 peer、APM、重采样、VAD、音轨绑定与 IPC；实际 LiveKit 实现在此边界 |
 | `realtime/protocol.py`、`livekit_transport.py` | 扩展 utterance/segment 与设备播放确认；保留既有代际门和严格配置 |
 | `local_speech/supervisor.py`、`service.py` | 实例复用、任务优先级、总资源预约、预热、取消、进程树回收 |
