@@ -13,10 +13,27 @@ Rectangle {
     ColumnLayout {
         anchors.fill: parent; anchors.margins: sidebar.collapsed ? 6 : 10
         spacing: 3
-        RowLayout {
+        Item {
             Layout.fillWidth: true; Layout.preferredHeight: 46; Layout.bottomMargin: 10
-            Image { source: "../../assets/app-icon.svg"; Layout.preferredWidth: 26; Layout.preferredHeight: 26; Layout.leftMargin: 6; Accessible.name: "Shinar" }
-            MLabel { visible: !sidebar.collapsed; text: "Shinar"; font.pixelSize: 16; font.weight: Font.DemiBold }
+            Image {
+                id: brandIcon
+                anchors.left: parent.left
+                anchors.leftMargin: sidebar.collapsed ? Math.round((parent.width - width) / 2) : 6
+                anchors.verticalCenter: parent.verticalCenter
+                width: 26; height: 26
+                source: "../../assets/app-icon.svg"
+                Accessible.name: "Shinar"
+            }
+            MLabel {
+                visible: !sidebar.collapsed
+                anchors.left: brandIcon.right; anchors.leftMargin: 8
+                anchors.right: parent.right
+                anchors.verticalCenter: brandIcon.verticalCenter
+                height: brandIcon.height
+                text: "Shinar"; font.pixelSize: 16; font.weight: Font.DemiBold
+                lineHeight: 1; verticalAlignment: Text.AlignVCenter
+                wrapMode: Text.NoWrap; elide: Text.ElideRight
+            }
         }
         SidebarItem {
             objectName: "nav0"
