@@ -3,7 +3,7 @@
 from __future__ import annotations
 import base64
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from secrets import token_hex
 from typing import Any, Callable
@@ -25,6 +25,16 @@ from shinar.desktop.presentation.conversation_presentation import freeze
 class ReadingContext:
     route: str
     browsing: str
+
+
+@dataclass(frozen=True)
+class ReadingPosition:
+    source: str | None
+    opened: bool
+    section: str
+    scroll: float
+    position: int
+    material: str
 
 
 @dataclass(frozen=True)
@@ -65,8 +75,8 @@ class ReadingCoordinator:
             "material",
             "",
         )
-        self._records, self._saved_current = {}, None
-        self._scope_documents, self._historical_document = {}, None
+        self._positions, self._saved_current = {}, None
+        self._scope_documents = {}
         self._view_mode = "current"
 
     @property
@@ -83,6 +93,7 @@ class ReadingCoordinator:
                 search_generation=self.search_tasks.generation,
                 pending=dict(self._scope_pending),
                 view=self._view_mode,
+                positions={key: asdict(value) for key, value in self._positions.items()},
             )
         )
 
@@ -106,7 +117,7 @@ class ReadingCoordinator:
         self.preserve_current()
         self._view_mode = "scope"
         if material.id in self._scope_documents:
-            self._restore(self._scope_documents[material.id])
+            self._restore_position(self._scope_documents[material.id])
         else:
             self._source_scroll, self._reader_position = 0.0, 0
         self._scope_return_route = return_route
@@ -151,15 +162,32 @@ class ReadingCoordinator:
         for name, value in deepcopy(record).items():
             setattr(self, name, value)
 
+    def _capture_position(self, record):
+        source = record["_source_snapshot"]
+        return ReadingPosition(
+            source.model_dump_json() if source else None,
+            record["_source_open"],
+            record["_source_section"],
+            record["_source_scroll"],
+            record["_reader_position"],
+            record["_source_material"],
+        )
+
+    def _restore_position(self, position):
+        self._source_snapshot = (
+            TurnSourceSnapshot.model_validate_json(position.source) if position.source else None
+        )
+        self._source_open, self._source_section = position.opened, position.section
+        self._source_scroll, self._reader_position = position.scroll, position.position
+        self._source_material = position.material
+
     def preserve_current(self):
         if self._saved_current is None:
             self._saved_current = self._capture()
 
     def restore_current(self):
         if self._view_mode == "scope":
-            self._scope_documents[self._source_material] = self._capture()
-        elif self._view_mode == "preview":
-            self._historical_document = self._capture()
+            self._scope_documents[self._source_material] = self._capture_position(vars(self))
         if self._saved_current is not None:
             self._restore(self._saved_current)
             self._saved_current = None
@@ -168,12 +196,12 @@ class ReadingCoordinator:
         self.invalidate()
 
     def remember(self, session_id):
-        self._records[session_id] = deepcopy(self._saved_current or self._capture())
+        self._positions[session_id] = self._capture_position(self._saved_current or vars(self))
 
     def restore(self, session_id):
         self.reset_thread()
-        if session_id in self._records:
-            self._restore(self._records[session_id])
+        if session_id in self._positions:
+            self._restore_position(self._positions[session_id])
         self.invalidate()
 
     def reset_thread(self):
@@ -443,7 +471,6 @@ class ReadingCoordinator:
             snapshot = self._preview or self._source_snapshot
             base = snapshot.base if snapshot else None
             if self._preview:
-                self._historical_document = self._capture()
                 self._source_section = self._preview.section_id or ""
                 self._saved_current = None
                 self._view_mode = "current"

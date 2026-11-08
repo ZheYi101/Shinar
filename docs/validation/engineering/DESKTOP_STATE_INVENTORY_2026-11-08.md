@@ -121,7 +121,7 @@
 | `_source_snapshot` | `__init__`, `openThread`, `_started` | ReadingCoordinator |
 | `_source_stale` | `__init__` | ReadingCoordinator |
 | `_source_text` | `__init__` | ReadingCoordinator |
-| `_states` | `__init__` | WorkspaceNavigation.positions／ReadingCoordinator.records（按职责拆分） |
+| `_states` | `__init__` | WorkspaceNavigation.positions／ReadingCoordinator.positions（按职责拆分） |
 | `_threads` | `__init__`, `refresh` | WorkspaceNavigation |
 | `_worker` | `__init__` | 原 Qt 门面（设备／计时器／配置／公开依赖端口，保留） |
 | `settings` | `__init__` | 原 Qt 门面（设备／计时器／配置／公开依赖端口，保留） |

@@ -920,7 +920,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+192"/>
+        <location line="+194"/>
         <source>正在准备独立 Python 与安装工具…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -970,13 +970,13 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+280"/>
+        <location line="+290"/>
         <source>计算设置的数值无效。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../speech_library/formats.py" line="+61"/>
-        <location filename="../speech_library/viewmodel.py" line="-140"/>
+        <location filename="../speech_library/viewmodel.py" line="-146"/>
         <source>请先停止语音并释放已加载模型，再修复运行环境。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -986,17 +986,17 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+13"/>
         <source>检查运行环境并执行真实计算探针…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+132"/>
+        <location line="+138"/>
         <source>正在释放空闲模型；运行中的推理会先完成。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-234"/>
+        <location line="-246"/>
         <source>尚未检测硬件</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1036,7 +1036,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../speech_library/viewmodel.py" line="+133"/>
+        <location filename="../speech_library/viewmodel.py" line="+139"/>
         <source>请先阅读并确认此版本的语音模型与角色条款。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1147,12 +1147,12 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../speech_library/viewmodel.py" line="-396"/>
+        <location filename="../speech_library/viewmodel.py" line="-402"/>
         <source>检测硬件与本地模型…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+305"/>
+        <location line="+311"/>
         <source>卸载模型…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1208,7 +1208,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+131"/>
+        <location line="+141"/>
         <source>此配置已在严格评测与试听中排除，请选择其他模型。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1223,7 +1223,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-282"/>
+        <location line="-296"/>
         <source>请先停止语音，再试听模型声音。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1233,7 +1233,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+18"/>
         <source>试听播放失败，可重新测速生成音频并检查输出设备。</source>
         <translation type="unfinished"></translation>
     </message>

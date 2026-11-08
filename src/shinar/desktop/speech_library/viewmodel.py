@@ -111,6 +111,8 @@ class SpeechLibraryViewModel(QObject):
         return next(package for package in self.catalog if package.id == identity)
 
     def _launch(self, kind, args, title, kwargs=None):
+        if self._operations.snapshot.closed or self.operationBusy:
+            return
         request, factory, backend = (
             self._request_snapshot(),
             self._work_factory,
@@ -384,6 +386,8 @@ class SpeechLibraryViewModel(QObject):
 
     @Slot(str)
     def preview(self, id):
+        if self._operations.snapshot.closed:
+            return
         if self._voice_active():
             self._operations.status(
                 QCoreApplication.translate("Desktop", "请先停止语音，再试听模型声音。")
@@ -420,6 +424,8 @@ class SpeechLibraryViewModel(QObject):
                 self.changed.emit()
 
     def _playback_error(self):
+        if self._operations.snapshot.closed:
+            return
         self._operations.status(
             QCoreApplication.translate(
                 "Desktop", "试听播放失败，可重新测速生成音频并检查输出设备。"
@@ -454,6 +460,8 @@ class SpeechLibraryViewModel(QObject):
 
     @Slot(str)
     def checkRuntime(self, device):
+        if device not in {"cpu", "cuda", "voicevox-cpu", "melo-cpu", "melo-cuda", "rtc-cpu"}:
+            return
         self._launch(
             "checkRuntime",
             (device,),
@@ -473,7 +481,7 @@ class SpeechLibraryViewModel(QObject):
     def runBenchmark(self, id, wav):
         self._launch(
             "_run_benchmark",
-            (id, wav),
+            (id, QUrl(wav).toLocalFile() if wav else ""),
             QCoreApplication.translate("Desktop", "使用内置示例测速（含预热与 5 次热态）…")
             if not wav
             else QCoreApplication.translate("Desktop", "使用所选录音测速（含预热与 5 次热态）…"),
@@ -493,7 +501,7 @@ class SpeechLibraryViewModel(QObject):
     def runPairBenchmark(self, wav):
         self._launch(
             "runPairBenchmark",
-            (wav,),
+            (QUrl(wav).toLocalFile() if wav else "",),
             QCoreApplication.translate("Desktop", "STT + TTS 同时运行测速…"),
             {},
         )
@@ -571,7 +579,11 @@ class SpeechLibraryViewModel(QObject):
 
     @Slot(str, "QVariant")
     def setCompute(self, name, value):
-        if self.operationBusy or name not in type(load_compute(self.store.root)).model_fields:
+        if (
+            self._operations.snapshot.closed
+            or self.operationBusy
+            or name not in type(load_compute(self.store.root)).model_fields
+        ):
             return
         try:
             settings = load_compute(self.store.root)
@@ -587,6 +599,8 @@ class SpeechLibraryViewModel(QObject):
 
     @Slot()
     def releaseModels(self):
+        if self._operations.snapshot.closed:
+            return
         self.local_service.request_release()
         self._operations.status(
             QCoreApplication.translate("Desktop", "正在释放空闲模型；运行中的推理会先完成。")
@@ -595,7 +609,7 @@ class SpeechLibraryViewModel(QObject):
 
     @Slot(str, bool)
     def acceptVoiceTerms(self, id, accepted):
-        if self.operationBusy:
+        if self._operations.snapshot.closed or self.operationBusy:
             return
         package = self._package(id)
         data = read_json(self.store.root / "voice-terms.json", {})
@@ -608,7 +622,11 @@ class SpeechLibraryViewModel(QObject):
 
     @Slot(str, str)
     def selectVoice(self, id, voice_id):
-        if self.operationBusy or not any((v["id"] == voice_id for v in voices(id))):
+        if (
+            self._operations.snapshot.closed
+            or self.operationBusy
+            or not any((v["id"] == voice_id for v in voices(id)))
+        ):
             return
         data = read_json(self.store.root / "voices.json", {})
         data[id] = voice_id
@@ -617,7 +635,7 @@ class SpeechLibraryViewModel(QObject):
 
     @Slot(str)
     def select(self, id):
-        if self.operationBusy:
+        if self._operations.snapshot.closed or self.operationBusy:
             return
         package = self._package(id)
         row = next((r for r in self.models if r["id"] == id), {})

@@ -133,3 +133,16 @@ def test_scope_and_preview_restore_current_selection_and_reading_position(deskto
     ws.openThread(original_thread)
     until(lambda: ws.documentReady)
     assert ws.snapshot() == current and ws.sourceScroll == 88.0
+
+
+def test_thread_reading_history_retains_only_coordinates_and_source_snapshots():
+    from shinar.desktop.workspace.reading_state import ReadingCoordinator
+
+    # History storage is a compact immutable record, independently of document size.
+    owner = ReadingCoordinator(None)
+    owner.remember("thread")
+    saved = owner.state_snapshot["positions"]["thread"]
+    assert set(saved) == {"source", "opened", "section", "scroll", "position", "material"}
+    assert not any(isinstance(value, bytes) for value in saved.values())
+    with pytest.raises(TypeError):
+        saved["scroll"] = 99

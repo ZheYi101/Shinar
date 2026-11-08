@@ -26,7 +26,7 @@
 
 允许 `epub_reader.py` 复用同层导入器的公开规范化／HTML 提取接口，保持新旧文本逐字对应；不再复制另一套清洗规则。WebEngine 的 Python 依赖只位于桌面装配入口与 `reader_runtime.py`，QML 依赖只位于 `FoliateSurface.qml`。业务层和格式适配器不得反向依赖这些模块。
 
-`ReadingCoordinator.loadSource()` 唯一维护阅读、选段、预览、范围编辑以及文档／搜索身份。当前阅读保存为独立记录，范围编辑与历史预览分别保存显示记录；返回时恢复当前位置与选段。每线程阅读位置由阅读所有者保存，编辑器位置由 WorkspaceNavigation 保存。发送来源仍由 Workbench 冻结，预览与范围取消不能替换当前发送依据。
+`ReadingCoordinator.loadSource()` 唯一维护阅读、选段、预览、范围编辑以及文档／搜索身份。当前阅读保存为独立记录，范围编辑与历史预览分别保存显示记录；返回时恢复当前位置与选段。每线程仅以不可变 ReadingPosition 保存坐标、来源快照与开关，不保留原文、章节或 ReaderBook；阅读位置由阅读所有者保存，编辑器位置由 WorkspaceNavigation 保存。发送来源仍由 Workbench 冻结，预览与范围取消不能替换当前发送依据。
 
 `ImportEditor` 独占标题、正文、语言、文件预览与导入任务身份；标题版本保证用户重打相同标题也不被迟到文件结果覆盖。`WorkspaceNavigation` 独占路由、材料树、展开、侧栏和编辑位置。`ReaderPropertiesMixin` 仅委托普通阅读所有者，不维护共享字段或提交后台任务。三个协作者通过明确的 ReadingRuntime／现有 worker 接口协作，不持有完整 ViewModel 或 Workspace。
 
