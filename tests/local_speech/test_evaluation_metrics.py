@@ -2,7 +2,7 @@ import math
 
 import pytest
 
-from lingualoop.local_speech.evaluation_metrics import (
+from shinar.local_speech.evaluation_metrics import (
     aggregate_accuracy,
     distribution,
     edit_counts,

@@ -3,15 +3,15 @@ import asyncio
 import pytest
 from dotenv import load_dotenv
 
-from lingualoop.core import (
+from shinar.core import (
     LanguageEnum,
     LearningMaterial,
     Message,
     MessageRole,
     ProficiencyLevel,
 )
-from lingualoop.engine.langgraph import build_learning_session_graph
-from lingualoop.providers import OpenAICompatibleLLMProvider
+from shinar.engine.langgraph import build_learning_session_graph
+from shinar.providers import OpenAICompatibleLLMProvider
 
 
 def is_model_routing_error(error: Exception) -> bool:

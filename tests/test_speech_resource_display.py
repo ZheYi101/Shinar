@@ -2,7 +2,7 @@ from threading import Event
 
 from PySide6.QtTest import QTest
 
-from lingualoop.local_speech.downloads import TransferEvent
+from shinar.local_speech.downloads import TransferEvent
 from test_desktop_workflow import desktop, qt_app, click, item, until, workspace_of  # noqa: F401
 from test_local_speech_desktop import library_desktop  # noqa: F401
 
@@ -20,9 +20,9 @@ def test_local_model_labels_separate_download_disk_and_unmeasured_ram(library_de
 
 
 def test_continuous_file_completion_is_not_whole_setup_completion(desktop, monkeypatch):
-    import lingualoop.local_speech.installation as installation
-    import lingualoop.desktop.continuous_voice as module
-    import lingualoop.realtime.local_server as server
+    import shinar.local_speech.installation as installation
+    import shinar.desktop.continuous_voice as module
+    import shinar.realtime.local_server as server
 
     vm, window, _, _, _, audio, _ = desktop
     call = vm.voice.call

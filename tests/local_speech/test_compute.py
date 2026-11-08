@@ -5,17 +5,17 @@ import sys
 
 import pytest
 
-from lingualoop.local_speech.catalog import load_catalog
-from lingualoop.local_speech.compute import (
+from shinar.local_speech.catalog import load_catalog
+from shinar.local_speech.compute import (
     ComputeSettings,
     load_compute,
     resolve_device,
     save_compute,
 )
-from lingualoop.local_speech.resources import resource_snapshot
-from lingualoop.local_speech.runtime import child_environment, probe_runtime
-from lingualoop.local_speech.service import LocalSpeechService
-from lingualoop.local_speech.storage import atomic_json
+from shinar.local_speech.resources import resource_snapshot
+from shinar.local_speech.runtime import child_environment, probe_runtime
+from shinar.local_speech.service import LocalSpeechService
+from shinar.local_speech.storage import atomic_json
 
 
 def fp32():
@@ -61,7 +61,7 @@ def test_settings_persist_without_touching_learning_data(tmp_path):
 
 
 def test_unsupported_process_telemetry_is_unknown_not_zero(monkeypatch):
-    import lingualoop.local_speech.resources as module
+    import shinar.local_speech.resources as module
 
     monkeypatch.setattr(
         module,
@@ -84,7 +84,7 @@ def test_child_environment_has_no_cloud_credentials_or_python_path(monkeypatch):
 
 
 def test_runtime_probe_rejects_cpu_fallback(monkeypatch):
-    import lingualoop.local_speech.runtime as module
+    import shinar.local_speech.runtime as module
 
     monkeypatch.setattr(module, "run_bounded", lambda *_, **__: '{"ok": true, "device": "cpu"}')
     with pytest.raises(RuntimeError, match="GPU"):
@@ -92,8 +92,8 @@ def test_runtime_probe_rejects_cpu_fallback(monkeypatch):
 
 
 def test_reports_do_not_cross_device_or_gpu_index(tmp_path):
-    from lingualoop.local_speech.downloads import ModelStore
-    from lingualoop.local_speech.library import matching_reports
+    from shinar.local_speech.downloads import ModelStore
+    from shinar.local_speech.library import matching_reports
     package = fp32()
     hw = {**hardware(), "platform": "Windows", "architecture": "AMD64", "cpu": "CPU", "logical_cpus": 8}
     report = {"schema": 1, "language": "ja", "hardware": hw,
@@ -109,7 +109,7 @@ def test_reports_do_not_cross_device_or_gpu_index(tmp_path):
 
 @pytest.mark.parametrize("idle", [0, 120])
 def test_local_worker_reused_then_closed_and_keeps_audio_out_of_files(tmp_path, monkeypatch, idle):
-    import lingualoop.local_speech.service as module
+    import shinar.local_speech.service as module
 
     monkeypatch.setattr(module, "detect_hardware", lambda _: hardware())
     monkeypatch.setattr(module, "runtime_python", lambda *_: sys.executable)

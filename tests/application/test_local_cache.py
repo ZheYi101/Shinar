@@ -2,10 +2,10 @@ import asyncio
 
 import pytest
 
-from lingualoop.application import LearningWorkbench
-from lingualoop.core import LanguageEnum as L, ProficiencyLevel, MaterialAnalysis
-from lingualoop.infrastructure import SQLiteStore
-from lingualoop.providers.mock import LegacyMockLearningLLMProvider
+from shinar.application import LearningWorkbench
+from shinar.core import LanguageEnum as L, ProficiencyLevel, MaterialAnalysis
+from shinar.infrastructure import SQLiteStore
+from shinar.providers.mock import LegacyMockLearningLLMProvider
 
 
 class Counted(LegacyMockLearningLLMProvider):
@@ -144,7 +144,7 @@ def test_history_selection_restores_older_thread_without_changing_recency(tmp_pa
 
 
 def test_offline_library_reimport_cannot_erase_prepared_material(tmp_path):
-    from lingualoop.providers.unavailable import UnavailableLearningLLMProvider
+    from shinar.providers.unavailable import UnavailableLearningLLMProvider
     async def run():
         store = SQLiteStore(tmp_path / 'offline.sqlite3')
         online = LearningWorkbench(Counted(), event_store=store)

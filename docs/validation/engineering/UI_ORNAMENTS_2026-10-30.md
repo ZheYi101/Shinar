@@ -6,8 +6,8 @@
 
 先查看[已定融合参考图](../../product/assets/visual-style/warm-paper-ink-reference-v1.png)，并逐张核对材料库、导入、聊天、材料空间与复盘的原 UI 稿。装饰语言采用原图的浅暖纸、灰绿布面书、褐色织物书签、奶油纸笺、米色胶带和淡植物印章，页面结构延续[逐页 UI 稿](../../product/UI_LAYOUT_DESIGN.md)。
 
-- `assets/decorative/cloth-book.png`：使用内置 imagegen，以融合图右下方的布面书和小枝叶为唯一图片参考，生成独立透明插画。已保存到项目，尺寸 1536 × 1024，有真实 alpha；SHA-256 为 `1fc993396c17f5acfd04b67acf0dd720ce71d6432569632fe07fe477712dc5c2`。完整提示词与输入图片路径在[生成记录](../../../src/lingualoop/desktop/qml/assets/decorative/generation.json)。
-- `assets/decorative/` 其余四份 SVG 为细纤维、淡植物印章、纸笺和短胶带，参考上述原图绘制；来源和项目授权状态见[资产说明](../../../src/lingualoop/desktop/qml/assets/decorative/README.md)。没有下载第三方图片或套用 Material 图标的许可。
+- `assets/decorative/cloth-book.png`：使用内置 imagegen，以融合图右下方的布面书和小枝叶为唯一图片参考，生成独立透明插画。已保存到项目，尺寸 1536 × 1024，有真实 alpha；SHA-256 为 `1fc993396c17f5acfd04b67acf0dd720ce71d6432569632fe07fe477712dc5c2`。完整提示词与输入图片路径在[生成记录](../../../src/shinar/desktop/qml/assets/decorative/generation.json)。
+- `assets/decorative/` 其余四份 SVG 为细纤维、淡植物印章、纸笺和短胶带，参考上述原图绘制；来源和项目授权状态见[资产说明](../../../src/shinar/desktop/qml/assets/decorative/README.md)。没有下载第三方图片或套用 Material 图标的许可。
 - `components/PaperTexture.qml`、`InkDecoration.qml`、`ReadingNote.qml`：分别处理微弱纸感、插画／印章与内容纸笺；装饰图像没有点击、焦点或读屏语义。检查中发现直接从外壳实例化纸纹时，相对路径指向错误，已统一通过 `Qt.resolvedUrl` 在组件位置解析并重新截图。
 - `pages/LibraryPage.qml`：有足够留白的宽窗口才在右下方显示布面书；列表密集或内容区窄于 720px 时隐藏，不额外增加滚动高度。修正了以装饰自身宽度决定可见性导致初始隐藏的问题，最终截图确认图像可见。
 - `pages/MaterialReference.qml`：实际材料摘要使用奶油纸笺，最大宽度 760px，顶部短胶带、底部独立淡印章；摘要未添加引号，也不冒充原文引用。

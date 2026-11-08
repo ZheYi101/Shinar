@@ -3,15 +3,15 @@
 import asyncio
 from types import SimpleNamespace
 
-from lingualoop.application import LearningWorkbench
-from lingualoop.core import LanguageEnum, ProficiencyLevel
-from lingualoop.desktop.workspace import DesktopWorkspaceController
-from lingualoop.infrastructure import SQLiteStore
-from lingualoop.providers import MockLearningLLMProvider
+from shinar.application import LearningWorkbench
+from shinar.core import LanguageEnum, ProficiencyLevel
+from shinar.desktop.workspace import DesktopWorkspaceController
+from shinar.infrastructure import SQLiteStore
+from shinar.providers import MockLearningLLMProvider
 
 
 def test_search_consumes_only_the_first_hundred_matches(monkeypatch):
-    import lingualoop.application.source_loading as module
+    import shinar.application.source_loading as module
 
     consumed = []
 
@@ -50,7 +50,7 @@ def test_closed_workspace_ignores_late_delivery():
 
 
 def test_presentation_rejects_a_previous_turn():
-    from lingualoop.desktop.conversation_presentation import (
+    from shinar.desktop.conversation_presentation import (
         ConversationEvent,
         ConversationPresentation,
         PresentationToken,
@@ -67,7 +67,7 @@ def test_presentation_rejects_a_previous_turn():
 
 def test_worker_shutdown_waits_for_the_actual_executor_thread():
     from threading import Event
-    from lingualoop.desktop.worker import AsyncWorker
+    from shinar.desktop.worker import AsyncWorker
 
     entered, release = Event(), Event()
     worker = AsyncWorker()
@@ -92,7 +92,7 @@ def test_worker_shutdown_waits_for_the_actual_executor_thread():
 
 
 def test_cancelled_blocking_job_reaps_its_owned_process(monkeypatch):
-    import lingualoop.infrastructure.blocking_jobs as module
+    import shinar.infrastructure.blocking_jobs as module
 
     stopped = []
     original = module._stop
@@ -119,7 +119,7 @@ def test_cancelled_blocking_job_reaps_its_owned_process(monkeypatch):
 
 def test_shutdown_error_is_reported_and_cleanup_can_be_retried():
     import pytest
-    from lingualoop.desktop.worker import AsyncWorker
+    from shinar.desktop.worker import AsyncWorker
 
     worker = AsyncWorker()
 
@@ -136,7 +136,7 @@ def test_shutdown_error_is_reported_and_cleanup_can_be_retried():
 
 
 def test_cli_saves_material_without_authorizing_unconfirmed_text(tmp_path):
-    from lingualoop.cli import ConsoleSessionApp
+    from shinar.cli import ConsoleSessionApp
 
     async def run():
         work = LearningWorkbench(MockLearningLLMProvider(), event_store=SQLiteStore(tmp_path / "cli.db"))

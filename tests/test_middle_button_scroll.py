@@ -11,7 +11,7 @@ os.environ.setdefault("QT_QUICK_BACKEND", "software")
 from PySide6.QtCore import QPoint, QPointF, Qt
 from PySide6.QtTest import QTest
 
-from lingualoop.local_speech.catalog import load_catalog
+from shinar.local_speech.catalog import load_catalog
 from test_desktop_workflow import click, item, until
 from test_local_speech_desktop import library_desktop
 

@@ -1,7 +1,7 @@
 import os
 from types import SimpleNamespace
 
-from lingualoop.local_speech.usage import cached_model_bytes, storage_usage
+from shinar.local_speech.usage import cached_model_bytes, storage_usage
 
 
 def test_storage_snapshot_counts_copies_but_not_hard_links_or_external_links(tmp_path):

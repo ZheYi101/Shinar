@@ -12,7 +12,7 @@ from test_desktop_workflow import (  # noqa: F401
     load_material,
     workspace_of,
 )
-from lingualoop.application.source_document import python_to_utf16
+from shinar.application.source_document import python_to_utf16
 
 
 def visible_item(window, name):

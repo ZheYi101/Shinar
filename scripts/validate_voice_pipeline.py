@@ -16,13 +16,13 @@ from time import perf_counter
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from lingualoop.application.learning_workbench import LearningWorkbench
-from lingualoop.application.voice_session import VoiceSessionCoordinator
-from lingualoop.core.domain import LanguageEnum
-from lingualoop.infrastructure import SQLiteStore
-from lingualoop.local_speech.profiles import LocalSpeechProfile
-from lingualoop.local_speech.service import LocalSpeechService
-from lingualoop.providers.mock import MockLearningLLMProvider
+from shinar.application.learning_workbench import LearningWorkbench
+from shinar.application.voice_session import VoiceSessionCoordinator
+from shinar.core.domain import LanguageEnum
+from shinar.infrastructure import SQLiteStore
+from shinar.local_speech.profiles import LocalSpeechProfile
+from shinar.local_speech.service import LocalSpeechService
+from shinar.providers.mock import MockLearningLLMProvider
 
 
 class ScriptedDialogue(MockLearningLLMProvider):
@@ -110,14 +110,14 @@ async def run_case(case: dict, folder: Path, *, real_rtc: bool) -> dict:
         if real_rtc:
             report["phase"] = "rtc_connect"
             from livekit import api
-            from lingualoop.realtime import TurnRef
-            from lingualoop.realtime.livekit_transport import LiveKitTransport
-            from lingualoop.realtime.local_server import (
+            from shinar.realtime import TurnRef
+            from shinar.realtime.livekit_transport import LiveKitTransport
+            from shinar.realtime.local_server import (
                 LocalServer,
                 ensure_server,
                 owned_rfc1918_addresses,
             )
-            from lingualoop.realtime.voice_io import RtcWavInput, RtcSpeechOutput, send_wav
+            from shinar.realtime.voice_io import RtcWavInput, RtcSpeechOutput, send_wav
 
             address = case.get("rtc_address") or next(
                 iter(sorted(owned_rfc1918_addresses())), "127.0.0.1"
@@ -218,7 +218,7 @@ async def run_case(case: dict, folder: Path, *, real_rtc: bool) -> dict:
                 else:
                     await backend.synthesize("")
             except ValueError:
-                from lingualoop.local_speech.processes import pid_exists
+                from shinar.local_speech.processes import pid_exists
 
                 assert not pid_exists(process_id), "failed_worker_cleanup"
                 report[f"{task}_invalid_input_rejected_and_released"] = True
@@ -253,7 +253,7 @@ async def run_case(case: dict, folder: Path, *, real_rtc: bool) -> dict:
         if server:
             server.__exit__(None, None, None)
             report["rtc_server_cleanup"] = server.cleaned
-        from lingualoop.local_speech.processes import pid_exists
+        from shinar.local_speech.processes import pid_exists
 
         report["model_process_cleanup"] = all(not pid_exists(pid) for pid in owned_pids)
         assert report["model_process_cleanup"]

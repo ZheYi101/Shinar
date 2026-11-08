@@ -6,9 +6,9 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from lingualoop.application import LearningWorkbench
-from lingualoop.cli import ConsoleSessionApp, _safe_print, build_provider
-from lingualoop.core import (
+from shinar.application import LearningWorkbench
+from shinar.cli import ConsoleSessionApp, _safe_print, build_provider
+from shinar.core import (
     LanguageEnum,
     MaterialTrack,
     ProficiencyLevel,
@@ -16,13 +16,13 @@ from lingualoop.core import (
     ReviewRating,
     ReviewStatus,
 )
-from lingualoop.infrastructure import SQLiteStore
-from lingualoop.providers import MockLearningLLMProvider
+from shinar.infrastructure import SQLiteStore
+from shinar.providers import MockLearningLLMProvider
 
 
 def test_workbench_load_start_send_and_export(tmp_path) -> None:
     async def run_case() -> None:
-        db_path = tmp_path / "lingualoop.sqlite3"
+        db_path = tmp_path / "shinar.sqlite3"
         workbench = LearningWorkbench(
             MockLearningLLMProvider(),
             event_store=SQLiteStore(db_path),

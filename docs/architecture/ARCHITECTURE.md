@@ -4,6 +4,8 @@
 
 ## 当前运行结构
 
+2026-11-08 完整定名迁移：源码与分发包使用 `shinar`，目录和品牌使用 Shinar，配置前缀为 `SHINAR_*`。`configuration.py` 以标准库实现旧变量／用户路径的只读兼容；`desktop/settings.py` 按键回读旧 Qt 偏好并写入新命名空间。此边界不移动真实学习库、不改变数据库结构、缓存身份或来源坐标；具体迁移表见[命名记录](../product/NAMING.md#完整工程迁移)。
+
 默认运行形态是本地 Python 应用：PySide6／QML 桌面与 CLI 复用 `LearningWorkbench`、deterministic runner、领域模型和可替换 provider。SQLite 保存业务状态；长期 asyncio worker 承担后台工作。没有常驻应用服务器、ORM、云数据库或通用前端 JS 框架。
 
 ```mermaid

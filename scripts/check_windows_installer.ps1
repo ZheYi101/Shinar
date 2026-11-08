@@ -13,8 +13,8 @@ if (-not $validationRoot.StartsWith($allowedRoot + [IO.Path]::DirectorySeparator
 }
 if (Test-Path -LiteralPath $validationRoot) { throw 'Choose a new validation directory.' }
 $installerPath = (Resolve-Path -LiteralPath $Installer).Path
-$validationKey = 'HKCU:/Software/Microsoft/Windows/CurrentVersion/Uninstall/LinguaLoop.Desktop.Validation_is1'
-$normalKey = 'HKCU:/Software/Microsoft/Windows/CurrentVersion/Uninstall/LinguaLoop.Desktop_is1'
+$validationKey = 'HKCU:/Software/Microsoft/Windows/CurrentVersion/Uninstall/Shinar.Desktop.Validation_is1'
+$normalKey = 'HKCU:/Software/Microsoft/Windows/CurrentVersion/Uninstall/Shinar.Desktop_is1'
 if (Test-Path -LiteralPath $validationKey) { throw 'A prior validation install still needs its own uninstaller.' }
 $normalPresent = Test-Path -LiteralPath $normalKey
 $installRoot = Join-Path $validationRoot 'app'
@@ -44,15 +44,15 @@ if (Test-Path -LiteralPath $layoutFile) {
     }
 }
 
-$keys = @('QT_QPA_PLATFORM', 'QT_QUICK_BACKEND', 'RUN_REAL_AI_TESTS', 'LINGUALOOP_KIRIGAMI_MODE')
+$keys = @('QT_QPA_PLATFORM', 'QT_QUICK_BACKEND', 'RUN_REAL_AI_TESTS', 'SHINAR_KIRIGAMI_MODE')
 $previous = @{}
 foreach ($key in $keys) { $previous[$key] = [Environment]::GetEnvironmentVariable($key, 'Process') }
 try {
     $env:QT_QPA_PLATFORM = 'offscreen'
     $env:QT_QUICK_BACKEND = 'software'
     $env:RUN_REAL_AI_TESTS = '0'
-    $env:LINGUALOOP_KIRIGAMI_MODE = 'off'
-    $launch = Start-Process -FilePath (Join-Path $installRoot 'LinguaLoop.exe') -ArgumentList @('--mock', '--smoke') -WindowStyle Hidden -Wait -PassThru
+    $env:SHINAR_KIRIGAMI_MODE = 'off'
+    $launch = Start-Process -FilePath (Join-Path $installRoot 'Shinar.exe') -ArgumentList @('--mock', '--smoke') -WindowStyle Hidden -Wait -PassThru
     if ($launch.ExitCode -ne 0) { throw ('Installed launcher failed: ' + $launch.ExitCode) }
 } finally {
     foreach ($key in $keys) { [Environment]::SetEnvironmentVariable($key, $previous[$key], 'Process') }

@@ -12,13 +12,13 @@ from PySide6.QtCore import QObject, QPointF, QSettings, Qt, QCoreApplication, QE
 from PySide6.QtGui import QFontDatabase, QGuiApplication
 from PySide6.QtTest import QTest
 
-from lingualoop.application import LearningWorkbench
-from lingualoop.desktop.app import create_engine
-from lingualoop.desktop.preferences import DesktopPreferences
-from lingualoop.desktop.speech_library import SpeechLibraryViewModel
-from lingualoop.desktop.viewmodel import LearningViewModel
-from lingualoop.infrastructure import SQLiteStore
-from lingualoop.providers import MockLearningLLMProvider
+from shinar.application import LearningWorkbench
+from shinar.desktop.app import create_engine
+from shinar.desktop.preferences import DesktopPreferences
+from shinar.desktop.speech_library import SpeechLibraryViewModel
+from shinar.desktop.viewmodel import LearningViewModel
+from shinar.infrastructure import SQLiteStore
+from shinar.providers import MockLearningLLMProvider
 
 
 def wait_until(predicate, timeout=180):

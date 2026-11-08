@@ -54,7 +54,7 @@ uv sync --dev --extra desktop --extra realtime
 | SFU server | [v1.13.10](https://github.com/livekit/livekit/releases/tag/v1.13.10)，2026-10-14 发布 | `livekit_1.13.10_windows_amd64.zip`，19,616,198 bytes |
 | server SHA256 | `fd4b7c2c3c1e4c71adaa4f6a046ad1c0abaaaf1e09fae904b35bf231ffae11d2` | 与[官方 checksums.txt](https://github.com/livekit/livekit/releases/download/v1.13.10/checksums.txt)及 release asset digest 一致 |
 
-`realtime` extra 只引入 RTC/API SDK 和其依赖（包括 numpy、protobuf、aiohttp），没有 `livekit-agents`、模型插件、Redis、云数据库或模型权重。`uv.lock` 固定解析结果。基础 wheel 元数据将这两个 SDK 列为 extra，而不是强制依赖；`lingualoop.realtime` 的协议模块无需 SDK，只有实例化 `LiveKitTransport` 才加载它。正式分发 SDK/native library 时仍须保留其相应许可。
+`realtime` extra 只引入 RTC/API SDK 和其依赖（包括 numpy、protobuf、aiohttp），没有 `livekit-agents`、模型插件、Redis、云数据库或模型权重。`uv.lock` 固定解析结果。基础 wheel 元数据将这两个 SDK 列为 extra，而不是强制依赖；`shinar.realtime` 的协议模块无需 SDK，只有实例化 `LiveKitTransport` 才加载它。正式分发 SDK/native library 时仍须保留其相应许可。
 
 ## loopback 控制与已知限制
 
@@ -78,7 +78,7 @@ Native SDK 的 `connect()` 取消后资源是否立即释放不能从 Python tas
 
 ## 应用和传输契约
 
-实现位于 `src/lingualoop/realtime/`，不导入 backend、provider 或 `DialoguePreparation`。`RealtimeTransport` 协议允许未来替换实现；`LiveKitTransport` 只是 RTC adapter。业务仍负责完成消息的持久化、LLM 调度、用户确认和后台准备。Pro 预测只可作为异步参考，不能被 transport 改写为用户发言或变成 RTC 前置等待。
+实现位于 `src/shinar/realtime/`，不导入 backend、provider 或 `DialoguePreparation`。`RealtimeTransport` 协议允许未来替换实现；`LiveKitTransport` 只是 RTC adapter。业务仍负责完成消息的持久化、LLM 调度、用户确认和后台准备。Pro 预测只可作为异步参考，不能被 transport 改写为用户发言或变成 RTC 前置等待。
 
 | API | 行为 |
 | --- | --- |
@@ -90,7 +90,7 @@ Native SDK 的 `connect()` 取消后资源是否立即释放不能从 Python tas
 | `request_cancel(ref)` | 首个 await 前关闭本地呈现门，再可靠发送取消请求 |
 | `close()` | 先禁止回调新增任务，清队列/释放轨/停消费者/断房；清理错误不跳过其他资源 |
 
-可靠 data topic 为 `lingualoop.turn.v1` / `lingualoop.control.v1`。每个事件含 `session_id`、`turn_id`、`generation`、`seq`；文本和 track 绑定使用同一单调序列。接收只信任配置的 peer identity。乱序、重复、旧代际、错会话和超限 payload 不呈现；文本总草稿有上限。
+可靠 data topic 为 `shinar.turn.v1` / `shinar.control.v1`。每个事件含 `session_id`、`turn_id`、`generation`、`seq`；文本和 track 绑定使用同一单调序列。接收只信任配置的 peer identity。乱序、重复、旧代际、错会话和超限 payload 不呈现；文本总草稿有上限。
 
 每个 generation 使用一条连续 PCM 音轨，由可靠 `audio_bind` 绑定 SID；一轮内逐帧持续发送，不按文本小片段反复发布轨。换轮使用新 SID，以便旧 RTP/解码缓冲帧不能冒充新轮。取消时接收侧立即清 draft/关闭旧 SID，发送侧同步标取消并清队列；在途 `capture_frame` 返回后再检查并清队列，释放旧轨后发送 `cancel_ack`。完成文本不代表音频已经播放完；本层没有设备播放回执。
 
@@ -110,7 +110,7 @@ Native SDK 的 `connect()` 取消后资源是否立即释放不能从 Python tas
 
 最终独立复验已由 `research_services` 执行，完整结果见 [最终验收报告](../validation/text/TEXT_ACCEPTANCE_2026-10-24.md)。历史空 URL 候选全仓 138 passed / 1 skipped，旧 wheel 4 个 realtime 模块、19 个 backend 模块与对应源码逐字节一致，39 项桌面资源/隔离运行和屏蔽 LiveKit 导入后的基础业务 Mock 检查通过。旧 wheel 已保留于 `build/package-check/historical-rtc-invalid/`；这些结果不是合法 URL 修正后新包的验证。合法 URL 最终候选已独立全仓 **166 passed / 1 skipped（25.81 秒）**，包含第 5 个 realtime 模块 `diagnostics.py`；新 wheel 验证见独立报告。独立审查已复验关闭资源关闭异常和 disconnect 晚回调两项缺口。以上离线/打包结论不外推 RTC 连通。
 
-合法 URL 修正最终 wheel 为 `build/package-check/lingualoop-0.1.0-py3-none-any.whl`，SHA256 **`5ae286b5304e3562d3c920fa47abb2f594069dec78a6710c44af1dcbb4b40916`**。独立检查确认 19 个 backend 模块、5 个 realtime 模块及 39 项 QML/SVG/license 与工作树逐字节一致，隔离 QML 加载、无原生标题栏及窗口控件检查通过。RTC/API SDK 仅在 extra；阻断 SDK 导入时业务 Mock 的 load/start/send 仍通过，构造 RTC adapter 给明确缺 extra 错误。新包不含 server 二进制、token、secret 或探针结果；历史无效配置旧包继续单独保留。
+合法 URL 修正最终 wheel 为 `build/package-check/shinar-0.1.0-py3-none-any.whl`，SHA256 **`5ae286b5304e3562d3c920fa47abb2f594069dec78a6710c44af1dcbb4b40916`**。独立检查确认 19 个 backend 模块、5 个 realtime 模块及 39 项 QML/SVG/license 与工作树逐字节一致，隔离 QML 加载、无原生标题栏及窗口控件检查通过。RTC/API SDK 仅在 extra；阻断 SDK 导入时业务 Mock 的 load/start/send 仍通过，构造 RTC adapter 给明确缺 extra 错误。新包不含 server 二进制、token、secret 或探针结果；历史无效配置旧包继续单独保留。
 
 冻结前后 transport SHA256 为 `9367b95831b5782474cf82547b3b40be7a1d9477df28270dbfa381836048260d`，probe 脚本为 `a78e9c331a5191474c07e53aff707a138c34a88f22aabb77a84f275cd0612b37`；独立复验记录源码和脚本运行前后一致。该历史空 URL 候选的 `ConnectError` 只记录安全类型，未保留可能含 token URL 的原始异常，因此不能从该类型单独确定与早期 ICE timeout 是否同一根因，也不能据此排除配置或 native SDK 限制。
 

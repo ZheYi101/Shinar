@@ -7,8 +7,8 @@ import sys
 
 import pytest
 
-from lingualoop.local_speech.profiles import LocalSpeechProfile, LocalSpeechProvider, instance_key
-from lingualoop.local_speech.processes import pid_exists, run_owned
+from shinar.local_speech.profiles import LocalSpeechProfile, LocalSpeechProvider, instance_key
+from shinar.local_speech.processes import pid_exists, run_owned
 
 
 def test_model_identity_excludes_dynamic_voice_and_language_but_keeps_device():

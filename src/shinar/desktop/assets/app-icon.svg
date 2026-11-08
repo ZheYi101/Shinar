@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-labelledby="title description">
+  <title id="title">Shinar — a tower of shared stories</title>
+  <desc id="description">An unfinished, terraced Tower of Babel with ascending galleries and arched openings. Its base ends in a conversation tail. Warm paper on olive ink.</desc>
+  <rect x="8" y="8" width="240" height="240" rx="56" fill="#56634F"/>
+  <path d="M108 78V51c0-5 10-9 22-9v10h21v25l20 9v25l21 10v28l19 13v31c-6 5-17 10-31 13v18l-25-14c-41 4-84-2-110-17v-31l21-13v-28l21-10V86Z" fill="#F7F3E9"/>
+  <g fill="none" stroke="#56634F" stroke-linecap="round">
+    <path d="M49 169c41 15 111-3 151-29" stroke-width="10"/>
+    <path d="M70 126c32 11 75-2 105-29" stroke-width="9"/>
+    <path d="M93 88c19 7 43 0 60-16" stroke-width="8"/>
+  </g>
+  <g fill="#56634F">
+    <path d="M119 203v-13a9 9 0 0 1 18 0v13Z"/>
+    <path d="M77 192v-9a4 4 0 0 1 8 0v12Z"/>
+    <path d="M171 190v-12a4 4 0 0 1 8 0v9Z"/>
+    <path d="M108 155v-9a4 4 0 0 1 8 0v9Z"/>
+    <path d="M150 142v-9a4 4 0 0 1 8 0v9Z"/>
+    <path d="M125 113v-9a4 4 0 0 1 8 0v9Z"/>
+  </g>
+</svg>

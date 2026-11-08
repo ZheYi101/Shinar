@@ -6,7 +6,7 @@ import sys
 
 import pytest
 
-from lingualoop.local_speech.processes import run_owned
+from shinar.local_speech.processes import run_owned
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -50,7 +50,7 @@ def run_case(request, case, rtc):
 
 @pytest.mark.realtime_integration
 def test_actual_rtc_transport_with_owned_stun():
-    from lingualoop.realtime.local_server import owned_rfc1918_addresses
+    from shinar.realtime.local_server import owned_rfc1918_addresses
 
     address = next(iter(sorted(owned_rfc1918_addresses())), "127.0.0.1")
     output = ROOT / "build/livekit-probe/pytest-python-integration.json"

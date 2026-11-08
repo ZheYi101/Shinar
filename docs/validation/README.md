@@ -39,6 +39,10 @@
 
 ## 工程
 
+- [Shinar 完整工程更名](./engineering/SHINAR_RENAME_2026-11-08.md)：目录、包／命令、GitHub 和发行标识迁移，旧数据／配置兼容及离线、可见 Mock、wheel 验证。
+
+- [Shinar 图标与侧栏字标](./engineering/SHINAR_IDENTITY_2026-11-08.md)：巴别塔图形出处、九种 ICO 尺寸、明暗窄窗 Mock 与新 wheel 资源验证。
+
 - [治理迭代](./engineering/GOVERNANCE_2026-11-07.md)：职责拆分、退出、静态门禁及离线／可见 Mock／wheel 证据。
 
 - [Windows 运行时裁剪](./engineering/WINDOWS_RUNTIME_TRIMMING_2026-11-07.md)：0.1.3 保留依赖闭包与完整产品功能，削减 Qt 调试／开发文件并验证旧版升级清理。

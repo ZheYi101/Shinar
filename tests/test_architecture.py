@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 SOURCE = Path(__file__).resolve().parents[1] / "src"
-PACKAGE = SOURCE / "lingualoop"
+PACKAGE = SOURCE / "shinar"
 
 
 def imported_modules(tree: ast.AST, package: str) -> Iterator[tuple[int, str]]:
@@ -35,13 +35,13 @@ def imported_modules(tree: ast.AST, package: str) -> Iterator[tuple[int, str]]:
 @pytest.mark.parametrize(
     ("area", "allowed_internal", "allowed_external"),
     [
-        ("core", {"lingualoop.core"}, {"pydantic"}),
-        ("kernel", {"lingualoop.core", "lingualoop.kernel"}, {"pydantic"}),
+        ("core", {"shinar.core"}, {"pydantic"}),
+        ("kernel", {"shinar.core", "shinar.kernel"}, {"pydantic"}),
         ("realtime/protocol.py", set(), set()),
-        ("application/source_document.py", {"lingualoop.core"}, set()),
+        ("application/source_document.py", {"shinar.core"}, set()),
         (
             "infrastructure/epub_reader.py",
-            {"lingualoop.core.knowledge", "lingualoop.infrastructure.material_import"},
+            {"shinar.core.knowledge", "shinar.infrastructure.material_import"},
             set(),
         ),
     ],
@@ -67,7 +67,7 @@ def dependency_allowed(
     dependency: str, allowed_internal: set[str], allowed_external: set[str]
 ) -> bool:
     root = dependency.split(".")[0]
-    if root == "lingualoop":
+    if root == "shinar":
         return dependency == root or any(
             dependency == module or dependency.startswith(module + ".")
             for module in allowed_internal
@@ -117,10 +117,10 @@ def test_reader_vendor_files_and_licenses_match_the_pinned_manifest() -> None:
 @pytest.mark.parametrize(
     ("dependency", "allowed"),
     [
-        ("lingualoop.core.knowledge.SourceSection", True),
-        ("lingualoop.corex", False),
-        ("lingualoop.desktop.workspace", False),
-        ("lingualoop.infrastructure.sqlite_store", False),
+        ("shinar.core.knowledge.SourceSection", True),
+        ("shinar.corex", False),
+        ("shinar.desktop.workspace", False),
+        ("shinar.infrastructure.sqlite_store", False),
         ("PySide6.QtCore", False),
         ("httpx", False),
         ("hashlib.sha256", True),
@@ -129,17 +129,17 @@ def test_reader_vendor_files_and_licenses_match_the_pinned_manifest() -> None:
 def test_dependency_guard_rejects_cross_layer_and_external_imports(
     dependency: str, allowed: bool
 ) -> None:
-    assert dependency_allowed(dependency, {"lingualoop.core"}, set()) is allowed
+    assert dependency_allowed(dependency, {"shinar.core"}, set()) is allowed
 
 
 @pytest.mark.parametrize(
     ("source", "package", "expected"),
     [
-        ("import PySide6.QtCore", "lingualoop.core", "PySide6.QtCore"),
-        ("from lingualoop import desktop", "lingualoop.core", "lingualoop.desktop"),
-        ("from ..providers import mock", "lingualoop.core", "lingualoop.providers.mock"),
-        ("from .domain import Message", "lingualoop.core", "lingualoop.core.domain.Message"),
-        ("from PySide6 import QtWebEngineCore", "lingualoop.desktop", "PySide6.QtWebEngineCore"),
+        ("import PySide6.QtCore", "shinar.core", "PySide6.QtCore"),
+        ("from shinar import desktop", "shinar.core", "shinar.desktop"),
+        ("from ..providers import mock", "shinar.core", "shinar.providers.mock"),
+        ("from .domain import Message", "shinar.core", "shinar.core.domain.Message"),
+        ("from PySide6 import QtWebEngineCore", "shinar.desktop", "PySide6.QtWebEngineCore"),
     ],
 )
 def test_import_guard_resolves_aliases_and_relative_imports(

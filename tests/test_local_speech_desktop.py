@@ -17,22 +17,22 @@ from PySide6.QtGui import QFontDatabase, QGuiApplication
 from PySide6.QtTest import QTest
 from PySide6.QtTest import QSignalSpy
 
-from lingualoop.application import LearningWorkbench
-from lingualoop.desktop.app import create_engine
-from lingualoop.desktop.preferences import DesktopPreferences
-from lingualoop.desktop.speech_library import SpeechLibraryViewModel
-from lingualoop.desktop.viewmodel import LearningViewModel
-from lingualoop.infrastructure import SQLiteStore
-from lingualoop.local_speech.catalog import Artifact, load_catalog
-from lingualoop.local_speech import RUNTIME_VERSION
-from lingualoop.local_speech.storage import atomic_json, read_json
-from lingualoop.providers import MockLearningLLMProvider
+from shinar.application import LearningWorkbench
+from shinar.desktop.app import create_engine
+from shinar.desktop.preferences import DesktopPreferences
+from shinar.desktop.speech_library import SpeechLibraryViewModel
+from shinar.desktop.viewmodel import LearningViewModel
+from shinar.infrastructure import SQLiteStore
+from shinar.local_speech.catalog import Artifact, load_catalog
+from shinar.local_speech import RUNTIME_VERSION
+from shinar.local_speech.storage import atomic_json, read_json
+from shinar.providers import MockLearningLLMProvider
 from test_desktop_workflow import FakeAudio, click, item, until
 
 
 @pytest.fixture
 def library_desktop(tmp_path, monkeypatch):
-    import lingualoop.desktop.speech_library as module
+    import shinar.desktop.speech_library as module
 
     app = QGuiApplication.instance() or QGuiApplication(["speech-library-test"])
     if os.name == "nt":
@@ -47,7 +47,7 @@ def library_desktop(tmp_path, monkeypatch):
         "gpus": [],
     }
     monkeypatch.setattr(module, "detect_hardware", lambda _: hardware)
-    monkeypatch.setattr("lingualoop.desktop.speech_library_operations.prepare_managed_runtime", lambda *args, **kwargs: {"prepared": True})
+    monkeypatch.setattr("shinar.desktop.speech_library_operations.prepare_managed_runtime", lambda *args, **kwargs: {"prepared": True})
     monkeypatch.setattr(module, "runtime_status", lambda *args, **kwargs: {"prepared": True})
     library = SpeechLibraryViewModel(tmp_path / "speech")
     artifact = Artifact(
@@ -93,7 +93,7 @@ def library_desktop(tmp_path, monkeypatch):
             },
         )
 
-    monkeypatch.setattr("lingualoop.desktop.speech_library_operations.benchmark", benchmark)
+    monkeypatch.setattr("shinar.desktop.speech_library_operations.benchmark", benchmark)
     workbench = LearningWorkbench(
         MockLearningLLMProvider(), event_store=SQLiteStore(tmp_path / "app.sqlite3")
     )
@@ -180,11 +180,11 @@ def test_default_stt_demo_benchmarks_and_selects_same_service_without_file_picke
     import asyncio
     import sys
     from types import SimpleNamespace
-    import lingualoop.desktop.speech_library as module
-    import lingualoop.local_speech.service as service_module
-    import lingualoop.local_speech.model_profile as profiles
-    from lingualoop.local_speech.downloads import DownloadCancelled
-    from lingualoop.local_speech.samples import benchmark_audio
+    import shinar.desktop.speech_library as module
+    import shinar.local_speech.service as service_module
+    import shinar.local_speech.model_profile as profiles
+    from shinar.local_speech.downloads import DownloadCancelled
+    from shinar.local_speech.samples import benchmark_audio
 
     _, library, vm, window, _, root = library_desktop
     package = next(p for p in load_catalog() if p.id == "sensevoice-int8-20240717")
@@ -215,7 +215,7 @@ def test_default_stt_demo_benchmarks_and_selects_same_service_without_file_picke
                         ]}},
         })
 
-    monkeypatch.setattr("lingualoop.desktop.speech_library_operations.benchmark", benchmark)
+    monkeypatch.setattr("shinar.desktop.speech_library_operations.benchmark", benchmark)
     library.setFilter("en", "conversation")
     until(lambda: not library.busy)
     click(window, "speechBenchmark-" + package.id, scroll="speechModelsPage")
@@ -243,7 +243,7 @@ def test_default_stt_demo_benchmarks_and_selects_same_service_without_file_picke
 
 def test_preview_cannot_echo_into_active_voice_or_fall_back_from_a_removed_device(library_desktop, monkeypatch):
     from types import SimpleNamespace
-    import lingualoop.desktop.speech_library as module
+    import shinar.desktop.speech_library as module
 
     _, library, _, _, _, root = library_desktop
     preview = library.store.root / "reports/fixture.wav"
@@ -264,7 +264,7 @@ def test_preview_cannot_echo_into_active_voice_or_fall_back_from_a_removed_devic
 
 def test_voicevox_terms_and_style_are_explicit_and_do_not_replace_a_model_id(library_desktop):
     from PySide6.QtCore import Qt
-    from lingualoop.local_speech.model_profile import accepted_terms, voice_choice
+    from shinar.local_speech.model_profile import accepted_terms, voice_choice
     app, library, vm, window, engine, root = library_desktop
     package = next(p for p in load_catalog() if p.id == "voicevox-japanese")
     library.catalog = [package]
@@ -287,7 +287,7 @@ def test_voicevox_terms_and_style_are_explicit_and_do_not_replace_a_model_id(lib
 @pytest.mark.parametrize("theme,width", [("light", 360), ("dark", 360), ("light", 1440), ("dark", 800)])
 def test_compute_subpage_device_budget_and_idle_settings(library_desktop, monkeypatch, theme, width):
     from PySide6.QtCore import Qt
-    import lingualoop.desktop.speech_library as module
+    import shinar.desktop.speech_library as module
     app, library, vm, window, engine, root = library_desktop
     monkeypatch.setattr(module, "resource_snapshot", lambda *args: {
         "gpus": [{"index": 0, "name": "测试 GPU", "used_mb": 2345, "total_mb": 8192, "utilization": 37}],
@@ -316,7 +316,7 @@ def test_local_route_uses_conversation_language_and_does_not_call_remote(library
     import asyncio
     from types import SimpleNamespace
     app, library, vm, window, engine, root = library_desktop
-    from lingualoop.local_speech.compute import ComputeSettings, save_compute
+    from shinar.local_speech.compute import ComputeSettings, save_compute
     save_compute(library.store.root, ComputeSettings(local_stt=True))
     vm.preferences.setValue("targetLanguage", "japanese")
     library._language = "en"
@@ -383,7 +383,7 @@ def test_inference_status_does_not_run_installation_checks_on_gui_thread(
 
 
 def test_stt_and_tts_download_together_with_live_component_progress(library_desktop, monkeypatch):
-    from lingualoop.local_speech.downloads import DownloadCancelled, TransferEvent
+    from shinar.local_speech.downloads import DownloadCancelled, TransferEvent
     app, library, vm, window, engine, root = library_desktop
     base = library.catalog[0]
     stt = base.model_copy(update={"id": "fixture-stt", "name": "Fixture STT", "task": "stt"})

@@ -3,7 +3,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from lingualoop.providers.speech import SpeechSettings
+from shinar.providers.speech import SpeechSettings
 
 
 def main():
@@ -14,7 +14,7 @@ def main():
             SpeechSettings.from_env(kind)
         except ValueError:
             # Do not print validation details, which may contain configuration.
-            print(f"{kind}: incomplete or invalid; check LINGUALOOP_{kind}_* in .env.example")
+            print(f"{kind}: incomplete or invalid; check SHINAR_{kind}_* in .env.example")
             ready = False
         else:
             print(f"{kind}: configured (connectivity not verified)")

@@ -165,7 +165,7 @@ def test_candidate_tar_rejects_escape_and_links(tmp_path, name, link):
 def test_roundtrip_keeps_tts_models_and_judges_separate_without_repeat_inflation(tmp_path):
     import json
 
-    from lingualoop.local_speech.evaluation_metrics import error_metrics
+    from shinar.local_speech.evaluation_metrics import error_metrics
 
     module = script("report_speech_evaluation")
     (tmp_path / "source-items.json").write_text(

@@ -9,13 +9,13 @@ from PySide6.QtCore import QSettings
 
 from test_desktop_workflow import qt_app, until  # noqa: F401
 from infrastructure.test_epub_reader import make_epub
-from lingualoop.application import LearningWorkbench
-from lingualoop.core import LanguageEnum, ProficiencyLevel
-from lingualoop.desktop.preferences import DesktopPreferences
-from lingualoop.desktop.viewmodel import LearningViewModel
-from lingualoop.desktop.workspace import DesktopWorkspaceController
-from lingualoop.infrastructure import SQLiteStore
-from lingualoop.providers import MockLearningLLMProvider
+from shinar.application import LearningWorkbench
+from shinar.core import LanguageEnum, ProficiencyLevel
+from shinar.desktop.preferences import DesktopPreferences
+from shinar.desktop.viewmodel import LearningViewModel
+from shinar.desktop.workspace import DesktopWorkspaceController
+from shinar.infrastructure import SQLiteStore
+from shinar.providers import MockLearningLLMProvider
 
 
 @pytest.fixture

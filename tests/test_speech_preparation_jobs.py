@@ -6,9 +6,9 @@ from threading import Event, Thread
 import httpx
 import pytest
 
-from lingualoop.desktop.speech_jobs import SpeechPreparationJobs
-from lingualoop.local_speech.catalog import Artifact
-from lingualoop.local_speech.downloads import (
+from shinar.desktop.speech_jobs import SpeechPreparationJobs
+from shinar.local_speech.catalog import Artifact
+from shinar.local_speech.downloads import (
     DownloadCancelled,
     ModelStore,
     TransferEvent,
@@ -143,7 +143,7 @@ def test_close_cancels_shared_component_wait_without_installing(tmp_path, qt_app
 
 def test_close_stops_its_installer_process_before_returning(qt_app, tmp_path):
     import sys
-    from lingualoop.local_speech.runtime import run_bounded
+    from shinar.local_speech.runtime import run_bounded
     marker = tmp_path / "started"
     queue = SpeechPreparationJobs()
     def operation(cancel, *_):

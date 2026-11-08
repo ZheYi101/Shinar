@@ -12,7 +12,7 @@ Kirigami 不是项目通过 `pip install kirigami` 获取的普通 Python 包。
 
 ## Windows 开发
 
-当前默认壳使用自绘 MD3 标题栏，通过 `Qt.FramelessWindowHint` 移除原生 Windows 顶栏。窗口拖动与边缘缩放分别调用 Qt `startSystemMove` / `startSystemResize`；位置、正常尺寸、最大化状态保存在独立 `LinguaLoop/Window` QSettings 中，恢复时校验可用屏幕范围。支持 Alt+F10 最大化/恢复、Alt+F4 关闭。宽窗口仅“材料 / 对话”为主入口，复盘和设置在侧栏底部及“更多”菜单；紧凑窗口也可从“更多”访问。
+当前默认壳使用自绘 MD3 标题栏，通过 `Qt.FramelessWindowHint` 移除原生 Windows 顶栏。窗口拖动与边缘缩放分别调用 Qt `startSystemMove` / `startSystemResize`；位置、正常尺寸、最大化状态保存在独立 `Shinar/Window` QSettings 中，恢复时校验可用屏幕范围。支持 Alt+F10 最大化/恢复、Alt+F4 关闭。宽窗口仅“材料 / 对话”为主入口，复盘和设置在侧栏底部及“更多”菜单；紧凑窗口也可从“更多”访问。
 
 本阶段默认纯文本，不要求 STT/TTS 配置。可编辑草稿通过 Ctrl+Enter 发送；前台流式回复与后台参考准备分别显示状态。只在语音服务配置齐全时显示原有录音入口。
 
@@ -26,7 +26,7 @@ uv run python scripts/check_desktop_window.py
 
 UI 方案、参考源码和本轮失败修复记录见 [UI_SURFACE_PLAN](../product/UI_SURFACE_PLAN.md)；唯一项目状态表见 [ROADMAP](../planning/ROADMAP.md)。
 
-当前默认加载 `MainFallback.qml` 的 Qt ApplicationWindow 和统一 MD3 页面。只有明确配置 `LINGUALOOP_KIRIGAMI_MODE=on` 并具备兼容 runtime 才使用 Kirigami 壳；两个壳共享材料、对话、复盘、设置页面和 ViewModel。普通 Windows 运行无需安装 Craft。以下步骤只供可选 Kirigami 环境使用。
+当前默认加载 `MainFallback.qml` 的 Qt ApplicationWindow 和统一 MD3 页面。只有明确配置 `SHINAR_KIRIGAMI_MODE=on` 并具备兼容 runtime 才使用 Kirigami 壳；两个壳共享材料、对话、复盘、设置页面和 ViewModel。普通 Windows 运行无需安装 Craft。以下步骤只供可选 Kirigami 环境使用。
 
 Windows 上，Craft 安装的 Kirigami 原生插件不能直接混用到 PyPI PySide6 wheel 的 Qt 进程中。即使两侧 Qt 都显示为 6.11.1，二进制构建来源不同仍可能在加载 `Kirigamiplugin.dll` 时触发 Windows `0xc0000139`。因此默认 `auto` 模式会拒绝把 `C:\CraftRoot\qml` 的插件加载进 PyPI PySide6，保证桌面端可以稳定使用 fallback 启动。不要通过修改全局 `PATH` 强行将 `C:\CraftRoot\bin` 放在 PySide6 前面。
 
@@ -53,15 +53,15 @@ iex ((New-Object Net.WebClient).DownloadString('https://invent.kde.org/packaging
 ```powershell
 .\scripts\setup_kirigami_windows.ps1 -InstallRuntime
 uv sync --extra desktop
-uv run python -c "from lingualoop.desktop.app import kirigami_runtime_available; print(kirigami_runtime_available())"
-uv run lingualoop-desktop --mock
+uv run python -c "from shinar.desktop.app import kirigami_runtime_available; print(kirigami_runtime_available())"
+uv run shinar-desktop --mock
 ```
 
 只检查“进程能创建 Qt 应用、ViewModel 和 QML 页面”而不保持窗口运行时，可以使用：
 
 ```powershell
 $env:QT_QPA_PLATFORM = "offscreen"
-uv run lingualoop-desktop --mock --smoke
+uv run shinar-desktop --mock --smoke
 ```
 
 脚本默认使用 `C:\CraftRoot`，会搜索实际的 `org\kde\kirigami\qmldir` 文件，并把其 import root 写入当前用户的 `QML2_IMPORT_PATH` 和 `QML_IMPORT_PATH`。这一步完成的是 KDE runtime 的安装与发现；要在 Windows 上使用正式 Kirigami 页面，Python binding 和 Qt runtime 也必须来自同一套 Qt 分发。
@@ -69,16 +69,16 @@ uv run lingualoop-desktop --mock --smoke
 当前已验证的稳定本地命令是：
 
 ```powershell
-uv run lingualoop-desktop --mock
+uv run shinar-desktop --mock
 ```
 
 它会使用 Qt Quick Controls fallback，不会加载不兼容的 Craft DLL。需要检查当前选择的页面时，可以运行：
 
 ```powershell
-uv run python -c "from lingualoop.desktop.app import kirigami_runtime_available, kirigami_runtime_usable; print(kirigami_runtime_available(), kirigami_runtime_usable())"
+uv run python -c "from shinar.desktop.app import kirigami_runtime_available, kirigami_runtime_usable; print(kirigami_runtime_available(), kirigami_runtime_usable())"
 ```
 
-`True False` 表示 Craft Kirigami 已安装，但当前 PyPI PySide6 不能安全加载它，这是预期保护行为。`LINGUALOOP_KIRIGAMI_MODE=on` 只用于已经确认 Qt/PySide6/Kirigami 来自同一分发的运行环境；不要把它用于目前的 Craft + PyPI PySide6 组合。
+`True False` 表示 Craft Kirigami 已安装，但当前 PyPI PySide6 不能安全加载它，这是预期保护行为。`SHINAR_KIRIGAMI_MODE=on` 只用于已经确认 Qt/PySide6/Kirigami 来自同一分发的运行环境；不要把它用于目前的 Craft + PyPI PySide6 组合。
 
 如果 Craft 已经创建了 `C:\CraftRoot\craft-tmp`，但脚本提示未安装，说明是 Craft bootstrap 的新目录布局，脚本会自动识别。你的 PySide6 来自 MSVC Qt，因此 Craft 配置必须使用 `windows-cl-msvc2022-x86_64`，不能使用 `windows-gcc-x86_64`。修复已有配置后再安装：
 
@@ -102,7 +102,7 @@ uv run python -c "from lingualoop.desktop.app import kirigami_runtime_available,
 .\scripts\setup_kirigami_windows.ps1
 ```
 
-脚本不会提交密钥，也不会修改项目 Python 虚拟环境以外的 LinguaLoop 配置。
+脚本不会提交密钥，也不会修改项目 Python 虚拟环境以外的 Shinar 配置。
 
 ## Linux
 
@@ -116,7 +116,7 @@ Android 暂不进入 Windows 首版交付。后续移动验证先确认 module�
 
 ```powershell
 $env:QT_QUICK_CONTROLS_MOBILE = "1"
-uv run lingualoop-desktop --mock
+uv run shinar-desktop --mock
 ```
 
 本地自动 smoke test 会分别以桌面 `1180x780` 和手机 `360x740`、`412x915` 尺寸加载 QML。它验证页面可创建、可调整尺寸且不会依赖真实 API；不等价于 Android 包已经构建或真机已运行。
@@ -125,6 +125,6 @@ uv run lingualoop-desktop --mock
 
 QML 根文件、`pages/`、`components/`、`design/AppTheme.qml` 和 `qmldir`、Material Symbols SVG 和许可证通过 `setuptools.package-data` 随 wheel 分发。可以运行 `uv build --wheel --out-dir build/package-check` 检查资源。独立 Windows 安装器仍待增加平台打包配置，需包含 Qt Multimedia、Qt Material style 和相关插件；不能把 wheel 构建通过当作 exe 安装器已经可用。
 
-构建后运行 `uv run python scripts/check_wheel_resources.py build/package-check/lingualoop-0.1.0-py3-none-any.whl`，检查全部资源并从 wheel 的隔离临时目录加载 QML，避免误用源码目录造成打包假通过。
+构建后运行 `uv run python scripts/check_wheel_resources.py build/package-check/shinar-0.1.0-py3-none-any.whl`，检查全部资源并从 wheel 的隔离临时目录加载 QML，避免误用源码目录造成打包假通过。
 
 2026-10-24 新候选验证通过：39 个 QML / SVG / 许可证资源齐全，隔离导入 wheel 内 `WindowController` 并加载隐藏窗口，确认三个窗口按钮、拖动区、边缘缩放句柄和 frameless flags。探针使用临时 SQLite 与两个临时 QSettings 文件，不读取 `.env`，不安装到全局环境。候选 SHA256 与首次选择器失败的修复记录见 [UI_SURFACE_PLAN](../product/UI_SURFACE_PLAN.md)。这仍是 wheel 资源与离屏加载验收，不等价于 Windows exe 安装器、物理拖动或跨 DPI 验收。

@@ -11,15 +11,15 @@ from pathlib import Path
 
 import httpx
 
-from lingualoop.local_speech import adapter_revision
-from lingualoop.local_speech.benchmark import benchmark
-from lingualoop.local_speech.catalog import load_catalog
-from lingualoop.local_speech.compute import ComputeSettings, save_compute, runtime_version
-from lingualoop.local_speech.downloads import ModelStore
-from lingualoop.local_speech.resources import resource_snapshot
-from lingualoop.local_speech.runtime import probe_runtime
-from lingualoop.local_speech.service import LocalSpeechService
-from lingualoop.local_speech.storage import atomic_json
+from shinar.local_speech import adapter_revision
+from shinar.local_speech.benchmark import benchmark
+from shinar.local_speech.catalog import load_catalog
+from shinar.local_speech.compute import ComputeSettings, save_compute, runtime_version
+from shinar.local_speech.downloads import ModelStore
+from shinar.local_speech.resources import resource_snapshot
+from shinar.local_speech.runtime import probe_runtime
+from shinar.local_speech.service import LocalSpeechService
+from shinar.local_speech.storage import atomic_json
 
 
 class FileStream(httpx.SyncByteStream):
@@ -49,7 +49,7 @@ def main() -> None:
     root, evaluation = args.output.resolve(), args.evaluation_root.resolve()
     root.mkdir(parents=True, exist_ok=True)
     if args.cuda_dll_dir:
-        os.environ["LINGUALOOP_CUDA_DLL_DIR"] = str(args.cuda_dll_dir.resolve())
+        os.environ["SHINAR_CUDA_DLL_DIR"] = str(args.cuda_dll_dir.resolve())
     python = str(args.python.resolve())
     cpu_python = str(args.cpu_python.resolve())
     probes = {"cuda": probe_runtime(python, "cuda"), "cpu": probe_runtime(cpu_python, "cpu")}
@@ -121,7 +121,7 @@ def main() -> None:
         "adapter_revision": adapter_revision(requested[0].adapter),
     }
     atomic_json(store.root / "selections.json", selections)
-    import lingualoop.local_speech.service as service_module
+    import shinar.local_speech.service as service_module
 
     service_module.runtime_python = lambda root, device: python if device == "cuda" else cpu_python
     service_module.runtime_status = lambda *args: {

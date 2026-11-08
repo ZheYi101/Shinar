@@ -16,45 +16,45 @@ def main():
     if len(sys.argv) != 2:
         raise SystemExit("Usage: python scripts/check_wheel_resources.py path/to/package.whl")
     wheel = Path(sys.argv[1]).resolve()
-    source = Path(__file__).resolve().parents[1] / "src/lingualoop/desktop/qml"
+    source = Path(__file__).resolve().parents[1] / "src/shinar/desktop/qml"
     expected = {
-        "lingualoop/desktop/qml/" + path.relative_to(source).as_posix()
+        "shinar/desktop/qml/" + path.relative_to(source).as_posix()
         for path in source.rglob("*")
         if path.is_file()
     }
-    expected.add("lingualoop/local_speech/catalog.json")
+    expected.add("shinar/local_speech/catalog.json")
     reader = source.parent / "reader"
     upstream = json.loads((reader / "foliate/UPSTREAM.json").read_text(encoding="utf-8"))
     for name, checksum in upstream["files"].items():
         if hashlib.sha256((reader / "foliate" / name).read_bytes()).hexdigest() != checksum:
             raise SystemExit(f"Changed pinned reader dependency: {name}")
     expected.update(
-        "lingualoop/desktop/reader/" + path.relative_to(reader).as_posix()
+        "shinar/desktop/reader/" + path.relative_to(reader).as_posix()
         for path in reader.rglob("*") if path.is_file()
     )
     samples = source.parents[1] / "local_speech/benchmark_samples"
     expected.update(
-        "lingualoop/local_speech/benchmark_samples/" + path.name
+        "shinar/local_speech/benchmark_samples/" + path.name
         for path in samples.glob("*") if path.is_file()
     )
     expected.update(
-        "lingualoop/desktop/assets/" + path.name
+        "shinar/desktop/assets/" + path.name
         for path in (source.parent / "assets").glob("*")
         if path.is_file()
     )
     runtime_resources = source.parents[1] / "local_speech/runtime_resources"
     expected.update(
-        "lingualoop/local_speech/runtime_resources/"
+        "shinar/local_speech/runtime_resources/"
         + path.relative_to(runtime_resources).as_posix()
         for path in runtime_resources.rglob("*")
         if path.is_file()
     )
     expected.update(
-        "lingualoop/desktop/translations/" + path.name
+        "shinar/desktop/translations/" + path.name
         for path in (source.parent / "translations").glob("*")
         if path.is_file()
     )
-    with ZipFile(wheel) as archive, TemporaryDirectory(prefix="lingualoop-wheel-") as directory:
+    with ZipFile(wheel) as archive, TemporaryDirectory(prefix="shinar-wheel-") as directory:
         missing = expected.difference(archive.namelist())
         if missing:
             raise SystemExit("Missing resources: " + ", ".join(sorted(missing)))
@@ -69,7 +69,7 @@ def main():
         obsolete = {
             name
             for name in archive.namelist()
-            if name.startswith("lingualoop/desktop/qml/") and name.endswith(".qml")
+            if name.startswith("shinar/desktop/qml/") and name.endswith(".qml")
         }.difference(expected)
         if obsolete:
             raise SystemExit(
@@ -80,8 +80,8 @@ def main():
             os.environ,
             QT_QPA_PLATFORM="offscreen",
             QT_QUICK_BACKEND="software",
-            LINGUALOOP_KIRIGAMI_MODE="off",
-            LINGUALOOP_DATA_DIR=directory,
+            SHINAR_KIRIGAMI_MODE="off",
+            SHINAR_DATA_DIR=directory,
         )
         code = """
 import sys
@@ -91,18 +91,18 @@ from PySide6.QtCore import QObject, QSettings, Qt
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQuick import QQuickWindow
 from PySide6.QtWebEngineQuick import QtWebEngineQuick
-from lingualoop.desktop import app as desktop
-from lingualoop.application import LearningWorkbench
-from lingualoop.infrastructure import SQLiteStore
-from lingualoop.providers import MockLearningLLMProvider
-from lingualoop.desktop.preferences import DesktopPreferences
-from lingualoop.desktop.viewmodel import LearningViewModel
-from lingualoop.desktop.window import DesktopWindowController
-from lingualoop.local_speech.catalog import load_catalog
-from lingualoop.local_speech.installation import manifest, runtime_spec
-from lingualoop.local_speech.model_profile import voices
-from lingualoop.local_speech.samples import benchmark_audio
-import lingualoop.desktop.window as window_module
+from shinar.desktop import app as desktop
+from shinar.application import LearningWorkbench
+from shinar.infrastructure import SQLiteStore
+from shinar.providers import MockLearningLLMProvider
+from shinar.desktop.preferences import DesktopPreferences
+from shinar.desktop.viewmodel import LearningViewModel
+from shinar.desktop.window import DesktopWindowController
+from shinar.local_speech.catalog import load_catalog
+from shinar.local_speech.installation import manifest, runtime_spec
+from shinar.local_speech.model_profile import voices
+from shinar.local_speech.samples import benchmark_audio
+import shinar.desktop.window as window_module
 root = Path(sys.argv[1])
 assert Path(desktop.__file__).is_relative_to(root)
 assert Path(window_module.__file__).is_relative_to(root)

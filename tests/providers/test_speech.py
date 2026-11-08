@@ -6,7 +6,7 @@ import httpx
 import pytest
 from pydantic import SecretStr
 
-from lingualoop.providers.speech import CompatibleSpeechProvider, SpeechSettings, validate_wav
+from shinar.providers.speech import CompatibleSpeechProvider, SpeechSettings, validate_wav
 
 
 def wav_bytes(*, silence=False):
@@ -75,9 +75,9 @@ def test_timeout_and_invalid_transcript_have_actionable_errors():
 
 def test_missing_speech_config_does_not_inherit_text_credentials(monkeypatch):
     for suffix in ("BASE_URL", "API_KEY", "MODEL", "VOICE"):
-        monkeypatch.delenv("LINGUALOOP_STT_" + suffix, raising=False)
+        monkeypatch.delenv("SHINAR_STT_" + suffix, raising=False)
     monkeypatch.setenv("OPENAI_API_KEY", "text-only-key")
-    with pytest.raises(ValueError, match="LINGUALOOP_STT"):
+    with pytest.raises(ValueError, match="SHINAR_STT"):
         SpeechSettings.from_env("STT")
 
 

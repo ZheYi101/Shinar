@@ -5,20 +5,20 @@ from hashlib import sha256
 
 import pytest
 
-from lingualoop.application import LearningWorkbench
-from lingualoop.application.source_document import (
+from shinar.application import LearningWorkbench
+from shinar.application.source_document import (
     document_sections,
     python_to_utf16,
     utf16_to_python,
 )
-from lingualoop.core import LanguageEnum, ProficiencyLevel
-from lingualoop.core.domain import Message, MessageRole
-from lingualoop.core.knowledge import SourceSpan, TurnSourceSnapshot
-from lingualoop.core.knowledge_context import assemble_turn_context
-from lingualoop.core.source_reference import freeze_source_context
-from lingualoop.infrastructure import SQLiteStore
-from lingualoop.infrastructure.material_import import import_material_file
-from lingualoop.providers import MockLearningLLMProvider
+from shinar.core import LanguageEnum, ProficiencyLevel
+from shinar.core.domain import Message, MessageRole
+from shinar.core.knowledge import SourceSpan, TurnSourceSnapshot
+from shinar.core.knowledge_context import assemble_turn_context
+from shinar.core.source_reference import freeze_source_context
+from shinar.infrastructure import SQLiteStore
+from shinar.infrastructure.material_import import import_material_file
+from shinar.providers import MockLearningLLMProvider
 
 
 def snapshot(material, end, start=0, stop=None):
@@ -139,7 +139,7 @@ def test_scope_validation_and_context_contains_exact_selection(tmp_path):
 
 
 def test_navigation_summaries_match_history_without_loading_full_sessions(tmp_path, monkeypatch):
-    from lingualoop.core.domain import SessionSummary
+    from shinar.core.domain import SessionSummary
 
     async def scenario():
         store = SQLiteStore(tmp_path / "summaries.db")

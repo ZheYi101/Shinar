@@ -6,7 +6,7 @@
 
 ```powershell
 uv sync --dev --extra desktop
-uv run --extra desktop lingualoop-desktop
+uv run --extra desktop shinar-desktop
 ```
 
 设置 → 音频设备 →「准备连续语音组件」显式准备独立 RTC/APM 解释器、依赖、Silero ONNX／MIT 许可证与固定 SFU；下载与磁盘需求以页面清单为准。缓存位于数据库旁的 `voice-runtime/`，不写入学习数据库；开始语音只校验已有资产，不下载。STT/TTS 模型沿用原设置，不自动安装模型或修改驱动。

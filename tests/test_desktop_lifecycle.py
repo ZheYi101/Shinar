@@ -7,7 +7,7 @@ from PySide6.QtQml import QQmlEngine
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QSystemTrayIcon
 
-from lingualoop.desktop.preferences import DesktopPreferences
+from shinar.desktop.preferences import DesktopPreferences
 from test_desktop_workflow import (  # noqa: F401
     desktop,
     qt_app,

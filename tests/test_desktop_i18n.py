@@ -4,8 +4,8 @@ from PySide6.QtCore import QSettings, QTranslator, Qt
 from PySide6.QtGui import QGuiApplication, QInputMethodEvent
 from PySide6.QtTest import QTest
 
-from lingualoop.desktop.i18n import resolve_display_language, suggested_native_language
-from lingualoop.desktop.preferences import DesktopPreferences
+from shinar.desktop.i18n import resolve_display_language, suggested_native_language
+from shinar.desktop.preferences import DesktopPreferences
 from test_desktop_workflow import desktop, qt_app, item, load_and_start, workspace_of  # noqa: F401
 
 

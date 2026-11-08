@@ -5,7 +5,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QGuiApplication, QInputMethodEvent
 from PySide6.QtTest import QTest
 
-from lingualoop.infrastructure import ai_configuration
+from shinar.infrastructure import ai_configuration
 from test_desktop_workflow import desktop, qt_app, item, click, until, workspace_of  # noqa: F401
 
 
@@ -38,7 +38,7 @@ def choose(window, name, index):
 
 def test_qml_configure_probe_save_and_next_start_use_saved_api(desktop, monkeypatch, tmp_path):
     from infrastructure.test_ai_configuration import fake_crypt
-    from lingualoop.desktop import app
+    from shinar.desktop import app
 
     vm, window, _, provider, _, _, database = desktop
     api = controller(window)
@@ -81,7 +81,7 @@ def test_qml_configure_probe_save_and_next_start_use_saved_api(desktop, monkeypa
     assert api.reasoningModel == "reason-big" and api.hasApiKey
     # A new real provider uses the saved fields ahead of conflicting environment.
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("LINGUALOOP_DATA_DIR", str(database.parent))
+    monkeypatch.setenv("SHINAR_DATA_DIR", str(database.parent))
     monkeypatch.setenv("OPENAI_BASE_URL", "https://environment.example.test/v1")
     monkeypatch.setenv("OPENAI_API_KEY", "environment-key")
     monkeypatch.setenv("OPENAI_REASONING_MODEL", "environment-model")

@@ -9,7 +9,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from lingualoop.local_speech.storage import atomic_json
+from shinar.local_speech.storage import atomic_json
 from evaluate_local_speech import sha256, validate_report
 from report_speech_evaluation import collect
 
@@ -59,7 +59,7 @@ def main() -> None:
     atomic_json(suite_path, suite)
     snapshot = output / "source_snapshot"
     snapshot.mkdir(parents=True, exist_ok=True)
-    source = Path(__file__).resolve().parents[1] / "src/lingualoop/local_speech"
+    source = Path(__file__).resolve().parents[1] / "src/shinar/local_speech"
     for name in ["evaluation_worker.py", "evaluation_metrics.py", "runtime_worker.py"]:
         if not (snapshot / name).exists():
             shutil.copyfile(source / name, snapshot / name)

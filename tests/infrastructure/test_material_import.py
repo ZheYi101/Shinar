@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from lingualoop.infrastructure.material_import import import_material_file, normalize_material
+from shinar.infrastructure.material_import import import_material_file, normalize_material
 
 
 def test_markdown_import_preserves_raw_and_normalizes_text(tmp_path) -> None:

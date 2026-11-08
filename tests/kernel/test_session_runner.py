@@ -1,6 +1,6 @@
 import asyncio
 
-from lingualoop.core import (
+from shinar.core import (
     FeedbackItem,
     LanguageEnum,
     LearningMaterial,
@@ -14,7 +14,7 @@ from lingualoop.core import (
     SessionStatus,
     SessionUserProfile,
 )
-from lingualoop.kernel import DirectLearningSessionRunner, InMemoryEventStore
+from shinar.kernel import DirectLearningSessionRunner, InMemoryEventStore
 
 
 class FakeLearningLLMProvider:

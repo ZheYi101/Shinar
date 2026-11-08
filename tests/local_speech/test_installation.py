@@ -5,22 +5,22 @@ from threading import Event
 
 import pytest
 
-from lingualoop.local_speech.catalog import Artifact, load_catalog
-from lingualoop.local_speech.compute import ComputeSettings, resolve_device
-from lingualoop.local_speech.downloads import DownloadCancelled, ModelStore
-from lingualoop.local_speech.installation import (
+from shinar.local_speech.catalog import Artifact, load_catalog
+from shinar.local_speech.compute import ComputeSettings, resolve_device
+from shinar.local_speech.downloads import DownloadCancelled, ModelStore
+from shinar.local_speech.installation import (
     manifest,
     managed_status,
     prepare_managed_runtime,
     runtime_spec,
 )
-from lingualoop.local_speech.model_profile import (
+from shinar.local_speech.model_profile import (
     accepted_terms,
     measurement_identity,
     voice_choice,
     voices,
 )
-from lingualoop.local_speech.storage import atomic_json
+from shinar.local_speech.storage import atomic_json
 
 
 def test_locked_runtime_artifacts_and_bundled_frontend_have_verified_identity():
@@ -33,7 +33,7 @@ def test_locked_runtime_artifacts_and_bundled_frontend_have_verified_identity():
         "melo-cuda",
         "rtc-cpu",
     }
-    root = Path(__file__).parents[2] / "src/lingualoop/local_speech/runtime_resources"
+    root = Path(__file__).parents[2] / "src/shinar/local_speech/runtime_resources"
     for runtime in data["runtimes"].values():
         for item in runtime["wheels"]:
             if "resource" in item:
@@ -73,7 +73,7 @@ def test_native_voice_and_device_choices_do_not_change_existing_defaults(tmp_pat
 
 
 def test_failed_repair_preserves_the_previous_ready_environment(tmp_path, monkeypatch):
-    import lingualoop.local_speech.installation as module
+    import shinar.local_speech.installation as module
 
     spec = runtime_spec("voicevox-cpu")
     old = tmp_path / "runtimes/old"
@@ -106,7 +106,7 @@ def test_failed_repair_preserves_the_previous_ready_environment(tmp_path, monkey
 
 
 def test_cancelled_preparation_never_promotes_a_candidate(tmp_path, monkeypatch):
-    import lingualoop.local_speech.installation as module
+    import shinar.local_speech.installation as module
 
     monkeypatch.setattr(module, "_check_platform", lambda: None)
     monkeypatch.setattr(module, "_uv", lambda *args: tmp_path / "uv.exe")
@@ -119,8 +119,8 @@ def test_cancelled_preparation_never_promotes_a_candidate(tmp_path, monkeypatch)
 
 
 def test_runtime_repair_cannot_replace_models_held_by_inference(tmp_path, monkeypatch):
-    import lingualoop.local_speech.installation as module
-    from lingualoop.local_speech.downloads import package_lock
+    import shinar.local_speech.installation as module
+    from shinar.local_speech.downloads import package_lock
 
     monkeypatch.setattr(module, "_check_platform", lambda: None)
     model = next(p for p in load_catalog() if p.id == "voicevox-japanese")
@@ -131,7 +131,7 @@ def test_runtime_repair_cannot_replace_models_held_by_inference(tmp_path, monkey
 
 
 def test_runtime_disk_failure_is_reported_before_downloading(tmp_path, monkeypatch):
-    import lingualoop.local_speech.installation as module
+    import shinar.local_speech.installation as module
     from types import SimpleNamespace
 
     monkeypatch.setattr(module, "_check_platform", lambda: None)
@@ -143,11 +143,11 @@ def test_runtime_disk_failure_is_reported_before_downloading(tmp_path, monkeypat
 
 def test_preview_voice_does_not_replace_selected_live_voice(tmp_path, monkeypatch):
     import asyncio
-    import lingualoop.local_speech.service as service_module
-    import lingualoop.local_speech.installation as setup_module
-    import lingualoop.local_speech.model_profile as profile_module
-    from lingualoop.local_speech.service import LocalSpeechService
-    from lingualoop.local_speech.profiles import instance_key
+    import shinar.local_speech.service as service_module
+    import shinar.local_speech.installation as setup_module
+    import shinar.local_speech.model_profile as profile_module
+    from shinar.local_speech.service import LocalSpeechService
+    from shinar.local_speech.profiles import instance_key
 
     package = next(p for p in load_catalog() if p.id == "voicevox-japanese")
     service = LocalSpeechService(tmp_path)

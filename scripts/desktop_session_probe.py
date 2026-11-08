@@ -36,14 +36,14 @@ def main():
     args = parser.parse_args()
     os.environ['QT_QPA_PLATFORM'] = 'offscreen' if args.offscreen else 'windows'
     os.environ.setdefault('QT_QUICK_BACKEND', 'software')
-    os.environ['LINGUALOOP_KIRIGAMI_MODE'] = 'off'
+    os.environ['SHINAR_KIRIGAMI_MODE'] = 'off'
     from PySide6.QtCore import QObject, QPointF, Qt, QTimer, QSettings
     from PySide6.QtGui import QGuiApplication, QFontDatabase, QKeyEvent
     from PySide6.QtQuick import QQuickWindow
     from PySide6.QtTest import QTest
-    from lingualoop.desktop.app import create_workbench, create_engine
-    from lingualoop.desktop.viewmodel import LearningViewModel
-    from lingualoop.desktop.preferences import DesktopPreferences
+    from shinar.desktop.app import create_workbench, create_engine
+    from shinar.desktop.viewmodel import LearningViewModel
+    from shinar.desktop.preferences import DesktopPreferences
     from benchmark_prepared_dialogue import AuditClient
 
     if args.qt_dialogs:
@@ -54,8 +54,8 @@ def main():
     args.output.mkdir(parents=True, exist_ok=True)
     if args.mock and args.real:
         parser.error("--mock and --real cannot be combined")
-    if args.mock and not os.getenv("LINGUALOOP_DATA_DIR"):
-        os.environ["LINGUALOOP_DATA_DIR"] = str(args.output / "mock-library")
+    if args.mock and not os.getenv("SHINAR_DATA_DIR"):
+        os.environ["SHINAR_DATA_DIR"] = str(args.output / "mock-library")
     work = create_workbench(use_mock=args.mock)
     if args.real and os.getenv('RUN_REAL_AI_TESTS') != '1':
         raise SystemExit('--real requires RUN_REAL_AI_TESTS=1 in the local environment or .env')
@@ -94,7 +94,7 @@ def main():
     vm._stt = vm._tts = None
     engine_kwargs = {}
     if args.settings_dir:
-        from lingualoop.desktop.speech_library import SpeechLibraryViewModel
+        from shinar.desktop.speech_library import SpeechLibraryViewModel
         engine_kwargs = {"window_settings": QSettings(str(args.settings_dir / "window.ini"), QSettings.Format.IniFormat),
                          "speech_library": SpeechLibraryViewModel(root=args.settings_dir / "speech")}
     engine = create_engine(vm, **engine_kwargs)

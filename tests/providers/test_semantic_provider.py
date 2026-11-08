@@ -3,15 +3,15 @@ import asyncio
 from langchain_core.messages import AIMessage
 from pydantic import SecretStr
 
-from lingualoop.core.domain import (
+from shinar.core.domain import (
     LanguageEnum,
     LearningMaterial,
     Message,
     MessageRole,
     PracticeInstruction,
 )
-from lingualoop.core.knowledge import ReasoningRequest, TurnContext, TurnEvidence, model_call_usage
-from lingualoop.providers.openai_compatible import (
+from shinar.core.knowledge import ReasoningRequest, TurnContext, TurnEvidence, model_call_usage
+from shinar.providers.openai_compatible import (
     OpenAICompatibleLLMProvider,
     OpenAICompatibleLLMSettings,
 )

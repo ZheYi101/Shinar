@@ -53,7 +53,7 @@ def test_qt_imports_are_discovered_from_product_sources(tmp_path):
 
 
 def test_trimming_refuses_an_existing_install_outside_build_root(tmp_path):
-    app = tmp_path / "installed/LinguaLoop"
+    app = tmp_path / "installed/Shinar"
     app.mkdir(parents=True)
     keep = app / "personal-note.txt"
     keep.write_text("retain", encoding="utf-8")

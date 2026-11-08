@@ -7,12 +7,12 @@ from zipfile import ZipFile
 
 import pytest
 
-from lingualoop.application import LearningWorkbench
-from lingualoop.core import LanguageEnum, ProficiencyLevel
-from lingualoop.infrastructure import SQLiteStore
-from lingualoop.infrastructure.epub_reader import build_reader_book, load_epub_asset
-from lingualoop.infrastructure.material_import import import_material_file
-from lingualoop.providers import MockLearningLLMProvider
+from shinar.application import LearningWorkbench
+from shinar.core import LanguageEnum, ProficiencyLevel
+from shinar.infrastructure import SQLiteStore
+from shinar.infrastructure.epub_reader import build_reader_book, load_epub_asset
+from shinar.infrastructure.material_import import import_material_file
+from shinar.providers import MockLearningLLMProvider
 
 
 def make_epub(path, bodies: list[str], labels: list[str] | None = None):

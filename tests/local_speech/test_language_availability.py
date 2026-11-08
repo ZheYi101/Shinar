@@ -3,14 +3,14 @@ from pathlib import Path
 
 import pytest
 
-from lingualoop.local_speech import adapter_revision
-from lingualoop.local_speech.benchmark import benchmark
-from lingualoop.local_speech.catalog import ModelPackage, load_catalog
-from lingualoop.local_speech.compute import runtime_version
-from lingualoop.local_speech.downloads import ModelStore
-from lingualoop.local_speech.library import model_rows
-from lingualoop.local_speech.service import LocalSpeechService
-from lingualoop.local_speech.storage import atomic_json
+from shinar.local_speech import adapter_revision
+from shinar.local_speech.benchmark import benchmark
+from shinar.local_speech.catalog import ModelPackage, load_catalog
+from shinar.local_speech.compute import runtime_version
+from shinar.local_speech.downloads import ModelStore
+from shinar.local_speech.library import model_rows
+from shinar.local_speech.service import LocalSpeechService
+from shinar.local_speech.storage import atomic_json
 
 # Captured before adding the product language restriction, for cache compatibility.
 LEGACY_MELO_FINGERPRINT = "1c4d84f48872f6e98b0b646d18fee2c80853cf9df0336414041f8e2422e5146f"

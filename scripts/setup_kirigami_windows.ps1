@@ -6,7 +6,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "LinguaLoop KDE Kirigami Windows setup" -ForegroundColor Cyan
+Write-Host "Shinar KDE Kirigami Windows setup" -ForegroundColor Cyan
 
 function Require-Command([string]$Name, [string]$Hint) {
     if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
@@ -30,7 +30,7 @@ if ($pythonVersion -eq "3.14" -and (Get-Command py -ErrorAction SilentlyContinue
 }
 Write-Host "Python detected: $pythonVersion"
 if ($pythonVersion -notin @("3.12", "3.13")) {
-    Write-Warning "KDE Craft officially recommends Python 3.12 or 3.13 for its bootstrap. Keep this Python for LinguaLoop, but install a separate supported Python for Craft."
+    Write-Warning "KDE Craft officially recommends Python 3.12 or 3.13 for its bootstrap. Keep this Python for Shinar, but install a separate supported Python for Craft."
 }
 
 $craftEnv = @(
@@ -120,4 +120,4 @@ $env:QML_IMPORT_PATH = $qmlImportPath
 
 Write-Host "Kirigami QML import path: $qmlImportPath" -ForegroundColor Green
 Write-Host "User environment variables QML2_IMPORT_PATH and QML_IMPORT_PATH were updated."
-Write-Host 'Verify with: uv run python -c "from lingualoop.desktop.app import kirigami_runtime_available; print(kirigami_runtime_available())"'
+Write-Host 'Verify with: uv run python -c "from shinar.desktop.app import kirigami_runtime_available; print(kirigami_runtime_available())"'

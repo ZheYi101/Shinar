@@ -2,8 +2,8 @@ import os
 
 import pytest
 
-from lingualoop.infrastructure import ai_configuration as module
-from lingualoop.infrastructure.ai_configuration import AIConnection, AIConfigurationStore
+from shinar.infrastructure import ai_configuration as module
+from shinar.infrastructure.ai_configuration import AIConnection, AIConfigurationStore
 
 
 def fake_crypt(value, *, decrypt=False):

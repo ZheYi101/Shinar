@@ -6,8 +6,8 @@ import pytest
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtMultimedia import QAudioFormat, QtAudio
 
-from lingualoop.desktop.pcm_audio import PcmAudioBridge
-from lingualoop.realtime.pcm import DeviceFormat
+from shinar.desktop.pcm_audio import PcmAudioBridge
+from shinar.realtime.pcm import DeviceFormat
 from test_desktop_workflow import qt_app  # noqa: F401
 
 
@@ -54,7 +54,7 @@ class DeviceStub(QObject):
 
 
 def bridge_with_stub_devices(monkeypatch):
-    import lingualoop.desktop.pcm_audio as module
+    import shinar.desktop.pcm_audio as module
 
     monkeypatch.setattr(module, "QAudioSource", DeviceStub)
     monkeypatch.setattr(module, "QAudioSink", DeviceStub)
@@ -109,7 +109,7 @@ def test_audio_state_signal_handles_input_and_output_io_errors(qt_app, monkeypat
 
 @pytest.mark.parametrize("removed", [False, True])
 def test_inventory_change_only_pauses_for_selected_device_removal(qt_app, monkeypatch, removed):
-    import lingualoop.desktop.pcm_audio as module
+    import shinar.desktop.pcm_audio as module
 
     bridge = bridge_with_stub_devices(monkeypatch)
     device = lambda name: SimpleNamespace(

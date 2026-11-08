@@ -9,18 +9,18 @@ from tempfile import TemporaryDirectory
 
 os.environ["QT_QPA_PLATFORM"] = "windows" if os.name == "nt" else "offscreen"
 os.environ["QT_QUICK_BACKEND"] = "software"
-os.environ["LINGUALOOP_KIRIGAMI_MODE"] = "off"
+os.environ["SHINAR_KIRIGAMI_MODE"] = "off"
 
 from PySide6.QtCore import QSettings, Qt
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQuick import QQuickWindow
 
-from lingualoop.application import LearningWorkbench
-from lingualoop.desktop.app import create_engine
-from lingualoop.desktop.preferences import DesktopPreferences
-from lingualoop.desktop.viewmodel import LearningViewModel
-from lingualoop.infrastructure import SQLiteStore
-from lingualoop.providers import MockLearningLLMProvider
+from shinar.application import LearningWorkbench
+from shinar.desktop.app import create_engine
+from shinar.desktop.preferences import DesktopPreferences
+from shinar.desktop.viewmodel import LearningViewModel
+from shinar.infrastructure import SQLiteStore
+from shinar.providers import MockLearningLLMProvider
 
 
 def main():

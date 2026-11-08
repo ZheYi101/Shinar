@@ -5,9 +5,9 @@ import wave
 
 import pytest
 
-from lingualoop.realtime.audio_ipc import encode_message, read_message, lengths, MAX_PAYLOAD
-from lingualoop.realtime.endpoint import EndpointDetector
-from lingualoop.realtime.pcm import DeviceFormat, PcmConverter, PCM48
+from shinar.realtime.audio_ipc import encode_message, read_message, lengths, MAX_PAYLOAD
+from shinar.realtime.endpoint import EndpointDetector
+from shinar.realtime.pcm import DeviceFormat, PcmConverter, PCM48
 
 
 def utterance(detector):
@@ -110,8 +110,8 @@ def test_pause_restores_an_uncommitted_claim_and_shares_the_original_length_limi
 
 def test_audio_worker_pause_retains_rtc_tail_and_old_microphone_generation_is_closed():
     from types import SimpleNamespace
-    from lingualoop.realtime.audio_worker import AudioSessionWorker
-    from lingualoop.realtime.protocol import TurnRef
+    from shinar.realtime.audio_worker import AudioSessionWorker
+    from shinar.realtime.protocol import TurnRef
 
     async def run():
         events, controls = [], []
@@ -211,9 +211,9 @@ def test_ipc_checks_length_before_reading_payload_and_survives_split_prefix():
 # Asset readiness is separate from the presence of SDKs in the development environment.
 def test_ready_assets_reject_same_size_corruption(tmp_path, monkeypatch):
     import hashlib
-    import lingualoop.realtime.continuous_assets as assets
-    import lingualoop.realtime.local_server as server
-    from lingualoop.local_speech.catalog import Artifact
+    import shinar.realtime.continuous_assets as assets
+    import shinar.realtime.local_server as server
+    from shinar.local_speech.catalog import Artifact
 
     vad = tmp_path / "vad.onnx"
     vad.write_bytes(b"vad")
@@ -239,8 +239,8 @@ def test_ready_assets_reject_same_size_corruption(tmp_path, monkeypatch):
 
 def test_natural_output_end_drains_accepted_pcm_and_rejects_late_rtc_silence():
     from types import SimpleNamespace
-    from lingualoop.realtime.audio_worker import AudioSessionWorker
-    from lingualoop.realtime.protocol import TurnRef, TurnReceiver, TurnEvent, PcmFrame
+    from shinar.realtime.audio_worker import AudioSessionWorker
+    from shinar.realtime.protocol import TurnRef, TurnReceiver, TurnEvent, PcmFrame
 
     async def run():
         events = []
@@ -285,7 +285,7 @@ def test_natural_output_end_drains_accepted_pcm_and_rejects_late_rtc_silence():
 
 
 def test_dead_audio_reader_fails_requests_immediately_instead_of_hanging_shutdown():
-    from lingualoop.realtime.audio_process import AudioSessionProcess
+    from shinar.realtime.audio_process import AudioSessionProcess
 
     async def run():
         process = AudioSessionProcess("s", lambda *args: None)

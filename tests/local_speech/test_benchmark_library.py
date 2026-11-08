@@ -3,13 +3,13 @@ import sys
 
 import pytest
 
-from lingualoop.local_speech.benchmark import benchmark, percentile, summarize
-from lingualoop.local_speech import RUNTIME_VERSION
-from lingualoop.local_speech.catalog import load_catalog
-from lingualoop.local_speech.downloads import ModelStore
-from lingualoop.local_speech.hardware import admission
-from lingualoop.local_speech.library import matching_reports, model_rows
-from lingualoop.local_speech.storage import atomic_json
+from shinar.local_speech.benchmark import benchmark, percentile, summarize
+from shinar.local_speech import RUNTIME_VERSION
+from shinar.local_speech.catalog import load_catalog
+from shinar.local_speech.downloads import ModelStore
+from shinar.local_speech.hardware import admission
+from shinar.local_speech.library import matching_reports, model_rows
+from shinar.local_speech.storage import atomic_json
 
 
 def hardware():
@@ -108,7 +108,7 @@ def test_slow_tts_is_never_recommended_for_realtime(tmp_path, monkeypatch):
 
 
 def test_benchmark_timeout_kills_child_and_releases_lock(tmp_path, monkeypatch):
-    import lingualoop.local_speech.benchmark as module
+    import shinar.local_speech.benchmark as module
 
     store = ModelStore(tmp_path)
     package = next(p for p in load_catalog() if p.id == "kokoro-int8-zhen-v11")
@@ -129,14 +129,14 @@ def test_benchmark_timeout_kills_child_and_releases_lock(tmp_path, monkeypatch):
     with pytest.raises(RuntimeError, match="超时"):
         benchmark(store, [package], "en", timeout=0.1)
     assert children[0].poll() is not None
-    from lingualoop.local_speech.downloads import package_lock
+    from shinar.local_speech.downloads import package_lock
 
     with package_lock(tmp_path, package):
         pass
 
 
 def test_benchmark_rejects_missing_audio_and_unsupported_language(tmp_path, monkeypatch):
-    import lingualoop.local_speech.benchmark as module
+    import shinar.local_speech.benchmark as module
 
     monkeypatch.setattr(module, "detect_hardware", lambda _: hardware())
     with pytest.raises(ValueError, match="WAV"):
@@ -190,7 +190,7 @@ def test_zipformer_factory_uses_fp32_decoder_from_mixed_package(tmp_path, monkey
     from pathlib import Path
     from types import SimpleNamespace
 
-    directory = Path(__file__).resolve().parents[2] / "src/lingualoop/local_speech"
+    directory = Path(__file__).resolve().parents[2] / "src/shinar/local_speech"
     spec = importlib.util.spec_from_file_location(
         "local_runtime_factory_test", directory / "runtime_worker.py"
     )

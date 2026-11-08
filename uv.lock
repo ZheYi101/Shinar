@@ -896,7 +896,7 @@ wheels = [
 ]
 
 [[package]]
-name = "lingualoop"
+name = "shinar"
 version = "0.1.3"
 source = { editable = "." }
 dependencies = [

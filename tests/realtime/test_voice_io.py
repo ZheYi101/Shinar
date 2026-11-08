@@ -3,9 +3,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from lingualoop.realtime.local_stun import COOKIE, binding_response
-from lingualoop.realtime.voice_io import RtcWavInput, RtcSpeechOutput, MAX_WAV_BYTES
-from lingualoop.realtime.protocol import TurnRef
+from shinar.realtime.local_stun import COOKIE, binding_response
+from shinar.realtime.voice_io import RtcWavInput, RtcSpeechOutput, MAX_WAV_BYTES
+from shinar.realtime.protocol import TurnRef
 
 
 def test_stun_binding_response_has_transaction_and_xor_mapped_address():

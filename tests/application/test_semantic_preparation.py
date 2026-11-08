@@ -3,18 +3,18 @@ import json
 
 import pytest
 
-from lingualoop.application import LearningWorkbench
-from lingualoop.application.semantic_preparation import SemanticPreparation, validate_unit_notes
-from lingualoop.core.domain import LanguageEnum, LearningMaterial, ProficiencyLevel
-from lingualoop.core.knowledge import ModelBudgetExceeded, ReasoningResponse
-from lingualoop.core.knowledge_context import (
+from shinar.application import LearningWorkbench
+from shinar.application.semantic_preparation import SemanticPreparation, validate_unit_notes
+from shinar.core.domain import LanguageEnum, LearningMaterial, ProficiencyLevel
+from shinar.core.knowledge import ModelBudgetExceeded, ReasoningResponse
+from shinar.core.knowledge_context import (
     assemble_turn_context,
     digest,
     safe_knowledge,
     source_units,
 )
-from lingualoop.infrastructure import SQLiteStore
-from lingualoop.providers.mock import MockLearningLLMProvider
+from shinar.infrastructure import SQLiteStore
+from shinar.providers.mock import MockLearningLLMProvider
 
 
 class SemanticMock(MockLearningLLMProvider):
@@ -262,7 +262,7 @@ def test_truncated_reasoning_never_becomes_a_cached_success(tmp_path):
 
 
 def test_memory_rejects_speaker_inversion(tmp_path):
-    from lingualoop.core.domain import Message, MessageRole, PracticeSession, SessionUserProfile
+    from shinar.core.domain import Message, MessageRole, PracticeSession, SessionUserProfile
 
     class WrongMemory(SemanticMock):
         async def summarize_conversation(self, request):
@@ -384,7 +384,7 @@ def test_scope_manifests_restore_full_preparation_without_new_calls(tmp_path):
 
 
 def test_local_term_warmup_populates_cache_without_reading_past_scope():
-    from lingualoop.core.knowledge_context import cached_terms, prime_turn_index
+    from shinar.core.knowledge_context import cached_terms, prime_turn_index
 
     first, unread = "Mira waits at the bridge.\n", "Ren leaves after midnight.\n"
     material = LearningMaterial(
@@ -403,7 +403,7 @@ def test_local_term_warmup_populates_cache_without_reading_past_scope():
 
 
 def test_reusable_focus_facts_are_saved_in_scope_manifest(tmp_path):
-    from lingualoop.core.knowledge import FocusReference, GroundedNote
+    from shinar.core.knowledge import FocusReference, GroundedNote
 
     async def run():
         work = LearningWorkbench(SemanticMock(), event_store=SQLiteStore(tmp_path / "db"))
@@ -442,7 +442,7 @@ def test_reusable_focus_facts_are_saved_in_scope_manifest(tmp_path):
 
 
 def test_auxiliary_numbered_note_does_not_reenter_story():
-    from lingualoop.core.knowledge_context import heading_kind
+    from shinar.core.knowledge_context import heading_kind
 
     assert heading_kind("12", "author_note") == "author_note"
     assert heading_kind("Part One", "foreword") == "body"
@@ -500,8 +500,8 @@ def test_background_coalesces_latest_turn_without_accepting_stale_judgment(tmp_p
 
 
 def test_context_preserves_paragraph_conclusion_and_short_adjacent_qualification():
-    from lingualoop.core.domain import MaterialAnalysis, PracticeSession, SessionUserProfile
-    from lingualoop.core.knowledge import GroundedNote, MaterialKnowledge
+    from shinar.core.domain import MaterialAnalysis, PracticeSession, SessionUserProfile
+    from shinar.core.knowledge import GroundedNote, MaterialKnowledge
 
     paragraph = (
         "The children are playing. "
@@ -570,7 +570,7 @@ def test_empty_unit_results_are_valid_but_not_a_completed_reading_brief(tmp_path
 
 
 def test_partial_semantic_scope_does_not_keep_unscoped_legacy_keywords_or_goals(tmp_path):
-    from lingualoop.core.reading_scope import scope_material
+    from shinar.core.reading_scope import scope_material
 
     async def run():
         work = LearningWorkbench(SemanticMock(), event_store=SQLiteStore(tmp_path / "db"))

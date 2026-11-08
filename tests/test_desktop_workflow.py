@@ -20,12 +20,12 @@ from PySide6.QtGui import QFontDatabase, QGuiApplication
 from PySide6.QtQuick import QQuickItem, QQuickWindow
 from PySide6.QtTest import QTest
 
-from lingualoop.application import LearningWorkbench
-from lingualoop.desktop.app import create_engine
-from lingualoop.desktop.preferences import DesktopPreferences
-from lingualoop.desktop.viewmodel import LearningViewModel
-from lingualoop.infrastructure import SQLiteStore
-from lingualoop.providers import MockLearningLLMProvider
+from shinar.application import LearningWorkbench
+from shinar.desktop.app import create_engine
+from shinar.desktop.preferences import DesktopPreferences
+from shinar.desktop.viewmodel import LearningViewModel
+from shinar.infrastructure import SQLiteStore
+from shinar.providers import MockLearningLLMProvider
 
 
 def pcm_wav():
@@ -179,7 +179,7 @@ class TrackedProvider(MockLearningLLMProvider):
 
 @pytest.fixture(scope="module")
 def qt_app():
-    app = QGuiApplication.instance() or QGuiApplication(["lingualoop-interaction-test"])
+    app = QGuiApplication.instance() or QGuiApplication(["shinar-interaction-test"])
     if os.name == "nt":
         for name in ("msyh.ttc", "msyhbd.ttc", "YuGothR.ttc"):
             QFontDatabase.addApplicationFont(str(Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts" / name))
@@ -261,7 +261,7 @@ def click(window, name, *, scroll=None):
 
 @pytest.fixture
 def desktop(qt_app, tmp_path, monkeypatch):
-    monkeypatch.setenv("LINGUALOOP_KIRIGAMI_MODE", "off")
+    monkeypatch.setenv("SHINAR_KIRIGAMI_MODE", "off")
     provider, speech, audio = TrackedProvider(), FakeSpeech(), FakeAudio()
     database = tmp_path / "workflow.sqlite3"
     workbench = LearningWorkbench(provider, event_store=SQLiteStore(database))
@@ -292,7 +292,7 @@ def workspace_of(window):
 
 
 def load_material(vm, title, content, source, target, native, level):
-    from lingualoop.core import LanguageEnum, ProficiencyLevel
+    from shinar.core import LanguageEnum, ProficiencyLevel
     vm.run_operation("保存材料", lambda: vm.workbench.load_material(
         title=title, content=content, source_language=LanguageEnum(source),
         target_language=LanguageEnum(target), native_language=LanguageEnum(native),
@@ -367,7 +367,7 @@ def test_empty_library_has_no_form_modal(desktop):
 
 
 def test_topic_browsing_groups_provider_synonyms_into_a_small_vocabulary():
-    from lingualoop.desktop.viewmodel import _topic_category_label
+    from shinar.desktop.viewmodel import _topic_category_label
     assert {_topic_category_label(value) for value in ['narrative reliability', 'Narrator reliability and obsession',
         'narration, character motivation', '叙事可靠性', 'author\'s defense', 'literary criticism']} == {'叙述与文体'}
     assert _topic_category_label('relationships, choices, consequences') == '人物关系'
@@ -510,7 +510,7 @@ def test_reply_retry_preserves_confirmed_messages_and_playback_retry(desktop):
 
 
 def test_audio_controller_temporary_files_and_timer(qt_app):
-    from lingualoop.desktop.audio import AudioController
+    from shinar.desktop.audio import AudioController
     from PySide6.QtMultimedia import QMediaRecorder
 
     audio = AudioController()
@@ -648,7 +648,7 @@ def test_background_preparation_does_not_move_composer_actions(desktop):
 
 def test_window_restore_clamps_removed_monitor_and_forwards_native_actions(qt_app, tmp_path):
     from PySide6.QtCore import QRect
-    from lingualoop.desktop.window import DesktopWindowController
+    from shinar.desktop.window import DesktopWindowController
     settings = QSettings(str(tmp_path / "window.ini"), QSettings.Format.IniFormat)
     settings.setValue("normalGeometry", QRect(90000, 90000, 1180, 780))
     window = QQuickWindow()

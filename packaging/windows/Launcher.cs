@@ -5,10 +5,10 @@ using System.Reflection;
 using System.Text;
 using System.Windows.Forms;
 
-[assembly: AssemblyTitle("LinguaLoop")]
-[assembly: AssemblyDescription("LinguaLoop desktop launcher")]
-[assembly: AssemblyCompany("LinguaLoop")]
-[assembly: AssemblyProduct("LinguaLoop")]
+[assembly: AssemblyTitle("Shinar")]
+[assembly: AssemblyDescription("Shinar desktop launcher")]
+[assembly: AssemblyCompany("Shinar")]
+[assembly: AssemblyProduct("Shinar")]
 [assembly: AssemblyVersion("@@VERSION@@")]
 [assembly: AssemblyFileVersion("@@VERSION@@")]
 
@@ -42,7 +42,7 @@ internal static class Launcher
             string python = Path.Combine(root, "runtime", "pythonw.exe");
             if (!File.Exists(python))
                 throw new FileNotFoundException();
-            var arguments = new StringBuilder("-I -B -m lingualoop.desktop.packaged");
+            var arguments = new StringBuilder("-I -B -m shinar.desktop.packaged");
             foreach (string arg in args)
                 arguments.Append(' ').Append(QuoteArgument(arg));
             var start = new ProcessStartInfo(python, arguments.ToString());
@@ -63,7 +63,7 @@ internal static class Launcher
         }
         catch
         {
-            ShowError("无法启动应用。请重新解压或安装 LinguaLoop。");
+            ShowError("无法启动应用。请重新解压或安装 Shinar。");
             return 1;
         }
     }
@@ -71,6 +71,6 @@ internal static class Launcher
     private static void ShowError(string detail)
     {
         if (quiet) return;
-        MessageBox.Show(detail, "LinguaLoop", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        MessageBox.Show(detail, "Shinar", MessageBoxButtons.OK, MessageBoxIcon.Error);
     }
 }

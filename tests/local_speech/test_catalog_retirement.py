@@ -3,11 +3,11 @@ from pathlib import Path
 
 import pytest
 
-from lingualoop.local_speech.catalog import load_catalog
-from lingualoop.local_speech.downloads import ModelStore
-from lingualoop.local_speech.library import model_rows
-from lingualoop.local_speech.service import LocalSpeechService
-from lingualoop.local_speech.storage import atomic_json
+from shinar.local_speech.catalog import load_catalog
+from shinar.local_speech.downloads import ModelStore
+from shinar.local_speech.library import model_rows
+from shinar.local_speech.service import LocalSpeechService
+from shinar.local_speech.storage import atomic_json
 
 
 def test_retired_sensevoice_branch_is_not_in_catalog() -> None:

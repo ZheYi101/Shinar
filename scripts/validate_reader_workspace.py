@@ -17,6 +17,7 @@ import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from time import monotonic
+import traceback
 from zipfile import ZipFile
 
 os.environ["RUN_REAL_AI_TESTS"] = "0"
@@ -104,7 +105,7 @@ def main() -> None:
     os.environ["QT_QPA_PLATFORM"] = args.platform
     os.environ.pop("QT_QUICK_BACKEND", None)
 
-    from lingualoop.desktop.app import _load_qt, create_engine
+    from shinar.desktop.app import _load_qt, create_engine
 
     _load_qt()
     from PySide6.QtCore import QSettings, QUrl, QMetaObject, Q_ARG, QPointF, Qt
@@ -112,11 +113,12 @@ def main() -> None:
     from PySide6.QtQml import QQmlComponent
     from PySide6.QtTest import QTest
     from PySide6.QtCore import QTimer
-    from lingualoop.application import LearningWorkbench
-    from lingualoop.desktop.preferences import DesktopPreferences
-    from lingualoop.desktop.viewmodel import LearningViewModel
-    from lingualoop.infrastructure import SQLiteStore
-    from lingualoop.providers import MockLearningLLMProvider
+    from shiboken6 import isValid
+    from shinar.application import LearningWorkbench
+    from shinar.desktop.preferences import DesktopPreferences
+    from shinar.desktop.viewmodel import LearningViewModel
+    from shinar.infrastructure import SQLiteStore
+    from shinar.providers import MockLearningLLMProvider
 
     app = QGuiApplication([])
     if os.name == "nt":
@@ -124,7 +126,7 @@ def main() -> None:
             QFontDatabase.addApplicationFont(
                 str(Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts" / name)
             )
-    with TemporaryDirectory(prefix="lingualoop-reader-validation-") as temporary:
+    with TemporaryDirectory(prefix="shinar-reader-validation-") as temporary:
         root = Path(temporary)
         prefs = DesktopPreferences(QSettings(str(root / "prefs.ini"), QSettings.IniFormat))
         prefs.setValue("autoSpeak", False)
@@ -201,7 +203,7 @@ def main() -> None:
                     and bool(find("foliateReader").property("bookReady"))
                 )
             )
-            assert await evaluate("!!window.linguaReader.ready")
+            assert await evaluate("!!window.shinarReader.ready")
             await asyncio.sleep(0.25)
 
         def click(name):
@@ -220,7 +222,7 @@ def main() -> None:
             QTest.mouseMove(window, QPointF(10, 50).toPoint())
             await asyncio.sleep(0.4)
             ink = await evaluate(
-                "window.linguaReader.view.renderer.getContents()[0].doc.defaultView.getComputedStyle(window.linguaReader.view.renderer.getContents()[0].doc.body).color.match(/[0-9]+/g).slice(0,3).map(Number)"
+                "window.shinarReader.view.renderer.getContents()[0].doc.defaultView.getComputedStyle(window.shinarReader.view.renderer.getContents()[0].doc.body).color.match(/[0-9]+/g).slice(0,3).map(Number)"
             )
             surface = find("foliateReader")
             origin = surface.mapToScene(QPointF(0, 0))
@@ -273,7 +275,7 @@ def main() -> None:
                     await asyncio.sleep(150 / 1000)
                     if language == "english":
                         assert await evaluate(
-                            "!!window.linguaReader.view.renderer.getContents()[0].doc.querySelector('[data-reader-ui]')"
+                            "!!window.shinarReader.view.renderer.getContents()[0].doc.querySelector('[data-reader-ui]')"
                         )
                         await capture("scope-boundary")
                     click("saveScopeButton")
@@ -288,7 +290,7 @@ def main() -> None:
                     assert wb.session.material_id == material_id
                     assert len(ws.sections) == 1
                     state = await evaluate(
-                        "({text:window.linguaReader.view.renderer.getContents()[0].doc.body.textContent,private:typeof qt.webChannelTransport==='object'})"
+                        "({text:window.shinarReader.view.renderer.getContents()[0].doc.body.textContent,private:typeof qt.webChannelTransport==='object'})"
                     )
                     assert "UNREAD_MARKER" not in state["text"]
 
@@ -327,7 +329,7 @@ def main() -> None:
                         async def search_selected():
                             return (
                                 await evaluate(
-                                    "window.linguaReader.view.renderer.getContents()[0].doc.defaultView.getSelection().toString()"
+                                    "window.shinarReader.view.renderer.getContents()[0].doc.defaultView.getSelection().toString()"
                                 )
                                 == "letter"
                             )
@@ -336,7 +338,7 @@ def main() -> None:
                         results.append(dict(check="split_resize_and_search", passed=True))
                         # Real mouse drag, native clipboard, keyboard extension, then UI send.
                         coords = await evaluate(
-                            "(() => {const r=window.linguaReader;const c=r.view.renderer.getContents()[0];const s=c.doc.querySelector('p [data-source-start]');const a=Number(s.dataset.sourceStart);const x=r.mappedRange(c.doc,a,a+11).getBoundingClientRect();const f=c.doc.defaultView.frameElement.getBoundingClientRect();return {x:x.x+f.x,y:x.y+f.y,w:x.width,h:x.height}})()"
+                            "(() => {const r=window.shinarReader;const c=r.view.renderer.getContents()[0];const s=c.doc.querySelector('p [data-source-start]');const a=Number(s.dataset.sourceStart);const x=r.mappedRange(c.doc,a,a+11).getBoundingClientRect();const f=c.doc.defaultView.frameElement.getBoundingClientRect();return {x:x.x+f.x,y:x.y+f.y,w:x.width,h:x.height}})()"
                         )
                         surface = find("foliateReader")
                         point = lambda x: surface.mapToScene(
@@ -363,7 +365,7 @@ def main() -> None:
                         assert ws.snapshot().focus_kind == "text"
                         # Explicit Element-endpoint Range matches the paragraph's canonical span.
                         assert await evaluate(
-                            "(() => {const r=window.linguaReader,c=r.view.renderer.getContents()[0],p=c.doc.querySelector('p'),x=c.doc.createRange();x.selectNodeContents(p);const s=p.querySelectorAll('[data-source-start]');return JSON.stringify(r.sourceSelection(x))===JSON.stringify([Number(s[0].dataset.sourceStart),Number(s[s.length-1].dataset.sourceEnd)])})()"
+                            "(() => {const r=window.shinarReader,c=r.view.renderer.getContents()[0],p=c.doc.querySelector('p'),x=c.doc.createRange();x.selectNodeContents(p);const s=p.querySelectorAll('[data-source-start]');return JSON.stringify(r.sourceSelection(x))===JSON.stringify([Number(s[0].dataset.sourceStart),Number(s[s.length-1].dataset.sourceEnd)])})()"
                         )
                         before = ws.snapshot()
                         click("messageInput")
@@ -384,14 +386,14 @@ def main() -> None:
                         window.setWidth(width)
                         await ready()
                         metrics = await evaluate(
-                            "(() => {const d=window.linguaReader.view.renderer.getContents()[0].doc;const family=d.defaultView.getComputedStyle(d.body).fontFamily;return {overflow:d.documentElement.scrollWidth>d.documentElement.clientWidth+2,font:family,fontLoaded:d.fonts.check('20px '+family),background:d.defaultView.getComputedStyle(d.documentElement).backgroundColor}})()"
+                            "(() => {const d=window.shinarReader.view.renderer.getContents()[0].doc;const family=d.defaultView.getComputedStyle(d.body).fontFamily;return {overflow:d.documentElement.scrollWidth>d.documentElement.clientWidth+2,font:family,fontLoaded:d.fonts.check('20px '+family),background:d.defaultView.getComputedStyle(d.documentElement).backgroundColor}})()"
                         )
                         assert not metrics["overflow"]
                         assert metrics["fontLoaded"]
                         if language == "chinese":
-                            assert "LinguaSC" in metrics["font"]
+                            assert "ShinarSC" in metrics["font"]
                         elif language == "japanese":
-                            assert "LinguaJP" in metrics["font"]
+                            assert "ShinarJP" in metrics["font"]
                         metrics["inkSamples"] = await capture(language + "-" + theme)
                         results.append(
                             dict(check=language + "-" + theme, width=width, **metrics, passed=True)
@@ -420,9 +422,10 @@ def main() -> None:
                 await run_checks()
             except BaseException as error:
                 errors.append(error)
+                traceback.print_exc()
                 (output / "report.json").write_text(
                     json.dumps(
-                        dict(metadata, status="failed", error=type(error).__name__, checks=results),
+                        dict(metadata, status="failed", error=type(error).__name__, detail=str(error), checks=results),
                         ensure_ascii=False,
                         indent=2,
                     ),
@@ -435,9 +438,13 @@ def main() -> None:
         task = ui_loop.create_task(exercise())
 
         def pump():
-            window.update()
+            if isValid(window):
+                window.update()
             ui_loop.call_soon(ui_loop.stop)
             ui_loop.run_forever()
+            if task.done():
+                timer.stop()
+                app.exit(0)
 
         timer = QTimer()
         timer.setInterval(10)

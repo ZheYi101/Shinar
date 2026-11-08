@@ -7,7 +7,7 @@ from types import SimpleNamespace
 from PySide6.QtCore import QObject, QTimer, Signal, Qt
 from PySide6.QtTest import QTest
 
-from lingualoop.local_speech.profiles import LocalSpeechProvider
+from shinar.local_speech.profiles import LocalSpeechProvider
 from test_desktop_workflow import (
     desktop, qt_app, load_and_start, until, item, click, workspace_of, pcm_wav,
 )  # noqa: F401
@@ -80,7 +80,7 @@ class LocalModels:
 
 
 def configure(vm, monkeypatch, *, local=True):
-    import lingualoop.desktop.continuous_voice as module
+    import shinar.desktop.continuous_voice as module
 
     monkeypatch.setattr(module, "managed_status", lambda *a: {"prepared": True})
     monkeypatch.setattr(module, "prepared_assets", lambda *a: True)
@@ -178,7 +178,7 @@ def test_hidden_or_reconfigured_page_rejects_old_model_completion(desktop, monke
 
 
 def test_permission_and_delayed_probe_cannot_record_after_leaving(desktop, monkeypatch):
-    import lingualoop.desktop.voice_readiness as module
+    import shinar.desktop.voice_readiness as module
 
     vm, window, _, _, speech, _, _ = desktop
     readiness, _, probes = configure(vm, monkeypatch, local=False)
@@ -227,7 +227,7 @@ def test_auto_read_disabled_and_config_changes_do_not_reload_during_call(desktop
 
 
 def test_microphone_probe_checks_frames_and_releases_without_publishing(qt_app, monkeypatch):
-    import lingualoop.desktop.voice_readiness as module
+    import shinar.desktop.voice_readiness as module
     from PySide6.QtMultimedia import QtAudio
 
     class Input(QObject):

@@ -27,8 +27,8 @@ def main() -> None:
     )
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
-    desktop = root / "src/lingualoop/desktop"
-    catalog = desktop / "translations" / f"lingualoop_{args.locale}.ts"
+    desktop = root / "src/shinar/desktop"
+    catalog = desktop / "translations" / f"shinar_{args.locale}.ts"
     sources = [
         str(desktop / "qml"),
         *(

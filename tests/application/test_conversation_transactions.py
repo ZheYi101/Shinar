@@ -3,8 +3,8 @@ import sqlite3
 
 import pytest
 
-from lingualoop.infrastructure import SQLiteStore
-from lingualoop.core.domain import SessionEvent, SessionEventType
+from shinar.infrastructure import SQLiteStore
+from shinar.core.domain import SessionEvent, SessionEventType
 from test_voice_session import make_work
 
 

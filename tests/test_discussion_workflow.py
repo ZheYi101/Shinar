@@ -8,15 +8,15 @@ import pytest
 from langchain_core.messages import AIMessage
 from pydantic import SecretStr
 
-from lingualoop.application import LearningWorkbench
-from lingualoop.core import (
+from shinar.application import LearningWorkbench
+from shinar.core import (
     LanguageEnum, ProficiencyLevel, PracticeOptions, PracticeMode,
     FeedbackTiming, PracticeSession, SessionUserProfile, LearningMaterial,
 )
-from lingualoop.infrastructure import SQLiteStore
-from lingualoop.infrastructure.material_import import import_material_file
-from lingualoop.providers.mock import LegacyMockLearningLLMProvider
-from lingualoop.providers.openai_compatible import OpenAICompatibleLLMProvider, OpenAICompatibleLLMSettings
+from shinar.infrastructure import SQLiteStore
+from shinar.infrastructure.material_import import import_material_file
+from shinar.providers.mock import LegacyMockLearningLLMProvider
+from shinar.providers.openai_compatible import OpenAICompatibleLLMProvider, OpenAICompatibleLLMSettings
 
 
 async def load(workbench, text="昨日、駅で友達に会いました。旅行について話しました。"):
@@ -106,7 +106,7 @@ def test_legacy_session_payload_keeps_original_semantics():
 
 @pytest.mark.parametrize("intensity,limit", [("low", 1), ("medium", 2), ("high", 3)])
 def test_feedback_strength_bounds_grounded_review(tmp_path, intensity, limit):
-    from lingualoop.core import FeedbackItem, SessionReview
+    from shinar.core import FeedbackItem, SessionReview
 
     class RichReview(LegacyMockLearningLLMProvider):
         async def summarize_session(self, *, session, **kwargs):

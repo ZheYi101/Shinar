@@ -2,7 +2,7 @@ import loguru
 import pytest
 from pydantic import ValidationError
 
-from lingualoop.core import (
+from shinar.core import (
     LanguageEnum,
     LearningMaterial,
     Message,

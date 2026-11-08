@@ -207,7 +207,7 @@ def inspect_analysis(material):
 
 
 def candidate_hashes():
-    source_root = ROOT / "src/lingualoop"
+    source_root = ROOT / "src/shinar"
     paths = sorted(path for name in ("core", "providers", "application", "kernel", "infrastructure")
                    for path in (source_root / name).rglob("*.py"))
     hashes = {}
@@ -224,11 +224,11 @@ async def run_background_probe():
     """Final scoped probe: at most one Pro call, and only when ready one Flash call."""
     hashes = candidate_hashes()
     import httpx
-    from lingualoop.application import LearningWorkbench
-    from lingualoop.core import (LanguageEnum, ProficiencyLevel, FeedbackTiming, PracticeOptions,
+    from shinar.application import LearningWorkbench
+    from shinar.core import (LanguageEnum, ProficiencyLevel, FeedbackTiming, PracticeOptions,
         LearningMaterial, MaterialAnalysis, DiscussionTopic, SessionUserProfile, AnswerBranch)
-    from lingualoop.infrastructure import SQLiteStore
-    from lingualoop.providers.openai_compatible import OpenAICompatibleLLMProvider
+    from shinar.infrastructure import SQLiteStore
+    from shinar.providers.openai_compatible import OpenAICompatibleLLMProvider
 
     async with httpx.AsyncClient(timeout=30) as client:
         response = await client.get(SOURCE_URL)
@@ -258,7 +258,7 @@ async def run_background_probe():
         "source": {"card": CARD_URL, "text": SOURCE_URL, "sha256": sha256(text.encode()).hexdigest()},
         "calls": records, "test_background_max_attempts": 1,
         "functional_pass": False, "complete_under_1s_pass": False}
-    with TemporaryDirectory(prefix="lingualoop-acceptance-background-") as directory:
+    with TemporaryDirectory(prefix="shinar-acceptance-background-") as directory:
         store = SQLiteStore(Path(directory) / "probe.sqlite3")
         store.save_material(fixture)
         work = LearningWorkbench(provider, event_store=store)
@@ -306,11 +306,11 @@ async def run_revision_probe():
     """
     hashes = candidate_hashes()
     import httpx
-    from lingualoop.application import LearningWorkbench
-    from lingualoop.core import (LanguageEnum, ProficiencyLevel, FeedbackTiming, PracticeOptions,
+    from shinar.application import LearningWorkbench
+    from shinar.core import (LanguageEnum, ProficiencyLevel, FeedbackTiming, PracticeOptions,
         LearningMaterial, MaterialAnalysis, DiscussionTopic, SessionUserProfile)
-    from lingualoop.infrastructure import SQLiteStore
-    from lingualoop.providers.openai_compatible import OpenAICompatibleLLMProvider
+    from shinar.infrastructure import SQLiteStore
+    from shinar.providers.openai_compatible import OpenAICompatibleLLMProvider
 
     async with httpx.AsyncClient(timeout=30) as client:
         response = await client.get(SOURCE_URL)
@@ -341,7 +341,7 @@ async def run_revision_probe():
               "configuration": {"host": urlparse(provider._settings.base_url).hostname,
                   "reasoning_model": provider._settings.reasoning_model, "dialogue_model": provider._settings.dialogue_model},
               "calls": records, "turns": [], "functional_pass": False, "complete_under_1s_pass": False}
-    with TemporaryDirectory(prefix="lingualoop-acceptance-revision-") as directory:
+    with TemporaryDirectory(prefix="shinar-acceptance-revision-") as directory:
         store = SQLiteStore(Path(directory) / "probe.sqlite3")
         store.save_material(fixture)
         work = LearningWorkbench(provider, event_store=store)
@@ -413,10 +413,10 @@ async def run_revision_probe():
 
 async def run_probe():
     import httpx
-    from lingualoop.application import LearningWorkbench
-    from lingualoop.core import LanguageEnum, ProficiencyLevel
-    from lingualoop.infrastructure import SQLiteStore
-    from lingualoop.providers.openai_compatible import OpenAICompatibleLLMProvider
+    from shinar.application import LearningWorkbench
+    from shinar.core import LanguageEnum, ProficiencyLevel
+    from shinar.infrastructure import SQLiteStore
+    from shinar.providers.openai_compatible import OpenAICompatibleLLMProvider
 
     async with httpx.AsyncClient(timeout=30) as client:
         response = await client.get(SOURCE_URL)
@@ -452,7 +452,7 @@ async def run_probe():
         "calls": records, "turns": [], "functional_pass": False, "complete_under_1s_pass": False,
         "quality_limit": "Source/route/stream checks and targeted uncertainty/injection heuristics; not independent human language-quality certification",
     }
-    with TemporaryDirectory(prefix="lingualoop-acceptance-") as directory:
+    with TemporaryDirectory(prefix="shinar-acceptance-") as directory:
         store_path = Path(directory) / "probe.sqlite3"
         work = LearningWorkbench(provider, event_store=SQLiteStore(store_path))
         phase = "analysis"

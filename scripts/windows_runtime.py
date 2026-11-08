@@ -133,12 +133,12 @@ def trim_runtime(app: Path, *, build_root: Path) -> dict:
     if (
         not app.is_relative_to(build_root.resolve())
         or app == build_root.resolve()
-        or app.name != "LinguaLoop"
+        or app.name != "Shinar"
     ):
-        raise ValueError("Runtime trimming is restricted to a new LinguaLoop build payload")
+        raise ValueError("Runtime trimming is restricted to a new Shinar build payload")
     runtime = app / "runtime"
     qt = runtime / "Lib/site-packages/PySide6"
-    source = runtime / "Lib/site-packages/lingualoop"
+    source = runtime / "Lib/site-packages/shinar"
     paths = list(runtime.rglob("*"))
     if any(p.is_symlink() or not p.resolve().is_relative_to(app) for p in paths):
         raise ValueError("Runtime payload must not contain links")

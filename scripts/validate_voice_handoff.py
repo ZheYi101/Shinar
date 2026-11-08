@@ -19,9 +19,9 @@ sys.path[:0] = [str(ROOT / "src"), str(ROOT / "scripts")]
 
 from PySide6.QtCore import QCoreApplication, QEvent, QMicrophonePermission, QTimer, Qt
 
-from lingualoop.desktop.pcm_audio import PcmAudioBridge
-from lingualoop.desktop.voice import _SpeechRoute
-from lingualoop.realtime.pcm import DeviceFormat, PcmConverter
+from shinar.desktop.pcm_audio import PcmAudioBridge
+from shinar.desktop.voice import _SpeechRoute
+from shinar.realtime.pcm import DeviceFormat, PcmConverter
 import validate_continuous_desktop as desktop_check
 from validate_ui_workspace import click
 
@@ -180,7 +180,7 @@ async def convert_async(audio, target):
 def self_test(vm, window, ws, library, provider, report):
     call = vm.voice.call
     provider.reply_delay = 4
-    window.setTitle("LinguaLoop · 正在自测语音 · 请稍候")
+    window.setTitle("Shinar · 正在自测语音 · 请稍候")
     report.update(
         real_qml=True,
         real_stt=True,
@@ -289,7 +289,7 @@ def self_test(vm, window, ws, library, provider, report):
     call.bridge_factory = None
 
     stage("physical_microphone_and_headphone")
-    window.setTitle("LinguaLoop · 正在检查耳机与麦克风 · 不保存录音")
+    window.setTitle("Shinar · 正在检查耳机与麦克风 · 不保存录音")
     duplex_probe(vm, clips[0], report)
     assert not call.faults, list(call.faults)
     report["voice_faults"] = list(call.faults)
@@ -300,7 +300,7 @@ def self_test(vm, window, ws, library, provider, report):
     click(window, "startDiscussionButton")
     wait_until(lambda: vm.sessionActive and not vm.busy, timeout=120)
     assert call.connectionState == "off" and call.muted
-    window.setTitle("LinguaLoop · 可以复测 · Reazon＋VOICEVOX · Mock 对话")
+    window.setTitle("Shinar · 可以复测 · Reazon＋VOICEVOX · Mock 对话")
     window.raise_()
     window.requestActivate()
     report.update(passed=True, handoff_ready=True, microphone_open=False)

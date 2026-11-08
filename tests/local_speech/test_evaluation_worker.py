@@ -11,7 +11,7 @@ np = pytest.importorskip("numpy")
 
 @pytest.fixture
 def worker(monkeypatch):
-    directory = Path(__file__).resolve().parents[2] / "src/lingualoop/local_speech"
+    directory = Path(__file__).resolve().parents[2] / "src/shinar/local_speech"
     monkeypatch.syspath_prepend(str(directory))
     spec = importlib.util.spec_from_file_location(
         "strict_eval_worker_test", directory / "evaluation_worker.py"

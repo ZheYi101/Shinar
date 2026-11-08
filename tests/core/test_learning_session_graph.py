@@ -1,6 +1,6 @@
 import asyncio
 
-from lingualoop.core import (
+from shinar.core import (
     FeedbackItem,
     LanguageEnum,
     LearningMaterial,
@@ -12,7 +12,7 @@ from lingualoop.core import (
     SessionReview,
     MessageRole,
 )
-from lingualoop.engine.langgraph import build_learning_session_graph
+from shinar.engine.langgraph import build_learning_session_graph
 
 
 class FakeLearningLLMProvider:

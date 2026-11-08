@@ -1,6 +1,6 @@
 # Learning Patterns
 
-本文档定义 LinguaLoop 中 Pattern 的产品语义和早期分类。Pattern 回答“怎么学”，Plugin 回答“能做什么”，Kernel 负责把 Pattern 编译并执行为可追踪的学习会话。
+本文档定义 Shinar 中 Pattern 的产品语义和早期分类。Pattern 回答“怎么学”，Plugin 回答“能做什么”，Kernel 负责把 Pattern 编译并执行为可追踪的学习会话。
 
 当前主旨见 [Project Brief](../product/PROJECT_BRIEF.md)。默认路径是沉浸材料的话题讨论，语音是正式 MVP 的必需能力；`input-lesson` 等流程按需进入，`guided-roleplay` 由用户自愿选择。以下是目标设计，不表示各 Pattern 已实现。
 

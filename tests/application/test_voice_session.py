@@ -4,12 +4,12 @@ import wave
 
 import pytest
 
-from lingualoop.application.learning_workbench import LearningWorkbench
-from lingualoop.application.voice_session import VoiceSessionCoordinator
-from lingualoop.application.speech_text import SpeechTextBuffer
-from lingualoop.core.domain import LanguageEnum, MessageRole, ProficiencyLevel
-from lingualoop.infrastructure import SQLiteStore
-from lingualoop.providers.mock import MockLearningLLMProvider
+from shinar.application.learning_workbench import LearningWorkbench
+from shinar.application.voice_session import VoiceSessionCoordinator
+from shinar.application.speech_text import SpeechTextBuffer
+from shinar.core.domain import LanguageEnum, MessageRole, ProficiencyLevel
+from shinar.infrastructure import SQLiteStore
+from shinar.providers.mock import MockLearningLLMProvider
 
 
 def wav_bytes(rate=16000):
@@ -357,7 +357,7 @@ def test_voice_uses_configured_dialogue_role_and_never_speaks_reasoning(tmp_path
     async def run():
         from langchain_core.messages import AIMessageChunk
         from pydantic import SecretStr
-        from lingualoop.providers.openai_compatible import (
+        from shinar.providers.openai_compatible import (
             OpenAICompatibleLLMProvider,
             OpenAICompatibleLLMSettings,
         )

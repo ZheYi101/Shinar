@@ -173,4 +173,4 @@ P35–38 的对照实验方法可以低成本吸收：未来在同材料、同�
 | `kernel/session_runner.py` | `5457aca88a15fde3c349db81bd99807a3be97855bb50acdad62753a487495350` |
 | `providers/openai_compatible.py` | `757261785bc553bc78be34831aee2ed7927362eee5b1602454556baca617820d` |
 
-上述路径均相对于 `src/lingualoop/`。参考文档的学习方法来源只作为设计背景；本次没有验证 Refold、contextual retrieval 或个人指南对 LinguaLoop 学习收益的有效性，不将它们写成产品实证。
+上述路径均相对于 `src/shinar/`。参考文档的学习方法来源只作为设计背景；本次没有验证 Refold、contextual retrieval 或个人指南对 LinguaLoop 学习收益的有效性，不将它们写成产品实证。

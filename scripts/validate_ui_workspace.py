@@ -40,13 +40,13 @@ from PySide6.QtGui import (
 )
 from PySide6.QtTest import QTest
 
-from lingualoop.application import LearningWorkbench
-from lingualoop.desktop.app import create_engine
-from lingualoop.desktop.preferences import DesktopPreferences
-from lingualoop.desktop.speech_library import SpeechLibraryViewModel
-from lingualoop.desktop.viewmodel import LearningViewModel
-from lingualoop.infrastructure import SQLiteStore
-from lingualoop.providers import MockLearningLLMProvider
+from shinar.application import LearningWorkbench
+from shinar.desktop.app import create_engine
+from shinar.desktop.preferences import DesktopPreferences
+from shinar.desktop.speech_library import SpeechLibraryViewModel
+from shinar.desktop.viewmodel import LearningViewModel
+from shinar.infrastructure import SQLiteStore
+from shinar.providers import MockLearningLLMProvider
 
 
 def synthetic_wav() -> bytes:
@@ -225,7 +225,7 @@ def main():
             QFontDatabase.addApplicationFont(
                 str(Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts" / name)
             )
-    with TemporaryDirectory(prefix="lingualoop-ui-validation-") as directory:
+    with TemporaryDirectory(prefix="shinar-ui-validation-") as directory:
         root = Path(directory)
         prefs = DesktopPreferences(
             QSettings(str(root / "preferences.ini"), QSettings.Format.IniFormat)

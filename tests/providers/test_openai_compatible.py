@@ -3,7 +3,7 @@ import asyncio
 from langchain_core.messages import AIMessage
 from pydantic import SecretStr
 
-from lingualoop.core import (
+from shinar.core import (
     FeedbackItem,
     LanguageEnum,
     LearningMaterial,
@@ -17,7 +17,7 @@ from lingualoop.core import (
     ReviewItemKind,
     SessionUserProfile,
 )
-from lingualoop.providers.openai_compatible import (
+from shinar.providers.openai_compatible import (
     OpenAICompatibleLLMProvider,
     OpenAICompatibleLLMSettings,
     normalize_openai_base_url,

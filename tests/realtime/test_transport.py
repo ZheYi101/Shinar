@@ -4,8 +4,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from lingualoop.realtime import PcmFrame, TurnEvent, TurnRef
-from lingualoop.realtime.livekit_transport import CONTROL_TOPIC, TOPIC, LiveKitTransport
+from shinar.realtime import PcmFrame, TurnEvent, TurnRef
+from shinar.realtime.livekit_transport import CONTROL_TOPIC, TOPIC, LiveKitTransport
 
 
 class FakeRoom:

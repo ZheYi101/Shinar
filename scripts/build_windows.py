@@ -110,7 +110,7 @@ def build_launcher(destination: Path, work: Path, version: str) -> None:
             "/reference:System.Windows.Forms.dll",
             f"/win32icon:{destination / 'app-icon.ico'}",
             f"/win32manifest:{PACKAGING / 'launcher.manifest'}",
-            f"/out:{destination / 'LinguaLoop.exe'}",
+            f"/out:{destination / 'Shinar.exe'}",
             source,
         ]
     )
@@ -139,8 +139,8 @@ def main() -> None:
     project = tomllib.loads((snapshot / "pyproject.toml").read_text(encoding="utf-8"))
     version = project["project"]["version"]
     tools = json.loads((PACKAGING / "toolchain.json").read_text(encoding="utf-8"))
-    artifact_name = f"LinguaLoop-{version}-windows-x64"
-    app = work / "LinguaLoop"
+    artifact_name = f"Shinar-{version}-windows-x64"
+    app = work / "Shinar"
     app.mkdir()
     archive = fetch_verified(tools["python"], build_root / "downloads")
     with tarfile.open(archive, "r:gz") as bundle:
@@ -205,7 +205,7 @@ def main() -> None:
         ]
     )
     for name in ("app-icon.ico", "app-icon.png"):
-        shutil.copy2(snapshot / "src/lingualoop/desktop/assets" / name, app / name)
+        shutil.copy2(snapshot / "src/shinar/desktop/assets" / name, app / name)
     build_launcher(app, work, version)
     shutil.copy2(ROOT / ".env.example", app / ".env.example")
     shutil.copy2(ROOT / "docs/desktop/WINDOWS_DISTRIBUTION.md", app / "使用说明.md")
@@ -237,7 +237,7 @@ def main() -> None:
     with ZipFile(partial_zip, "w", compression=ZIP_DEFLATED, compresslevel=6) as zipped:
         for path in sorted(app.rglob("*")):
             if path.is_file():
-                zipped.write(path, "LinguaLoop/" + path.relative_to(app).as_posix())
+                zipped.write(path, "Shinar/" + path.relative_to(app).as_posix())
     partial_zip.replace(zip_path)
     if args.iscc:
         run(
@@ -247,7 +247,7 @@ def main() -> None:
                 f"/DAppVersion={version}",
                 f"/DSourceDir={app}",
                 f"/DOutputDir={output}",
-                PACKAGING / "LinguaLoop.iss",
+                PACKAGING / "Shinar.iss",
             ]
         )
     results = [zip_path]

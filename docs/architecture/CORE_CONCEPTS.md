@@ -1,10 +1,10 @@
 # Core Concepts
 
-本文档解释 `src/lingualoop/core` 里最基础的业务对象和 Python / Pydantic 写法。它面向刚开始写 core 的项目参与者，帮助大家理解为什么这些概念需要存在，而不是只记住代码长什么样。
+本文档解释 `src/shinar/core` 里最基础的业务对象和 Python / Pydantic 写法。它面向刚开始写 core 的项目参与者，帮助大家理解为什么这些概念需要存在，而不是只记住代码长什么样。
 
 ## Core 的边界
 
-Core 负责定义 LinguaLoop 的稳定学习语义。这里应该放项目长期会依赖的业务对象和协议，例如学习材料、练习会话、消息、反馈、复习项、事件、Pattern contract 和 capability contract。
+Core 负责定义 Shinar 的稳定学习语义。这里应该放项目长期会依赖的业务对象和协议，例如学习材料、练习会话、消息、反馈、复习项、事件、Pattern contract 和 capability contract。
 
 Core 不应该直接绑定 LangGraph、LiveKit、OpenAI SDK、数据库 ORM 或前端框架。那些工具属于 adapter、plugin 或 app 层。这样做的目标是：以后替换 workflow runtime、LLM provider 或存储层时，不需要重写学习数据模型。
 
@@ -14,7 +14,7 @@ Core 不应该直接绑定 LangGraph、LiveKit、OpenAI SDK、数据库 ORM 或�
 
 ```text
 core
-  定义 LinguaLoop 世界里的稳定名词和协议：材料、片段、会话、消息、反馈、复习项、事件、Pattern、Capability、Provider contract。
+  定义 Shinar 世界里的稳定名词和协议：材料、片段、会话、消息、反馈、复习项、事件、Pattern、Capability、Provider contract。
 
 kernel
   定义这些对象如何协作完成一次学习动作：开始会话、选择 Pattern、检查 capability、调用 provider、处理用户消息、写入事件、生成复习项。
@@ -23,7 +23,7 @@ adapter / plugin
   定义外部工具如何接入：LangGraph 怎么跑流程、OpenAI-compatible provider 怎么生成内容、SQLite 怎么存事件、LiveKit 怎么处理语音。
 ```
 
-所以 `kernel` 不是 `core` 的普通实现类。它依赖 core 的对象和协议，但表达的是 LinguaLoop 的流程规则。一个简单判断规则是：
+所以 `kernel` 不是 `core` 的普通实现类。它依赖 core 的对象和协议，但表达的是 Shinar 的流程规则。一个简单判断规则是：
 
 - 换掉 LangGraph、OpenAI、SQLite 后仍然成立的业务对象，放 `core`。
 - 描述“收到用户回答后下一步应该做什么”的流程，放 `kernel`。
@@ -33,9 +33,9 @@ adapter / plugin
 
 ## Agent 的定位
 
-LinguaLoop 的 agent 不负责自由规划任务；它负责执行可声明、可测试、可复盘的语言学习 Pattern。
+Shinar 的 agent 不负责自由规划任务；它负责执行可声明、可测试、可复盘的语言学习 Pattern。
 
-这和通用 coding agent 或任务 agent 不一样。LinguaLoop 的用户交互基本围绕学习材料和练习语句展开，系统需要解决的是一套专一的 language learning loop：输入理解、任务化对话、即时纠错、复述输出和间隔复习。
+这和通用 coding agent 或任务 agent 不一样。Shinar 的用户交互基本围绕学习材料和练习语句展开，系统需要解决的是一套专一的 language learning loop：输入理解、任务化对话、即时纠错、复述输出和间隔复习。
 
 因此项目应该手写领域化的 agent kernel，而不是手写通用 agent harness。灵活度主要由 Pattern 提供：不同 Pattern 决定练习模式、语境、纠错策略、语音或打字、结束条件和复习节奏。Kernel 负责执行这些 Pattern，并把过程记录成稳定的领域对象和事件。
 
@@ -48,7 +48,7 @@ LinguaLoop 的 agent 不负责自由规划任务；它负责执行可声明、�
 推荐演进方向：
 
 ```text
-src/lingualoop/core/
+src/shinar/core/
   base.py          # DomainModel, utc_now, new_id
   enums.py         # MessageRole, SessionStatus, FeedbackType 等枚举
   materials.py     # LearningMaterial, MaterialAnalysis
@@ -65,7 +65,7 @@ src/lingualoop/core/
 
 ## DomainModel
 
-`DomainModel` 是 LinguaLoop 自己的项目级 Pydantic 基类：
+`DomainModel` 是 Shinar 自己的项目级 Pydantic 基类：
 
 ```python
 class DomainModel(BaseModel):
@@ -88,7 +88,7 @@ LearningMaterial(
 )
 ```
 
-这里的 `unexpected` 字段不在模型定义里，因此会触发校验错误。这对 LinguaLoop 很重要，因为 LLM 结构化输出和用户学习数据都应该尽早暴露 schema 漂移问题，不应该静默吞掉未知字段。
+这里的 `unexpected` 字段不在模型定义里，因此会触发校验错误。这对 Shinar 很重要，因为 LLM 结构化输出和用户学习数据都应该尽早暴露 schema 漂移问题，不应该静默吞掉未知字段。
 
 把配置集中到 `DomainModel` 的好处是，所有继承它的领域对象都会共享同一套规则。以后如果需要统一调整 datetime 序列化、赋值校验或 JSON schema 行为，只需要改项目级基类。
 
@@ -162,7 +162,7 @@ class Message(DomainModel):
 
 ## Provider
 
-`LearningLLMProvider` 是 core 依赖的 LLM 能力接口。它不是某个具体模型，也不是某个 SDK，而是一组 LinguaLoop 需要的业务能力：
+`LearningLLMProvider` 是 core 依赖的 LLM 能力接口。它不是某个具体模型，也不是某个 SDK，而是一组 Shinar 需要的业务能力：
 
 ```python
 class LearningLLMProvider(Protocol):
@@ -205,7 +205,7 @@ class EventStore(Protocol):
 
 它不是具体数据库。现在可以有 `InMemoryEventStore`，以后可以换成 `SQLiteEventStore`、`PostgresEventStore` 或文件存储实现。业务 runner 只依赖接口，不关心事件到底存在哪里。
 
-LinguaLoop 需要 EventStore，是因为产品关注的是可复盘学习闭环，不只是最后一条 AI 回复。一次会话中发生过的事件包括：
+Shinar 需要 EventStore，是因为产品关注的是可复盘学习闭环，不只是最后一条 AI 回复。一次会话中发生过的事件包括：
 
 - `session.started`: 会话开始。
 - `message.user_added`: 用户输入了一条消息。
@@ -228,7 +228,7 @@ LinguaLoop 需要 EventStore，是因为产品关注的是可复盘学习闭环�
 
 ## LangGraph 的位置
 
-LangGraph 应该在 `lingualoop.engine.langgraph` 里作为 runtime adapter，而不是进入 `lingualoop.core`。
+LangGraph 应该在 `shinar.engine.langgraph` 里作为 runtime adapter，而不是进入 `shinar.core`。
 
 Core 定义稳定对象和协议；Kernel 负责把学习语义组织成可执行流程；LangGraph adapter 负责用 LangGraph 的 state、node、edge、checkpoint 等机制执行流程。
 

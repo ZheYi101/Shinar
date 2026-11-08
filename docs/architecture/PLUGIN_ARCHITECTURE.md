@@ -2,10 +2,10 @@
 
 ## 核心结论
 
-LinguaLoop 应采用三层扩展架构，而不是把所有东西都做成同一种插件。
+Shinar 应采用三层扩展架构，而不是把所有东西都做成同一种插件。
 
 ```text
-LinguaLoop Core
+Shinar Core
   固定的学习领域核心
 
 Plugins
@@ -25,15 +25,15 @@ Patterns
 fixed learning core + optional plugins + capability-aware patterns
 ```
 
-这意味着 LinguaLoop 可以借鉴通用 agent 系统的插件组合思想，但不能让插件任意改写学习闭环本身，也不能把学习 Pattern 简化成普通能力插件。系统的产品灵活度主要来自 Pattern，而不是来自一个自由规划的大 agent。
+这意味着 Shinar 可以借鉴通用 agent 系统的插件组合思想，但不能让插件任意改写学习闭环本身，也不能把学习 Pattern 简化成普通能力插件。系统的产品灵活度主要来自 Pattern，而不是来自一个自由规划的大 agent。
 
 ## 为什么不是 everything is plugin
 
 Codex、Claude Code、DeepSeek Harness 这类通用 agent 系统的目标是让模型、工具、文件访问、session log、agent loop、UI 等能力服务于开放任务。这个思路适合通用 agent runtime，因为 agent harness 本身就是运行和组合能力的平台。
 
-LinguaLoop 的目标不同。它首先是语言学习产品，关键价值来自稳定的学习闭环：材料输入、任务化练习、即时反馈、结构化复盘和后续复习。用户和 AI 的交互主要围绕练习语句和材料语境展开，不需要 agent 自由决定下一步要完成什么开放任务。如果这些核心语义都变成任意插件行为，产品会很容易失去一致性、可测试性和学习数据可迁移性。
+Shinar 的目标不同。它首先是语言学习产品，关键价值来自稳定的学习闭环：材料输入、任务化练习、即时反馈、结构化复盘和后续复习。用户和 AI 的交互主要围绕练习语句和材料语境展开，不需要 agent 自由决定下一步要完成什么开放任务。如果这些核心语义都变成任意插件行为，产品会很容易失去一致性、可测试性和学习数据可迁移性。
 
-因此 LinguaLoop 的核心应保持较小但稳定，Plugins 通过明确协议接入，Patterns 通过 core 的学习协议运行，并声明自己需要哪些 plugin capability。
+因此 Shinar 的核心应保持较小但稳定，Plugins 通过明确协议接入，Patterns 通过 core 的学习协议运行，并声明自己需要哪些 plugin capability。
 
 ## 分层模型
 
@@ -95,7 +95,7 @@ Core 不导入具体 Plugins 或 Patterns。Patterns 可以依赖 Core contract�
 
 ## 稳定核心
 
-以下概念属于 LinguaLoop core，不应由插件随意替换或改写：
+以下概念属于 Shinar core，不应由插件随意替换或改写：
 
 - UserProfile: 用户语言、目标、偏好设置。
 - LearningMaterial: 学习材料、来源、正文、分析结果。
@@ -196,7 +196,7 @@ Pattern 运行前，runtime 必须检查 required capabilities 是否可用；�
 
 ### 语音插件
 
-语音插件定义实时口语能力，但不应定义学习数据模型，也不直接决定学习流程。LiveKit 适合作为 `voice-livekit` 插件的底层 SDK / runtime dependency，而不是 LinguaLoop 的总基座。
+语音插件定义实时口语能力，但不应定义学习数据模型，也不直接决定学习流程。LiveKit 适合作为 `voice-livekit` 插件的底层 SDK / runtime dependency，而不是 Shinar 的总基座。
 
 ```ts
 interface VoiceSessionProvider {
@@ -317,7 +317,7 @@ avatar-live2d plugin
 LiveKit 应进入 `voice-livekit` 插件，而不是进入 core。
 
 ```text
-LinguaLoop core
+Shinar core
   -> VoiceSessionProvider contract
     -> voice-livekit plugin
       -> LiveKit Agents / LiveKit SDK / selected STT-LLM-TTS providers
@@ -333,19 +333,19 @@ LinguaLoop core
 
 ## DeepSeek Harness 的位置
 
-DeepSeek Harness 可以作为参考对象或实验性 adapter，但不应成为 LinguaLoop 的产品总基座。
+DeepSeek Harness 可以作为参考对象或实验性 adapter，但不应成为 Shinar 的产品总基座。
 
 可接受用法：
 
 - 做 agent loop 和 tool plugin 的原型实验。
-- 写一个 `dsh-plugin-lingualoop` 验证材料分析、对话练习和复盘插件。
+- 写一个 `dsh-plugin-shinar` 验证材料分析、对话练习和复盘插件。
 - 借鉴 Cordis 风格的 service registry、lifecycle 和 reversible registration。
 
 不建议用法：
 
-- 让 LinguaLoop 的核心数据模型依赖 DeepSeek Harness session event。
+- 让 Shinar 的核心数据模型依赖 DeepSeek Harness session event。
 - 让产品 UI 直接绑定 Harness Web UI。
-- 让学习 Pattern 只以 Harness tool 或 skill 的形式存在，缺少 LinguaLoop 自己的 schema 和 capability requirements。
+- 让学习 Pattern 只以 Harness tool 或 skill 的形式存在，缺少 Shinar 自己的 schema 和 capability requirements。
 
 ## MVP 策略
 
@@ -364,4 +364,4 @@ DeepSeek Harness 可以作为参考对象或实验性 adapter，但不应成为 
 
 ## 重新评估条件
 
-当前产品已经明确以沉浸材料驱动语音输出，但这不自动要求更重的 voice subsystem。若后续连续实时会话、恢复和质量管理超出插件边界，再评估是否升级；无论采用哪个 SDK，都应服务于 LinguaLoop 的学习核心。
+当前产品已经明确以沉浸材料驱动语音输出，但这不自动要求更重的 voice subsystem。若后续连续实时会话、恢复和质量管理超出插件边界，再评估是否升级；无论采用哪个 SDK，都应服务于 Shinar 的学习核心。

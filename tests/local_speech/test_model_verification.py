@@ -6,7 +6,7 @@ import wave
 
 import pytest
 
-from lingualoop.local_speech.service import LocalSpeechService
+from shinar.local_speech.service import LocalSpeechService
 
 
 def test_verification_uses_builtin_audio_and_is_cached_per_resident_profile(tmp_path):

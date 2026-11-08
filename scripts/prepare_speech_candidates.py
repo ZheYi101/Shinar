@@ -13,8 +13,8 @@ from pathlib import Path
 
 import httpx
 
-from lingualoop.local_speech.catalog import safe_relative
-from lingualoop.local_speech.storage import atomic_json
+from shinar.local_speech.catalog import safe_relative
+from shinar.local_speech.storage import atomic_json
 
 
 def digest(path: Path) -> str:
@@ -243,8 +243,8 @@ def main() -> None:
                 )
             )
         if "zipformer" in args.families:
-            from lingualoop.local_speech.catalog import load_catalog
-            from lingualoop.local_speech.downloads import ModelStore
+            from shinar.local_speech.catalog import load_catalog
+            from shinar.local_speech.downloads import ModelStore
 
             store = ModelStore(root.parent / "cache")
             package = next(p for p in load_catalog() if p.id == "zipformer-small-zhen-20230216")

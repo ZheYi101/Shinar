@@ -8,14 +8,14 @@ import pytest
 from langchain_core.messages import AIMessage
 from pydantic import SecretStr
 
-from lingualoop.application import LearningWorkbench
-from lingualoop.core import (
+from shinar.application import LearningWorkbench
+from shinar.core import (
     DialoguePreparation, DiscussionTopic, LanguageEnum, LearningMaterial,
     PracticeSession, ProficiencyLevel, SessionUserProfile,
 )
-from lingualoop.infrastructure import SQLiteStore
-from lingualoop.providers.mock import LegacyMockLearningLLMProvider
-from lingualoop.providers.openai_compatible import OpenAICompatibleLLMProvider, OpenAICompatibleLLMSettings
+from shinar.infrastructure import SQLiteStore
+from shinar.providers.mock import LegacyMockLearningLLMProvider
+from shinar.providers.openai_compatible import OpenAICompatibleLLMProvider, OpenAICompatibleLLMSettings
 
 SOURCE = "太郎は駅で花子に会った。二人は旅行について話した。"
 

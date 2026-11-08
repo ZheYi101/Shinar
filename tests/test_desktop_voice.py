@@ -8,10 +8,10 @@ from PySide6.QtCore import QSettings
 from PySide6.QtTest import QTest
 from PySide6.QtMultimedia import QMediaPlayer, QMediaDevices
 
-from lingualoop.application import LearningWorkbench
-from lingualoop.desktop.preferences import DesktopPreferences
-from lingualoop.desktop.viewmodel import LearningViewModel
-from lingualoop.infrastructure import SQLiteStore
+from shinar.application import LearningWorkbench
+from shinar.desktop.preferences import DesktopPreferences
+from shinar.desktop.viewmodel import LearningViewModel
+from shinar.infrastructure import SQLiteStore
 
 from test_desktop_workflow import (
     desktop,
@@ -205,8 +205,8 @@ def test_restart_exposes_pending_reply_without_automatic_request(desktop, tmp_pa
 
 
 def test_native_audio_queue_limits_order_and_stopped_is_not_end(qt_app, monkeypatch):
-    from lingualoop.desktop.audio import AudioController
-    from lingualoop.core.voice import SpeechSegment
+    from shinar.desktop.audio import AudioController
+    from shinar.core.voice import SpeechSegment
     from test_desktop_workflow import pcm_wav
 
     class Player:
@@ -272,7 +272,7 @@ def test_new_audio_preference_is_interactive_at_narrow_width(desktop):
 
 
 def test_worker_job_results_do_not_replace_legacy_completion(qt_app):
-    from lingualoop.desktop.worker import AsyncWorker
+    from shinar.desktop.worker import AsyncWorker
 
     worker, started = AsyncWorker(), Event()
     legacy, jobs = [], []

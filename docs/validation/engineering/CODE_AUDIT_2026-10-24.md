@@ -14,11 +14,11 @@
 
 | 文件 | SHA-256 |
 | --- | --- |
-| `src/lingualoop/core/domain.py` | `D1CCA6818927CD6BD77C77B3AC8FA30F1BDE5651DC9948D5DFDFD1571D4ABEA3` |
-| `src/lingualoop/application/material_preparation.py` | `E31E02D15E83A2CDE7307C057109EE65E806C86E93D43D7B5E51436FF439483B` |
-| `src/lingualoop/application/learning_workbench.py` | `673236D421E34129AA277FBABAD9E2EAD96A1DC3CEF99C53447AB395641E1666` |
-| `src/lingualoop/providers/openai_compatible.py` | `DE8A9FA2D969F0335C794C48CB72C03A2250E180A5043C83C35E42D46C191C5A` |
-| `src/lingualoop/kernel/session_runner.py` | `514E747C5CF9C448AD6D9FAE031693E0019348CA2E90BC4FE2CDA9F02F886DFB` |
+| `src/shinar/core/domain.py` | `D1CCA6818927CD6BD77C77B3AC8FA30F1BDE5651DC9948D5DFDFD1571D4ABEA3` |
+| `src/shinar/application/material_preparation.py` | `E31E02D15E83A2CDE7307C057109EE65E806C86E93D43D7B5E51436FF439483B` |
+| `src/shinar/application/learning_workbench.py` | `673236D421E34129AA277FBABAD9E2EAD96A1DC3CEF99C53447AB395641E1666` |
+| `src/shinar/providers/openai_compatible.py` | `DE8A9FA2D969F0335C794C48CB72C03A2250E180A5043C83C35E42D46C191C5A` |
+| `src/shinar/kernel/session_runner.py` | `514E747C5CF9C448AD6D9FAE031693E0019348CA2E90BC4FE2CDA9F02F886DFB` |
 | `tests/test_prepared_dialogue.py` | `0A059FE6165FBDBF3B60A0FA063409F5AECD802A1F91F4A81C9CCEFEC9D69EFC` |
 
 ## 已确认缺陷
@@ -73,12 +73,12 @@ uv run pytest tests/test_prepared_dialogue.py tests/test_prepared_dialogue_accep
 
 | 文件 | SHA-256 |
 | --- | --- |
-| `src/lingualoop/core/domain.py` | `D1CCA6818927CD6BD77C77B3AC8FA30F1BDE5651DC9948D5DFDFD1571D4ABEA3` |
-| `src/lingualoop/core/preparation_validation.py` | `92978022808653E78A4736C70093641FE673F8906A471E1F7157A7DE5BB50CCE` |
-| `src/lingualoop/application/material_preparation.py` | `F2AD000DE819C7023A65A31A63FD7E38D2DEF24FD54C4A285E9EEA51C74B262C` |
-| `src/lingualoop/application/learning_workbench.py` | `BA36C47CC79F952BE470432F932CBC53775F9CAE55384C51657B4BBF59D0CC26` |
-| `src/lingualoop/providers/openai_compatible.py` | `D869053505395236B03C4F6B68F020C9C7A8A34F22D3E8A355B4C4ADEB73F3E3` |
-| `src/lingualoop/kernel/session_runner.py` | `514E747C5CF9C448AD6D9FAE031693E0019348CA2E90BC4FE2CDA9F02F886DFB` |
+| `src/shinar/core/domain.py` | `D1CCA6818927CD6BD77C77B3AC8FA30F1BDE5651DC9948D5DFDFD1571D4ABEA3` |
+| `src/shinar/core/preparation_validation.py` | `92978022808653E78A4736C70093641FE673F8906A471E1F7157A7DE5BB50CCE` |
+| `src/shinar/application/material_preparation.py` | `F2AD000DE819C7023A65A31A63FD7E38D2DEF24FD54C4A285E9EEA51C74B262C` |
+| `src/shinar/application/learning_workbench.py` | `BA36C47CC79F952BE470432F932CBC53775F9CAE55384C51657B4BBF59D0CC26` |
+| `src/shinar/providers/openai_compatible.py` | `D869053505395236B03C4F6B68F020C9C7A8A34F22D3E8A355B4C4ADEB73F3E3` |
+| `src/shinar/kernel/session_runner.py` | `514E747C5CF9C448AD6D9FAE031693E0019348CA2E90BC4FE2CDA9F02F886DFB` |
 | `tests/providers/test_preparation_validation.py` | `3873E83A9FD9F130EB4969402C1E809764C704CDDF661EB1FD48EAB5B9CC043B` |
 
 独立命令：
@@ -113,12 +113,12 @@ uv run pytest tests/providers/test_preparation_validation.py tests/providers/tes
 
 | 文件 | SHA-256 |
 | --- | --- |
-| `src/lingualoop/core/domain.py` | `D1CCA6818927CD6BD77C77B3AC8FA30F1BDE5651DC9948D5DFDFD1571D4ABEA3` |
-| `src/lingualoop/core/preparation_validation.py` | `92978022808653E78A4736C70093641FE673F8906A471E1F7157A7DE5BB50CCE` |
-| `src/lingualoop/application/material_preparation.py` | `F2AD000DE819C7023A65A31A63FD7E38D2DEF24FD54C4A285E9EEA51C74B262C` |
-| `src/lingualoop/application/learning_workbench.py` | `BA36C47CC79F952BE470432F932CBC53775F9CAE55384C51657B4BBF59D0CC26` |
-| `src/lingualoop/providers/openai_compatible.py` | `6ECFDD33B9F405775F0BC36EC536611F7C44A99DDE41CCA48CC373CE6994614C` |
-| `src/lingualoop/kernel/session_runner.py` | `5457ACA88A15FDE3C349DB81BD99807A3BE97855BB50ACDAD62753A487495350` |
+| `src/shinar/core/domain.py` | `D1CCA6818927CD6BD77C77B3AC8FA30F1BDE5651DC9948D5DFDFD1571D4ABEA3` |
+| `src/shinar/core/preparation_validation.py` | `92978022808653E78A4736C70093641FE673F8906A471E1F7157A7DE5BB50CCE` |
+| `src/shinar/application/material_preparation.py` | `F2AD000DE819C7023A65A31A63FD7E38D2DEF24FD54C4A285E9EEA51C74B262C` |
+| `src/shinar/application/learning_workbench.py` | `BA36C47CC79F952BE470432F932CBC53775F9CAE55384C51657B4BBF59D0CC26` |
+| `src/shinar/providers/openai_compatible.py` | `6ECFDD33B9F405775F0BC36EC536611F7C44A99DDE41CCA48CC373CE6994614C` |
+| `src/shinar/kernel/session_runner.py` | `5457ACA88A15FDE3C349DB81BD99807A3BE97855BB50ACDAD62753A487495350` |
 | `tests/providers/test_preparation_validation.py` | `672B40E5584B35B199518BA4677A607977DF8BF212B78E182724C3CDE8B05229` |
 | `tests/test_prepared_dialogue.py` | `DA9A5721529D22D26D51270F15ED88EA1A5456A48117F557B4D8438A6175806A` |
 
@@ -143,16 +143,16 @@ uv run pytest tests/providers/test_preparation_validation.py tests/kernel/test_s
 
 ## 新增本机 realtime 探针窄审查
 
-本节是独立的新模块快照，不扩大前文文本后端结论。范围为 `src/lingualoop/realtime/*`、`tests/realtime/*`，并只读核对 `scripts/probe_livekit.py` 的异常清理交接。未修改实现、ROADMAP 或任何测试；未启动 RTC server、未下载 SDK/server、未执行真实 AI/语音调用。实现由 `livekit_probe` 独占。
+本节是独立的新模块快照，不扩大前文文本后端结论。范围为 `src/shinar/realtime/*`、`tests/realtime/*`，并只读核对 `scripts/probe_livekit.py` 的异常清理交接。未修改实现、ROADMAP 或任何测试；未启动 RTC server、未下载 SDK/server、未执行真实 AI/语音调用。实现由 `livekit_probe` 独占。
 
 最终窄审查快照 SHA-256：
 
 | 文件 | SHA-256 |
 | --- | --- |
-| `src/lingualoop/realtime/__init__.py` | `8B44FA3A73E2926DD307409FDA82006C460F229C5E0DD5719D6778ECBD231E65` |
-| `src/lingualoop/realtime/protocol.py` | `DBD1AE6A61332A67503149D350D752E4B7AF40A909D4DBC9209BFCB7DE746F8B` |
-| `src/lingualoop/realtime/livekit_transport.py` | `9367B95831B5782474CF82547B3B40BE7A1D9477DF28270DBFA381836048260D` |
-| `src/lingualoop/realtime/local_server.py` | `7A2E49E8CC7DBB127F80B1D367E00F8A50C47FBB92B670153C3B5DAEF730C9E4` |
+| `src/shinar/realtime/__init__.py` | `8B44FA3A73E2926DD307409FDA82006C460F229C5E0DD5719D6778ECBD231E65` |
+| `src/shinar/realtime/protocol.py` | `DBD1AE6A61332A67503149D350D752E4B7AF40A909D4DBC9209BFCB7DE746F8B` |
+| `src/shinar/realtime/livekit_transport.py` | `9367B95831B5782474CF82547B3B40BE7A1D9477DF28270DBFA381836048260D` |
+| `src/shinar/realtime/local_server.py` | `7A2E49E8CC7DBB127F80B1D367E00F8A50C47FBB92B670153C3B5DAEF730C9E4` |
 | `tests/realtime/test_protocol.py` | `5FB65D9BCBDA8BD11D4D541C21D93A4284C6064C1882697A2ABAF93F76F37354` |
 | `tests/realtime/test_transport.py` | `DCE6E08194B0D971806F3480733A68A535C16F3DCB87EEA2AD6F46C1BCC3ED0B` |
 | `scripts/probe_livekit.py` | `A78E9C331A5191474C07E53AFF707A138C34A88F22AABB77A84F275CD0612B37` |
@@ -195,10 +195,10 @@ uv run pytest tests/realtime -q
 
 | 文件 | SHA-256 |
 | --- | --- |
-| `src/lingualoop/realtime/protocol.py` | `DBD1AE6A61332A67503149D350D752E4B7AF40A909D4DBC9209BFCB7DE746F8B` |
-| `src/lingualoop/realtime/livekit_transport.py` | `AFBC81ED4F4D7641D2FD59EF60A5DF470CB42BE236595645CCBB14943B9DB3DB` |
-| `src/lingualoop/realtime/local_server.py` | `888FB5831CEB237E76775136006D99BC2A570121EDB3B524ED2E35430235D887` |
-| `src/lingualoop/realtime/diagnostics.py` | `901937C37E9E8F9F9B58F9A29DD593317EE44B71D5E3A9BA0D4030D421CAA3D1` |
+| `src/shinar/realtime/protocol.py` | `DBD1AE6A61332A67503149D350D752E4B7AF40A909D4DBC9209BFCB7DE746F8B` |
+| `src/shinar/realtime/livekit_transport.py` | `AFBC81ED4F4D7641D2FD59EF60A5DF470CB42BE236595645CCBB14943B9DB3DB` |
+| `src/shinar/realtime/local_server.py` | `888FB5831CEB237E76775136006D99BC2A570121EDB3B524ED2E35430235D887` |
+| `src/shinar/realtime/diagnostics.py` | `901937C37E9E8F9F9B58F9A29DD593317EE44B71D5E3A9BA0D4030D421CAA3D1` |
 | `scripts/probe_livekit.py` | `B09067FD08C573A04ED986446CD280AC0E08413E281DB050FA4958C760FFAFA4` |
 | `tests/realtime/test_protocol.py` | `5FB65D9BCBDA8BD11D4D541C21D93A4284C6064C1882697A2ABAF93F76F37354` |
 | `tests/realtime/test_transport.py` | `C093486BD0FAA52DCFA9E24AC162E554FF8785079714AB4BC87AA55B5C907443` |

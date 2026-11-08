@@ -296,6 +296,6 @@ flowchart TD
 
 - [Lost in the Middle](https://arxiv.org/abs/2307.03172)：长输入中相关信息的位置会影响其所测模型／任务的表现，不能由可容纳长上下文推导有效利用。它不直接证明本项目某一压缩率最优。
 - [RAPTOR](https://arxiv.org/abs/2401.18059)：研究跨层次摘要检索长文档，支持保留整体和局部视角。本方案不默认引入其完整聚类与检索管线，也不外推其问答成绩为聊天质量。
-- [Contextual Retrieval](https://www.anthropic.com/research/contextual-retrieval)：说明孤立片段丢失上下文的问题，支持带来源背景的局部资料。其模型、语料、候选数量和性能数据不直接作为 LinguaLoop 参数。
+- [Contextual Retrieval](https://www.anthropic.com/research/contextual-retrieval)：说明孤立片段丢失上下文的问题，支持带来源背景的局部资料。其模型、语料、候选数量和性能数据不直接作为 Shinar 参数。
 
 上述来源已在方案讨论时核读，不以其论文成绩代替本项目验收。供应商价格、现有模型延迟和真实质量仍以相应版本与本机实验为准。

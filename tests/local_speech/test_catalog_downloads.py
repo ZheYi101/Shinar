@@ -6,8 +6,8 @@ from threading import Event
 import httpx
 import pytest
 
-from lingualoop.local_speech.catalog import Artifact, ModelPackage, load_catalog
-from lingualoop.local_speech.downloads import DownloadCancelled, ModelStore, package_lock
+from shinar.local_speech.catalog import Artifact, ModelPackage, load_catalog
+from shinar.local_speech.downloads import DownloadCancelled, ModelStore, package_lock
 
 
 def package(content=b"model", **artifact_overrides):

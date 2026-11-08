@@ -13,11 +13,11 @@ from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
-from lingualoop.local_speech import adapter_revision
-from lingualoop.local_speech.catalog import ModelPackage, load_catalog
-from lingualoop.local_speech.downloads import ModelStore, package_lock
-from lingualoop.local_speech.hardware import detect_hardware
-from lingualoop.local_speech.storage import atomic_json
+from shinar.local_speech import adapter_revision
+from shinar.local_speech.catalog import ModelPackage, load_catalog
+from shinar.local_speech.downloads import ModelStore, package_lock
+from shinar.local_speech.hardware import detect_hardware
+from shinar.local_speech.storage import atomic_json
 
 
 def sha256(path: Path) -> str:
@@ -127,7 +127,7 @@ def main() -> None:
         .read_text(encoding="utf-8")
     )
     worker = (
-        Path(__file__).resolve().parents[1] / "src/lingualoop/local_speech/evaluation_worker.py"
+        Path(__file__).resolve().parents[1] / "src/shinar/local_speech/evaluation_worker.py"
     )
     snapshot = run_dir / "source_snapshot"
     snapshot.mkdir(exist_ok=True)

@@ -1,5 +1,5 @@
-import lingualoop
+import shinar
 
 
 def test_package_imports() -> None:
-    assert lingualoop.__doc__
+    assert shinar.__doc__

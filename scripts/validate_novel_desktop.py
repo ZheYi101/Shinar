@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src'))
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 os.environ.setdefault('QT_QUICK_BACKEND', 'software')
-os.environ['LINGUALOOP_KIRIGAMI_MODE'] = 'off'
+os.environ['SHINAR_KIRIGAMI_MODE'] = 'off'
 
 
 def main():
@@ -34,19 +34,19 @@ def main():
     from PySide6.QtGui import QFontDatabase, QGuiApplication
     from PySide6.QtQuick import QQuickItem, QQuickWindow
     from PySide6.QtTest import QTest
-    from lingualoop.application import LearningWorkbench
-    from lingualoop.desktop.app import create_engine
-    from lingualoop.desktop.preferences import DesktopPreferences
-    from lingualoop.desktop.viewmodel import LearningViewModel
-    from lingualoop.infrastructure import SQLiteStore
-    from lingualoop.providers.openai_compatible import OpenAICompatibleLLMProvider
+    from shinar.application import LearningWorkbench
+    from shinar.desktop.app import create_engine
+    from shinar.desktop.preferences import DesktopPreferences
+    from shinar.desktop.viewmodel import LearningViewModel
+    from shinar.infrastructure import SQLiteStore
+    from shinar.providers.openai_compatible import OpenAICompatibleLLMProvider
     from benchmark_prepared_dialogue import AuditClient
 
     output = args.data_dir / ('desktop-inspection' if args.inspect_only else 'desktop')
     if not (args.data_dir / 'novel.sqlite3').is_file():
         raise ValueError('Prepare the novel database first.')
     output.mkdir(parents=True, exist_ok=True)
-    database = output / 'lingualoop.sqlite3'
+    database = output / 'shinar.sqlite3'
     if database.exists() and not args.inspect_only:
         raise ValueError('Desktop validation copy already exists; choose a fresh data directory or inspect it before rerunning.')
     if not database.exists():

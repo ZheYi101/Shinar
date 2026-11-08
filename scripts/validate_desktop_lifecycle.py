@@ -11,18 +11,18 @@ from tempfile import TemporaryDirectory
 
 os.environ["RUN_REAL_AI_TESTS"] = "0"
 os.environ.setdefault("QT_QUICK_BACKEND", "software")
-os.environ["LINGUALOOP_KIRIGAMI_MODE"] = "off"
+os.environ["SHINAR_KIRIGAMI_MODE"] = "off"
 
 from PySide6.QtCore import QPointF, QSettings, Qt, QTimer
 from PySide6.QtGui import QCursor
 from PySide6.QtTest import QTest
 
-from lingualoop.application import LearningWorkbench
-from lingualoop.desktop.app import _load_qt, create_engine
-from lingualoop.desktop.preferences import DesktopPreferences
-from lingualoop.desktop.viewmodel import LearningViewModel
-from lingualoop.infrastructure import SQLiteStore
-from lingualoop.providers import MockLearningLLMProvider
+from shinar.application import LearningWorkbench
+from shinar.desktop.app import _load_qt, create_engine
+from shinar.desktop.preferences import DesktopPreferences
+from shinar.desktop.viewmodel import LearningViewModel
+from shinar.infrastructure import SQLiteStore
+from shinar.providers import MockLearningLLMProvider
 from validate_ui_workspace import SyntheticAudio, click, visible_item
 
 
@@ -36,7 +36,7 @@ def main() -> None:
     app = qt["QApplication"]([])
     results, errors = [], []
     state = {"completed": False, "delivered_while_hidden": False}
-    with TemporaryDirectory(prefix="lingualoop-lifecycle-") as directory:
+    with TemporaryDirectory(prefix="shinar-lifecycle-") as directory:
         root = Path(directory)
         prefs = DesktopPreferences(QSettings(str(root / "prefs.ini"), QSettings.Format.IniFormat))
         vm = LearningViewModel(

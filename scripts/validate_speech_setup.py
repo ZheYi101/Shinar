@@ -22,13 +22,13 @@ from PySide6.QtGui import QGuiApplication, QFontDatabase
 from PySide6.QtTest import QTest
 from PySide6.QtMultimedia import QMediaPlayer
 
-from lingualoop.application import LearningWorkbench
-from lingualoop.desktop.app import create_engine
-from lingualoop.desktop.preferences import DesktopPreferences
-from lingualoop.desktop.speech_library import SpeechLibraryViewModel
-from lingualoop.desktop.viewmodel import LearningViewModel
-from lingualoop.infrastructure import SQLiteStore
-from lingualoop.providers import MockLearningLLMProvider
+from shinar.application import LearningWorkbench
+from shinar.desktop.app import create_engine
+from shinar.desktop.preferences import DesktopPreferences
+from shinar.desktop.speech_library import SpeechLibraryViewModel
+from shinar.desktop.viewmodel import LearningViewModel
+from shinar.infrastructure import SQLiteStore
+from shinar.providers import MockLearningLLMProvider
 from validate_local_speech_desktop import click, find_item
 
 
@@ -58,7 +58,7 @@ def main(args):
         window_settings=QSettings(str(root / "window.ini"), QSettings.Format.IniFormat),
     )
     window, workspace = engine.rootObjects()[0], engine.workspace
-    window.setTitle("LinguaLoop · 本地语音设置独立验证")
+    window.setTitle("Shinar · 本地语音设置独立验证")
     window.setWidth(1180)
     window.setHeight(900)
     window.show()

@@ -1,6 +1,18 @@
-# LinguaLoop
+# Shinar
 
-LinguaLoop 是一个把沉浸式输入转化为语音输出练习的开源语言学习伙伴。**沉浸提供语境，LinguaLoop 帮你练输出。** 看番、追视频、听播客或读文章后，确认已读范围后直接围绕共同内容自由聊天，AI 再按兴趣补充参考和可选方向；也可以自愿进入语境 roleplay。
+<img src="src/shinar/desktop/assets/app-icon.svg" width="88" height="88" alt="Shinar：层叠的巴别塔与对话意象" />
+
+Shinar 是一个把沉浸式输入转化为语音输出练习的开源语言学习伙伴。**沉浸提供语境，Shinar 帮你练输出。** 看番、追视频、听播客或读文章后，确认已读范围后直接围绕共同内容自由聊天，AI 再按兴趣补充参考和可选方向；也可以自愿进入语境 roleplay。
+
+## 名称出处
+
+**Shinar** 取自《圣经·创世记》**11:2** 的地名，中文《和合本》译作“示拿”。在《创世记》11:1–9 的巴别塔故事中，人们来到示拿地的一片平原定居，并在那里建城造塔；随后语言被变乱，人群分散。**Shinar 是故事发生的地域，巴别（Babel）是经文 11:9 所记的城名。** 出处可对照[中文《和合本》第十一章](https://zh.wikisource.org/wiki/%E8%81%96%E7%B6%93_%28%E5%92%8C%E5%90%88%E6%9C%AC%29/%E5%89%B5%E4%B8%96%E8%A8%98#第十一章)与[英文 NIV《创世记》11:1–9](https://www.biblegateway.com/passage/?search=Genesis%2011%3A1-9&version=NIV)。
+
+我们借用故事中“共同生活与语言分隔”的意象，为项目赋予这样的寓意：**让熟悉的内容成为共同语境，练习用正在学习的语言表达，与对方交流。** 这层寓意是项目的品牌解读；Shinar 在原典中是地名，不能把它解释成字面意为“语言”“理解”或“练习”。
+
+Logo 采用层叠圆塔、上升回廊、拱洞与未完成塔顶，塔基末端结合对话气泡；图形以巴别塔的绘画意象表达名称出处，沿用暖纸与灰绿配色。[图标说明](./src/shinar/desktop/assets/README.md)记录视觉参考与 SVG／Windows 图标导出方式。
+
+项目于 2026-11-08 定名为 Shinar，原名 LinguaLoop。[命名记录](./docs/product/NAMING.md)说明出处、寓意及迁移范围。当前 Python 包与命令使用 `shinar`，环境变量使用 `SHINAR_*`，GitHub 仓库为 [ZheYi101/Shinar](https://github.com/ZheYi101/Shinar)。旧名称只在历史记录和兼容读取边界保留。
 
 ## 当前状态
 
@@ -23,10 +35,12 @@ Windows 0.1.3 起按实际依赖裁剪私有运行时，去除 Qt 调试资源�
 需要 Python ≥3.11 与 `uv`。在仓库根目录运行：
 
 ```powershell
+git clone https://github.com/ZheYi101/Shinar.git
+cd Shinar
 uv sync --dev --extra desktop
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 # 编辑 .env，填写自己的端点、API Key 和模型 ID，再启动。
-uv run lingualoop-desktop
+uv run shinar-desktop
 ```
 
 配置不完整时仍可查看本地材料和历史，需要模型的操作会提示配置问题。修改端点、密钥、模型或语音配置后，关闭应用再启动即可读取新配置，已有本地资料会保留。纯文本讨论不需要先配置 STT/TTS。
@@ -41,7 +55,7 @@ uv run lingualoop-desktop
 
 基础理解预算按授权范围估算 T：输入 `2T+16000`，输出 `max(16000,0.75T)`；会话后台输入／输出 `32000/8192`、八次请求保护、单任务最多 45 秒。请求前事务预留，服务回报后结算；未知失败／取消保留预留，重启不重置。当前预算为代码默认值，不新增个人环境配置。普通对话和复盘分项记录；这些额度不是货币价格承诺。
 
-隔离验证时可使用 `scripts/desktop_session_probe.py --settings-dir build/probe-settings --output build/probe-output`，配合 `LINGUALOOP_DATA_DIR` 指向工作区临时库。`--mock` 使用离线服务；真实调用另需 `--real` 与 `RUN_REAL_AI_TESTS=1`。探针以实际 Qt 输入事件操作可见窗口，不直接注入历史。
+隔离验证时可使用 `scripts/desktop_session_probe.py --settings-dir build/probe-settings --output build/probe-output`，配合 `SHINAR_DATA_DIR` 指向工作区临时库。`--mock` 使用离线服务；真实调用另需 `--real` 与 `RUN_REAL_AI_TESTS=1`。探针以实际 Qt 输入事件操作可见窗口，不直接注入历史。
 
 Prompt、检索与成本的最新结果见[语义准备实测](docs/validation/text/SEMANTIC_PREPARATION_2026-10-28.md)，零模型初始索引的历史结果见[自由聊天修订记录](docs/validation/text/FREE_CHAT_2026-10-28.md)。本地词项与语义笔记检索仍可能漏召回，不能把精确引用匹配等同于解释正确。
 
@@ -64,7 +78,7 @@ WebEngine 仅承担 EPUB 显示，沿用 `desktop` 依赖，无需另装浏览�
 
 ## 产品方向
 
-LinguaLoop 面向已经在进行沉浸输入、希望把熟悉内容转化为口语表达的学习者。用户继续按兴趣消费内容，项目负责提供有共同语境的输出机会。默认先讨论内容，roleplay 可选；学习方法和反馈节奏逐步支持配置。
+Shinar 面向已经在进行沉浸输入、希望把熟悉内容转化为口语表达的学习者。用户继续按兴趣消费内容，项目负责提供有共同语境的输出机会。默认先讨论内容，roleplay 可选；学习方法和反馈节奏逐步支持配置。
 
 核心学习闭环：
 
@@ -94,6 +108,8 @@ LinguaLoop 面向已经在进行沉浸输入、希望把熟悉内容转化为口
 - [CONTRIBUTING.md](./CONTRIBUTING.md): 开源贡献规范
 
 ## 本地验证
+
+完整更名后使用 `shinar`／`shinar-desktop` 命令。现有 `.env` 的 `LINGUALOOP_*` 仍可读取；同名 `SHINAR_*` 优先，显式空值也不会恢复旧值。已有旧库及其 EPUB 原件目录原地复用，不自动搬移个人数据；全新安装默认使用 `%LOCALAPPDATA%\Shinar\shinar.sqlite3`，偏好写入 Shinar 命名空间并按键回读旧偏好。详情见[更名记录](./docs/product/NAMING.md#完整工程迁移)。
 
 桌面对话展示采用只读快照和单一事件入口；控制器修改时须保留任务失效及新草稿保护，契约见[系统架构](./docs/architecture/ARCHITECTURE.md#执行并发与失效)。维护性测试同时检查文件／函数大小和展示更新边界。
 
@@ -192,10 +208,10 @@ $env:RUN_REAL_AI_TESTS='0'
 命令行原型读取与桌面相同的模型配置，用于验证闭环：
 
 ```powershell
-uv run lingualoop
+uv run shinar
 ```
 
-如果还没同步依赖，先执行 `uv sync --dev`。需要离线 Mock 时，使用下方桌面调试的独立数据目录示例，将启动命令改成 `uv run lingualoop --mock`。
+如果还没同步依赖，先执行 `uv sync --dev`。需要离线 Mock 时，使用下方桌面调试的独立数据目录示例，将启动命令改成 `uv run shinar --mock`。
 
 常用命令：
 
@@ -226,18 +242,18 @@ uv sync --extra desktop
 启动桌面工作台。桌面端默认使用真实 OpenAI-compatible provider，并读取当前工作目录 `.env` 或系统环境变量中的 `OPENAI_*` 配置：
 
 ```powershell
-uv run lingualoop-desktop
+uv run shinar-desktop
 ```
 
 离线调试时可以显式使用 Mock provider。用独立数据目录保存演示内容，退出后恢复原配置：
 
 ```powershell
-$linguaPreviousDataDir = $env:LINGUALOOP_DATA_DIR
+$shinarPreviousDataDir = $env:SHINAR_DATA_DIR
 try {
-    $env:LINGUALOOP_DATA_DIR = Join-Path $PWD 'build/mock-library'
-    uv run lingualoop-desktop --mock
+    $env:SHINAR_DATA_DIR = Join-Path $PWD 'build/mock-library'
+    uv run shinar-desktop --mock
 } finally {
-    $env:LINGUALOOP_DATA_DIR = $linguaPreviousDataDir
+    $env:SHINAR_DATA_DIR = $shinarPreviousDataDir
 }
 ```
 
@@ -258,9 +274,9 @@ EPUB 按书内 spine 阅读顺序抽取文字并去除 ruby 注音、脚本与�
 
 ### 旧版显式材料准备工具
 
-该路径先保存原文，再分段整理：小材料每段最多 12000 字符，超过 120000 字符的长篇每段最多 24000 字符。默认单份预算 1000000 字符，可用 `LINGUALOOP_MAX_MATERIAL_CHARS` 调整到 12000–5000000，超限保留原文并提示。DeepSeek 推理角色的分段任务采用思考模式 low、16000 tokens，明确截断时最多再以 24000 重试一次；默认同时处理 3 段（`LINGUALOOP_PREPARATION_CONCURRENCY=1–4`）。完成即保存摘要、人物、事件、话题、精确引用和哈希。最后用全部有序笔记做整书汇总（low、24000 tokens；明确截断时最多以 32000 重试一次），贯通结局、合并人物并准备跨章节话题，预制题最多保留 60 个，用户后续自定义题另行保存。网络或汇总失败后重新分析会复用已完成段落。多次模型调用会产生相应费用，取消请求不保证服务停止计费。
+该路径先保存原文，再分段整理：小材料每段最多 12000 字符，超过 120000 字符的长篇每段最多 24000 字符。默认单份预算 1000000 字符，可用 `SHINAR_MAX_MATERIAL_CHARS` 调整到 12000–5000000，超限保留原文并提示。DeepSeek 推理角色的分段任务采用思考模式 low、16000 tokens，明确截断时最多再以 24000 重试一次；默认同时处理 3 段（`SHINAR_PREPARATION_CONCURRENCY=1–4`）。完成即保存摘要、人物、事件、话题、精确引用和哈希。最后用全部有序笔记做整书汇总（low、24000 tokens；明确截断时最多以 32000 重试一次），贯通结局、合并人物并准备跨章节话题，预制题最多保留 60 个，用户后续自定义题另行保存。网络或汇总失败后重新分析会复用已完成段落。多次模型调用会产生相应费用，取消请求不保证服务停止计费。
 
-单次分析运行总预算默认 1800 秒，可用 `LINGUALOOP_PREPARATION_DEADLINE_SECONDS` 调整；一般非流式调用另有默认 240 秒 wall deadline（`OPENAI_REASONING_DEADLINE_SECONDS`），整书汇总单独默认 600 秒（`OPENAI_SYNTHESIS_DEADLINE_SECONDS`），超时保留完成段落。这些预算不让前台 Flash 等待后台推理。整书汇总成功才允许开聊。话题含开场问题、候选用户意图、回答要点、短回复、追问和原文引用。
+单次分析运行总预算默认 1800 秒，可用 `SHINAR_PREPARATION_DEADLINE_SECONDS` 调整；一般非流式调用另有默认 240 秒 wall deadline（`OPENAI_REASONING_DEADLINE_SECONDS`），整书汇总单独默认 600 秒（`OPENAI_SYNTHESIS_DEADLINE_SECONDS`），超时保留完成段落。这些预算不让前台 Flash 等待后台推理。整书汇总成功才允许开聊。话题含开场问题、候选用户意图、回答要点、短回复、追问和原文引用。
 
 前台只调用对话角色。除当前题的预制分支、可用后台资料外，本地按当前发言在已保存的全书准备资料中选择相关情节和人物；不在前台做整书推理或搜索原文。上下文保留整书概要、最多 48 段简短索引、最近十条消息与少量早期读者观点，当前改口优先。单条发言上限 4000 字符，对话输出上限 160 tokens。证据集中去重，当前发言只传一次；传给模型的章节编号替代无对话意义的长 ID，数据库仍保留稳定来源 ID。回复以简短、具体的日常交流为目标，不要求每轮提问或变成理解测验。
 
@@ -272,9 +288,9 @@ EPUB 按书内 spine 阅读顺序抽取文字并去除 ruby 注音、脚本与�
 
 ### 本地数据与历史
 
-默认本地数据保存在平台应用数据目录下的 `LinguaLoop/lingualoop.sqlite3`，可通过 `LINGUALOOP_DATA_DIR` 覆盖。外观与新会话偏好使用 QSettings；凭据保留在本地环境。可选 Kirigami 的兼容性见 [QML runtime](./docs/desktop/QML_RUNTIME.md)。
+默认本地数据保存在平台应用数据目录下的 `Shinar/shinar.sqlite3`，可通过 `SHINAR_DATA_DIR` 覆盖。外观与新会话偏好使用 QSettings；凭据保留在本地环境。可选 Kirigami 的兼容性见 [QML runtime](./docs/desktop/QML_RUNTIME.md)。
 
-Windows 默认路径为 `%LOCALAPPDATA%\LinguaLoop\lingualoop.sqlite3`。SQLite 使用 WAL 和按操作连接，保存原文、整理资料、已确认消息、复盘及事件。缓存按原文 SHA256、标题、源语言、学习语言/水平、推理服务/模型和准备版本隔离，不含密钥或文件路径。相同标题、内容、源语言与学习配置的材料重复导入复用原记录；已经完成的资料在切换模型后也会保留，不自动重复付费分析，显式重新分析才按当前模型查找或生成对应缓存。不完整缓存先展示，再由“继续整理”恢复。完整缓存不被较旧的部分进度覆盖，自定义题与历史不会被旧缓存覆盖。EPUB 标题优先读取书内元数据。
+Windows 默认路径为 `%LOCALAPPDATA%\Shinar\shinar.sqlite3`。SQLite 使用 WAL 和按操作连接，保存原文、整理资料、已确认消息、复盘及事件。缓存按原文 SHA256、标题、源语言、学习语言/水平、推理服务/模型和准备版本隔离，不含密钥或文件路径。相同标题、内容、源语言与学习配置的材料重复导入复用原记录；已经完成的资料在切换模型后也会保留，不自动重复付费分析，显式重新分析才按当前模型查找或生成对应缓存。不完整缓存先展示，再由“继续整理”恢复。完整缓存不被较旧的部分进度覆盖，自定义题与历史不会被旧缓存覆盖。EPUB 标题优先读取书内元数据。
 
 对话页“历史对话”按当前材料显示全部已保存会话，可恢复旧线程；完成的会话只读。正常重启恢复最近会话并显示对话页。当前草稿在页面/线程切换间保留于内存，未发送草稿不写数据库。数据库及相邻 `-wal`、`-shm` 文件均含本地敏感数据，备份或迁移前先关闭软件。
 
@@ -302,7 +318,7 @@ $env:RUN_REAL_AI_TESTS='1'
 语义方案的隔离实机验证与回放工具：
 
 ```powershell
-$env:LINGUALOOP_DATA_DIR=Join-Path $PWD 'build/semantic-validation/app-library'
+$env:SHINAR_DATA_DIR=Join-Path $PWD 'build/semantic-validation/app-library'
 $env:RUN_REAL_AI_TESTS='1'
 .venv\Scripts\python.exe scripts/desktop_session_probe.py --real --qt-dialogs --settings-dir build/semantic-validation/settings --output build/semantic-validation/native --request-ledger build/semantic-validation/requests.sqlite3 --request-limit 100
 ```
@@ -315,8 +331,8 @@ Windows 分发支持免安装 ZIP 和当前用户安装 EXE，包含私有 Pytho
 
 ```powershell
 uv build --wheel --out-dir build/package-check
-$linguaWheel = Get-ChildItem build/package-check/*.whl | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-.venv\Scripts\python.exe scripts/check_wheel_resources.py $linguaWheel.FullName
+$shinarWheel = Get-ChildItem build/package-check/*.whl | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+.venv\Scripts\python.exe scripts/check_wheel_resources.py $shinarWheel.FullName
 ```
 
 该检查从隔离目录加载安装包资源，不替代真实服务、交互质量和真人语音验收。
@@ -343,7 +359,7 @@ uv sync --dev --extra desktop --extra realtime
 
 ### 现有分轮语音
 
-在本地 `.env` 中分别配置 `LINGUALOOP_STT_BASE_URL/API_KEY/MODEL`、`LINGUALOOP_TTS_BASE_URL/API_KEY/MODEL/VOICE`；首次配置可复制 `.env.example`，保留已有配置。STT 使用 `/audio/transcriptions`，TTS 使用 `/audio/speech` 并请求 PCM WAV；服务需要兼容这些接口。模型和 voice 使用服务实际提供的 ID，文本中转服务不一定提供音频能力。修改配置后重启应用。`--mock` 明确禁用真实语音服务。
+在本地 `.env` 中分别配置 `SHINAR_STT_BASE_URL/API_KEY/MODEL`、`SHINAR_TTS_BASE_URL/API_KEY/MODEL/VOICE`；首次配置可复制 `.env.example`，保留已有配置。STT 使用 `/audio/transcriptions`，TTS 使用 `/audio/speech` 并请求 PCM WAV；服务需要兼容这些接口。模型和 voice 使用服务实际提供的 ID，文本中转服务不一定提供音频能力。修改配置后重启应用。`--mock` 明确禁用真实语音服务。
 
 确认材料范围并开始对话后，点击“开始语音”，最多录制 60 秒；点击“结束并发送”后自动识别和提交，无需再次确认。回复流式显示并逐句朗读，可停止本轮朗读而继续文字生成；文字草稿独立保留。音频设置中可关闭默认自动朗读，识别、回复和朗读失败分别重试。详细配置、隐私边界及真人验收步骤见 [分轮语音指南](./docs/desktop/VOICE.md)。
 
@@ -355,7 +371,7 @@ uv sync --dev --extra desktop --extra realtime
 
 “设置 → 语音模型”按语言分别下载、测速、试听和选用 STT/TTS；“计算与加速”分别设置识别/合成的自动、CPU 或 NVIDIA CUDA GPU，准备独立运行环境，并查看显存/整卡使用率、设置预算与空闲释放。自动模式对已验证明显提速的 SenseVoice 2024 FP32 优先用 GPU，轻量 CPU 模型继续用 CPU。首次准备 GPU 环境会下载固定版本 CUDA/cuDNN 运行库，通常无需完整 Toolkit，显卡驱动需由用户安装。已选对话模型接入桌面分轮录音/朗读；目前支持 SenseVoice、ReazonSpeech、Zipformer 和现有 sherpa TTS 适配，独立 Melo 英文、Kotoba、VOICEVOX 的产品适配仍待完成。LiveKit 连续语音另行验收。
 
-基础桌面安装可查看目录、下载及准备运行环境；CLI 旧测速入口也可用 `uv sync --dev --extra desktop --extra local-speech`。`LINGUALOOP_SPEECH_DIR` 覆盖缓存目录，`LINGUALOOP_SPEECH_PYTHON` 仅覆盖 CLI/旧 CPU 测速解释器，实际对话使用应用管理的独立环境。高级本地验证可通过 `LINGUALOOP_CUDA_DLL_DIR` 指定匹配的 CUDA DLL 目录，不修改系统 PATH。命令、资源预算、许可边界和本机结果见[本地语音指南](./docs/desktop/LOCAL_SPEECH.md)。
+基础桌面安装可查看目录、下载及准备运行环境；CLI 旧测速入口也可用 `uv sync --dev --extra desktop --extra local-speech`。`SHINAR_SPEECH_DIR` 覆盖缓存目录，`SHINAR_SPEECH_PYTHON` 仅覆盖 CLI/旧 CPU 测速解释器，实际对话使用应用管理的独立环境。高级本地验证可通过 `SHINAR_CUDA_DLL_DIR` 指定匹配的 CUDA DLL 目录，不修改系统 PATH。命令、资源预算、许可边界和本机结果见[本地语音指南](./docs/desktop/LOCAL_SPEECH.md)。
 
 逐模型的中英日严格评测见[语音评测记录](./docs/validation/speech/LOCAL_SPEECH_STRICT_EVALUATION_2026-10-28.md)：公开真人语料的 CER/WER、冷/热首结果、首 PCM、合成/播报字速、独立候选环境及匿名听评包分开记录。评测脚本与模型资产放在独立目录，不切换正常应用的语音 provider；未取得人工评分的听感项目保持未验收。
 

@@ -6,12 +6,12 @@
 
 ## 使用
 
-- **安装版**：运行 `LinguaLoop-0.1.3-windows-x64-setup.exe`，默认安装到
-  `%LOCALAPPDATA%\Programs\LinguaLoop`。不请求管理员权限，创建开始菜单入口；桌面快捷方式可选。
-- **免安装版**：完整解压 ZIP，再双击 `LinguaLoop\LinguaLoop.exe`。保留整个目录，不能只移动 EXE。
+- **安装版**：运行 `Shinar-0.1.3-windows-x64-setup.exe`，默认安装到
+  `%LOCALAPPDATA%\Programs\Shinar`。不请求管理员权限，创建开始菜单入口；桌面快捷方式可选。
+- **免安装版**：完整解压 ZIP，再双击 `Shinar\Shinar.exe`。保留整个目录，不能只移动 EXE。
 - 两种方式均从正常应用数据目录读取材料与历史，默认是
-  `%LOCALAPPDATA%\LinguaLoop\lingualoop.sqlite3`；免安装指无需安装，学习数据仍保存在用户目录。
-- 安装与升级不自动关闭正在运行的应用。更新前自行退出对应的旧版 LinguaLoop；卸载保留学习库、
+  `%LOCALAPPDATA%\Shinar\shinar.sqlite3`；免安装指无需安装，学习数据仍保存在用户目录。
+- 安装与升级不自动关闭正在运行的应用。更新前自行退出对应的旧版 Shinar；卸载保留学习库、
   偏好、模型缓存和个人配置。免安装版与安装版默认共享同一用户的数据和设置。
 - 关闭窗口默认询问后台运行或退出，可记住选择并在「设置 → 外观」修改。后台时由系统托盘
   图标／菜单恢复；托盘及窗口更多菜单均可彻底退出。后台保留当前任务与语音；托盘不可用时关闭直接退出。
@@ -29,8 +29,8 @@ API Key，点击「读取模型列表」，再从两个下拉列表选择推理�
 界面配置保存到应用数据目录的 `ai-services.json`，密钥使用 Windows 当前用户 DPAPI 加密，
 不写入 QSettings 或安装目录；不要把该文件当作跨机器的密钥备份。保存仅影响重新启动后的
 新服务绑定，当前对话继续使用启动时配置。未保存界面配置时，继续读取本地环境；
-可以将 `.env.example` 复制为 `%LOCALAPPDATA%\LinguaLoop\.env`，或用
-`LINGUALOOP_CONFIG_FILE` 指定文件。已有进程环境变量优先于该 `.env`；显式保存的界面
+可以将 `.env.example` 复制为 `%LOCALAPPDATA%\Shinar\.env`，或用
+`SHINAR_CONFIG_FILE` 指定文件。已有进程环境变量优先于该 `.env`；显式保存的界面
 连接信息优先于二者。「恢复使用环境配置」移除界面配置，重启后重新读取环境，不改写 `.env`。
 发行包不携带开发者配置、密钥、学习库或调用日志。
 
@@ -53,13 +53,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/prepare_windows_tool
 .venv\Scripts\python.exe scripts/build_windows.py --iscc build/windows-tools/inno-6.7.4/ISCC.exe
 
 # 隔离解压到含中文和空格的新目录，检查窗口资源、原生启动器及运行时。
-.venv\Scripts\python.exe scripts/check_windows_distribution.py dist/windows/LinguaLoop-0.1.3-windows-x64.zip --output build/windows/relocation-check --visible
+.venv\Scripts\python.exe scripts/check_windows_distribution.py dist/windows/Shinar-0.1.3-windows-x64.zip --output build/windows/relocation-check --visible
 
 # 新的隔离目录中安装、离屏启动和卸载，验证保留外部数据及清理卸载登记。
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check_windows_installer.ps1 -Installer dist/windows/LinguaLoop-0.1.3-windows-x64-setup.exe -OutputDirectory build/windows/installer-check
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check_windows_installer.ps1 -Installer dist/windows/Shinar-0.1.3-windows-x64-setup.exe -OutputDirectory build/windows/installer-check
 
 # 另验从旧完整运行时升级：使用短测试路径，避免旧包中的 Qt 开发文件超过 Win32 路径限制。
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check_windows_installer.ps1 -Installer dist/windows/LinguaLoop-0.1.3-windows-x64-setup.exe -BaselineInstaller dist/windows/LinguaLoop-0.1.2-windows-x64-setup.exe -OutputDirectory build/windows/upgrade-check
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check_windows_installer.ps1 -Installer dist/windows/Shinar-0.1.3-windows-x64-setup.exe -BaselineInstaller dist/windows/Shinar-0.1.2-windows-x64-setup.exe -OutputDirectory build/windows/upgrade-check
 ```
 
 产物位于 `dist/windows/`，包括 ZIP、安装 EXE 和 SHA256 校验文件；单次工作目录包含
@@ -89,7 +89,7 @@ Python 的许可证、各依赖 `*.dist-info/licenses`、字体 OFL 和 QML 资�
 不抢占正在验收的窗口、不录音、不下载模型、不发起真实模型调用。
 安装器在独立目录执行安装／卸载检查，跳过快捷方式以免影响正常安装；正常安装路径和
 开始菜单入口由 Inno 配置提供。真实设备、真实服务、升级时文件占用和干净系统验证另列。
-内部检查使用 `/VALIDATE=1` 安装参数，登记到独立的 `LinguaLoop.Desktop.Validation` 卸载项，
+内部检查使用 `/VALIDATE=1` 安装参数，登记到独立的 `Shinar.Desktop.Validation` 卸载项，
 不覆盖正常安装的登记或快捷方式；此参数不改变学习库路径，启动检查仍须显式使用 Mock。
 
 构建机制依据 [Python 私有运行时说明](https://docs.python.org/3.12/using/windows.html)、

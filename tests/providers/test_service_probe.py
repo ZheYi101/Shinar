@@ -3,8 +3,8 @@ import asyncio
 import httpx
 import pytest
 
-from lingualoop.infrastructure.ai_configuration import AIConnection
-from lingualoop.providers.service_probe import probe_models
+from shinar.infrastructure.ai_configuration import AIConnection
+from shinar.providers.service_probe import probe_models
 
 
 def test_metadata_probe_never_calls_chat_or_sends_learning_content():

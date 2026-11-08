@@ -7,7 +7,7 @@
 `application.voice_session.VoiceSessionCoordinator` 注入已有 `LearningWorkbench` 和 `core.voice` 的 STT/TTS 端口。协调器不读取 `.env`，不构造 LLM client，不导入 Qt、LiveKit 或推理库。直接传入既有兼容服务也可用。
 
 ```python
-from lingualoop.application.voice_session import VoiceSessionCoordinator
+from shinar.application.voice_session import VoiceSessionCoordinator
 
 async def receive_segment(segment):
     # Attach a real output adapter later; bytes are a PCM16 WAV at its actual rate.
@@ -71,7 +71,7 @@ LLM 可见正文增量进入有界分句缓冲，TTS 在单独任务中顺序合
 
 ```python
 import json
-from lingualoop.local_speech.profiles import LocalSpeechProfile
+from shinar.local_speech.profiles import LocalSpeechProfile
 
 profile = LocalSpeechProfile(
     task="tts", language="ja", package_id="voicevox-local",

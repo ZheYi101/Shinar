@@ -5,10 +5,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from lingualoop.desktop.conversation_presentation import (
+from shinar.desktop.conversation_presentation import (
     ConversationEvent, ConversationPresentation, PresentationToken, display_value,
 )
-from lingualoop.desktop.conversation_view import ConversationView
+from shinar.desktop.conversation_view import ConversationView
 
 
 def token(generation=1, task="job", turn="turn"):

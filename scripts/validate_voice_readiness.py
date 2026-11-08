@@ -21,13 +21,13 @@ from PySide6.QtCore import QCoreApplication, QEvent, QPointF, QSettings, qInstal
 from PySide6.QtGui import QGuiApplication, QFontDatabase
 from PySide6.QtTest import QTest
 
-from lingualoop.application import LearningWorkbench
-from lingualoop.desktop.app import create_engine
-from lingualoop.desktop.preferences import DesktopPreferences
-from lingualoop.desktop.speech_library import SpeechLibraryViewModel
-from lingualoop.desktop.viewmodel import LearningViewModel
-from lingualoop.infrastructure import SQLiteStore
-from lingualoop.providers.mock import MockLearningLLMProvider
+from shinar.application import LearningWorkbench
+from shinar.desktop.app import create_engine
+from shinar.desktop.preferences import DesktopPreferences
+from shinar.desktop.speech_library import SpeechLibraryViewModel
+from shinar.desktop.viewmodel import LearningViewModel
+from shinar.infrastructure import SQLiteStore
+from shinar.providers.mock import MockLearningLLMProvider
 from test_desktop_workflow import FakeAudio, FakeSpeech, click, item, load_and_start
 import test_desktop_workflow as workflow
 from test_voice_readiness import Probe
@@ -94,7 +94,7 @@ def main(args):
         window_settings=QSettings(str(root / "window.ini"), QSettings.Format.IniFormat),
     )
     window, ws = engine.rootObjects()[0], engine.workspace
-    window.setTitle("LinguaLoop · 语音预检查与播放 · 独立 Mock 验证")
+    window.setTitle("Shinar · 语音预检查与播放 · 独立 Mock 验证")
     window.setWidth(1180)
     window.setHeight(900)
     window.showNormal()

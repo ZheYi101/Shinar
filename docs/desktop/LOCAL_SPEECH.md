@@ -22,7 +22,7 @@
 
 ```powershell
 uv sync --dev --extra desktop --extra local-speech
-uv run lingualoop-desktop
+uv run shinar-desktop
 ```
 
 在“设置 → 语音模型”选择语言和用途。下载后可校验文件、测速、试听 TTS，并分别选用当前语言/用途的 STT 和 TTS。配对测速会将两个模型同时加载，并比较串行/同时运行时的计算耗时。识别测速需选择自己有权使用的 **16kHz、单声道、16-bit PCM WAV，最多 60 秒**；录音不复制、不上传，报告不保存识别文本。
@@ -30,17 +30,17 @@ uv run lingualoop-desktop
 本轮开发用独立的 `build/local-speech-evaluation/`，没有把模型、示例材料或报告写入正常学习数据库。需要查看本机已测目录时，单独启动开发实例：
 
 ```powershell
-$env:LINGUALOOP_DATA_DIR=(Join-Path $PWD 'build/local-speech-evaluation/desktop')
-$env:LINGUALOOP_SPEECH_DIR=(Join-Path $PWD 'build/local-speech-evaluation/cache')
-$env:LINGUALOOP_SPEECH_PYTHON=(Join-Path $PWD 'build/local-speech-evaluation/runtime/Scripts/python.exe')
-uv run lingualoop-desktop --mock
+$env:SHINAR_DATA_DIR=(Join-Path $PWD 'build/local-speech-evaluation/desktop')
+$env:SHINAR_SPEECH_DIR=(Join-Path $PWD 'build/local-speech-evaluation/cache')
+$env:SHINAR_SPEECH_PYTHON=(Join-Path $PWD 'build/local-speech-evaluation/runtime/Scripts/python.exe')
+uv run shinar-desktop --mock
 ```
 
 这三个覆盖仅作用于当前终端；普通启动使用正常数据目录。测试不能伪装为用户历史。
 
 ## 目录与语言覆盖
 
-具体包、版本、字节数、SHA256、文件路径、前端限制与来源位于 `src/lingualoop/local_speech/catalog.json`。候选家族与可下载的固定包明确区分。
+具体包、版本、字节数、SHA256、文件路径、前端限制与来源位于 `src/shinar/local_speech/catalog.json`。候选家族与可下载的固定包明确区分。
 
 | 模型 / 路径 | 本轮状态 | 已声明语言 | 增量能力 / 限制 |
 |---|---|---|---|
@@ -70,19 +70,19 @@ uv run lingualoop-desktop --mock
 - 下载/校验/卸载/测速共用每模型跨进程锁；测速期间不删除在用文件。卸载只删除当前包及其下载缓存。崩溃后，相同模型下次安装会清理失去锁所有者的 staging。
 - “取消”保留未完成下载；网络读有 30 秒超时，取消不会强制抢占一次阻塞网络读。测速子进程支持取消和硬截止，退出释放模型。
 
-默认缓存是 Windows `%LOCALAPPDATA%/LinguaLoop/speech`，或其他系统的用户 cache 目录；`LINGUALOOP_DATA_DIR` 生效时使用其 `speech/` 子目录。可用 `LINGUALOOP_SPEECH_DIR` 独立覆盖。数值报告在 `reports/`，选择在 `selections.json`；不进入学习数据库。
+默认缓存是 Windows `%LOCALAPPDATA%/Shinar/speech`，或其他系统的用户 cache 目录；`SHINAR_DATA_DIR` 生效时使用其 `speech/` 子目录。可用 `SHINAR_SPEECH_DIR` 独立覆盖。数值报告在 `reports/`，选择在 `selections.json`；不进入学习数据库。
 
 ## 计算测速与链路边界
 
 ```powershell
-uv run python -m lingualoop.local_speech hardware
-uv run python -m lingualoop.local_speech list --language ja
-uv run python -m lingualoop.local_speech install sensevoice-int8-20240717
-uv run python -m lingualoop.local_speech benchmark sensevoice-int8-20240717 --language en --wav D:/audio/sample.wav
-uv run python -m lingualoop.local_speech benchmark zipformer-small-zhen-20230216 melo-zhen-onnx --language zh --wav D:/audio/sample.wav
+uv run python -m shinar.local_speech hardware
+uv run python -m shinar.local_speech list --language ja
+uv run python -m shinar.local_speech install sensevoice-int8-20240717
+uv run python -m shinar.local_speech benchmark sensevoice-int8-20240717 --language en --wav D:/audio/sample.wav
+uv run python -m shinar.local_speech benchmark zipformer-small-zhen-20230216 melo-zhen-onnx --language zh --wav D:/audio/sample.wav
 ```
 
-所有命令支持 `--root`。默认 2 线程、5 次热态，保留冷模型加载、首次推理、每次热态值、p50/p95、并发干扰与进程峰值 RAM。可用 `--threads 1–4` / `--repeats 3–20`。`LINGUALOOP_SPEECH_PYTHON` 可指定有推理依赖的独立 Python；桌面进程不导入 sherpa/numpy，不下载运行时或执行模型包里的脚本。psutil 只用于硬件/内存测量，未安装时 Windows 硬件检测使用系统 API。
+所有命令支持 `--root`。默认 2 线程、5 次热态，保留冷模型加载、首次推理、每次热态值、p50/p95、并发干扰与进程峰值 RAM。可用 `--threads 1–4` / `--repeats 3–20`。`SHINAR_SPEECH_PYTHON` 可指定有推理依赖的独立 Python；桌面进程不导入 sherpa/numpy，不下载运行时或执行模型包里的脚本。psutil 只用于硬件/内存测量，未安装时 Windows 硬件检测使用系统 API。
 
 当前固定 sherpa-onnx **1.13.8**：2.0.1 实测不再处理旧 Piper 包的内置发音前端，升级必须先适配外部 phonemizer。报告绑定运行时版本，UI 推荐还限定 CPU、每模型 2 线程；其他线程数结果保留作研究，不混入默认策略。目录选中的候选同样绑定版本。
 
@@ -117,7 +117,7 @@ STT 对话筛选为结束后计算算术平均 ≤500ms，p95 和慢轮保留展
 
 GPU 用户需要 NVIDIA 驱动及匹配的推理运行库，通常不需要完整 CUDA Toolkit。准备按钮仅在语音缓存下建立独立 venv，从 PyPI 安装固定的 ORT GPU 1.23.2、CUDA 12.8、cuDNN 9.10 等运行库，不安装驱动、不修改系统 PATH，也不把 Torch 或推理库导入 GUI。下载可较大，按平台通常约 1–2 GiB；失败、取消可重新准备。只有实际矩阵乘法的 profiling 证明使用 CUDA kernel，才写入通过标记；看到显卡或列出 provider 不算通过。驱动变化后可点击重新检查。当前自动准备支持 Python 3.11–3.13 的非冻结桌面版；冻结发行包的 Python/runtime 分发仍待设计。
 
-来源：[ORT CUDA 与预加载运行库官方说明](https://onnxruntime.ai/docs/execution-providers/CUDA-ExecutionProvider.html)。高级本地验证可用 `LINGUALOOP_CUDA_DLL_DIR` 指向已有匹配 DLL，句柄在子进程中保留；不将具体开发机路径写入应用配置。
+来源：[ORT CUDA 与预加载运行库官方说明](https://onnxruntime.ai/docs/execution-providers/CUDA-ExecutionProvider.html)。高级本地验证可用 `SHINAR_CUDA_DLL_DIR` 指向已有匹配 DLL，句柄在子进程中保留；不将具体开发机路径写入应用配置。
 
 本次设置与真实本地进程验证见 [CPU/GPU 设置接入记录](../validation/speech/LOCAL_SPEECH_COMPUTE_SETTINGS_2026-10-29.md)。CLI 复现示例（复用此前固定的公开评测资产与现有运行环境；不代表新下载流程已验证）：
 

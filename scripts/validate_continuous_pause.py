@@ -9,17 +9,17 @@ from pathlib import Path
 from uuid import uuid4
 import wave
 
-from lingualoop.application import LearningWorkbench
-from lingualoop.application.continuous_voice import ContinuousConversation
-from lingualoop.core.domain import LanguageEnum
-from lingualoop.infrastructure import SQLiteStore
-from lingualoop.local_speech.installation import managed_status
-from lingualoop.local_speech.samples import benchmark_audio
-from lingualoop.local_speech.service import LocalSpeechService
-from lingualoop.providers import MockLearningLLMProvider
-from lingualoop.realtime.audio_process import AudioSessionProcess
-from lingualoop.realtime.continuous_assets import vad_path
-from lingualoop.realtime.pcm import DeviceFormat, PCM48, PcmConverter
+from shinar.application import LearningWorkbench
+from shinar.application.continuous_voice import ContinuousConversation
+from shinar.core.domain import LanguageEnum
+from shinar.infrastructure import SQLiteStore
+from shinar.local_speech.installation import managed_status
+from shinar.local_speech.samples import benchmark_audio
+from shinar.local_speech.service import LocalSpeechService
+from shinar.providers import MockLearningLLMProvider
+from shinar.realtime.audio_process import AudioSessionProcess
+from shinar.realtime.continuous_assets import vad_path
+from shinar.realtime.pcm import DeviceFormat, PCM48, PcmConverter
 
 
 async def probe(args):

@@ -3,7 +3,7 @@ requires = ["setuptools>=64"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "lingualoop"
+name = "shinar"
 version = "0.1.3"
 description = "A conversational language learning platform built around reviewable learning loops."
 requires-python = ">=3.11"
@@ -79,9 +79,9 @@ dev = [
 where = ["src"]
 
 [tool.setuptools.package-data]
-"lingualoop.local_speech" = ["catalog.json", "runtime_resources/**/*", "runtime_resources/*", "benchmark_samples/*"]
-"lingualoop.desktop" = ["assets/*", "reader/*", "reader/foliate/*", "reader/foliate/vendor/*", "qml/*.qml", "qml/*/*.qml", "qml/*/qmldir", "qml/assets/*.svg", "qml/assets/LICENSE", "qml/assets/fonts/*", "qml/assets/illustrated/*", "qml/assets/decorative/*", "translations/*.ts", "translations/*.qm"]
+"shinar.local_speech" = ["catalog.json", "runtime_resources/**/*", "runtime_resources/*", "benchmark_samples/*"]
+"shinar.desktop" = ["assets/*", "reader/*", "reader/foliate/*", "reader/foliate/vendor/*", "qml/*.qml", "qml/*/*.qml", "qml/*/qmldir", "qml/assets/*.svg", "qml/assets/LICENSE", "qml/assets/fonts/*", "qml/assets/illustrated/*", "qml/assets/decorative/*", "translations/*.ts", "translations/*.qm"]
 
 [project.scripts]
-lingualoop = "lingualoop.cli:main"
-lingualoop-desktop = "lingualoop.desktop.app:main"
+shinar = "shinar.cli:main"
+shinar-desktop = "shinar.desktop.app:main"

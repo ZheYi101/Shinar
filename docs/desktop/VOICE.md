@@ -10,10 +10,10 @@
 
 | STT 必填 | TTS 必填 |
 | --- | --- |
-| `LINGUALOOP_STT_BASE_URL` | `LINGUALOOP_TTS_BASE_URL` |
-| `LINGUALOOP_STT_API_KEY` | `LINGUALOOP_TTS_API_KEY` |
-| `LINGUALOOP_STT_MODEL` | `LINGUALOOP_TTS_MODEL` |
-| — | `LINGUALOOP_TTS_VOICE` |
+| `SHINAR_STT_BASE_URL` | `SHINAR_TTS_BASE_URL` |
+| `SHINAR_STT_API_KEY` | `SHINAR_TTS_API_KEY` |
+| `SHINAR_STT_MODEL` | `SHINAR_TTS_MODEL` |
+| — | `SHINAR_TTS_VOICE` |
 
 服务需支持 OpenAI-compatible 音频接口：STT 是 multipart `POST /audio/transcriptions`，包含 `file/model/response_format=json`，返回 `{"text":"..."}`；TTS 是 JSON `POST /audio/speech`，包含 `model/voice/input/response_format=wav`，返回 PCM WAV。使用服务文档列出的模型和 voice ID，不假设任意文本服务支持这些端点。仅填写域名时自动补 `/v1`；带路径的 API 根地址保持不变。非 localhost 地址要求 HTTPS。
 
@@ -22,7 +22,7 @@
 ```powershell
 uv sync --dev --extra desktop
 uv run python scripts/check_voice_setup.py
-uv run lingualoop-desktop
+uv run shinar-desktop
 ```
 
 检查脚本只显示配置是否齐全及可见设备数量，不联网、不显示密钥。设置页显示语音配置状态和输入输出设备选择；显示“已配置”不代表端点实际可用。`--mock` 是离线模式，不调用真实语音。
@@ -46,7 +46,7 @@ uv run lingualoop-desktop
 
 材料发给文本服务，录音发给 STT，AI 回复发给 TTS。录音草稿不写入学习数据库。SQLite 只保存提交后的消息（语音使用 `automatic_transcript` 标记）、话题、偏好快照、反馈及复盘等业务数据；外观和新会话偏好使用 QSettings，凭据由本地环境管理。
 
-音频放在系统临时目录 `lingualoop-audio-*`。录音读取为内存数据后删除录音文件；AI 播放文件在结束对话、切换材料、重置或正常退出时清理。强制终止/系统崩溃可能留下临时文件，可在应用退出后清理这些目录。录音重试数据在会话内存中保留，发送成功或清理会话时释放。重启恢复不会恢复未确认草稿或原始音频。
+音频放在系统临时目录 `shinar-audio-*`。录音读取为内存数据后删除录音文件；AI 播放文件在结束对话、切换材料、重置或正常退出时清理。强制终止/系统崩溃可能留下临时文件，可在应用退出后清理这些目录。录音重试数据在会话内存中保留，发送成功或清理会话时释放。重启恢复不会恢复未确认草稿或原始音频。
 
 自动转写可能包含识别错误，用户可补充修正；不得只根据转写诊断发音，也不能把识别错误直接视为学习错误。材料中的指令视为内容；模型被要求只使用已提供材料中的事实，roleplay 的假设扩展要明确区分。模型可能偏离约束，仍需真实材料验收。
 

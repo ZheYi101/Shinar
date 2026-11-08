@@ -2,7 +2,7 @@
 
 ## 核心定位
 
-LinguaLoop 的 agent 不负责自由规划任务；它负责执行可声明、可测试、可复盘的语言学习 Pattern。
+Shinar 的 agent 不负责自由规划任务；它负责执行可声明、可测试、可复盘的语言学习 Pattern。
 
 当前产品主旨见 [Project Brief](../product/PROJECT_BRIEF.md)：沉浸提供语境，语音对话练输出。本文保留内核设计与既有文本原型经验；默认 Pattern 和交付优先级按话题讨论与基础语音调整，具体实现状态以代码为准。
 
@@ -14,11 +14,11 @@ Language Learning Agent Kernel
   组织成一条可追踪、可暂停、可恢复、可回放的学习闭环
 ```
 
-底层 workflow runtime 可以采用 LangGraph；结构化 LLM 调用可以采用 PydanticAI 或轻量 Pydantic provider adapter；实时语音继续放在 `voice-livekit` 插件内。但这些都是实现层能力，不应该定义 LinguaLoop 的学习语义。
+底层 workflow runtime 可以采用 LangGraph；结构化 LLM 调用可以采用 PydanticAI 或轻量 Pydantic provider adapter；实时语音继续放在 `voice-livekit` 插件内。但这些都是实现层能力，不应该定义 Shinar 的学习语义。
 
 ## 为什么可以手写
 
-LinguaLoop 的问题域比通用 coding agent 或任务 agent 窄得多。用户和 AI 的主要交互不是“让 agent 自主解决任意问题”，而是在一个明确语境中完成语言练习：理解材料、输出句子、获得纠错、复述、沉淀复习项。
+Shinar 的问题域比通用 coding agent 或任务 agent 窄得多。用户和 AI 的主要交互不是“让 agent 自主解决任意问题”，而是在一个明确语境中完成语言练习：理解材料、输出句子、获得纠错、复述、沉淀复习项。
 
 因此核心复杂度不在“agent 能否自主做任何事”，而在这些领域问题：
 
@@ -30,11 +30,11 @@ LinguaLoop 的问题域比通用 coding agent 或任务 agent 窄得多。用户
 - Pattern 需要哪些 capability。
 - SessionEvent 如何记录可复盘的学习事实。
 
-这些判断高度 LinguaLoop 化，通用 agent 项目的代码最多只能提供结构参考，不能直接替代项目自己的领域内核。
+这些判断高度 Shinar 化，通用 agent 项目的代码最多只能提供结构参考，不能直接替代项目自己的领域内核。
 
 ## 灵活度放在哪里
 
-LinguaLoop 的灵活度应主要通过 Pattern 放开，而不是通过一个自由规划的大 agent 放开。
+Shinar 的灵活度应主要通过 Pattern 放开，而不是通过一个自由规划的大 agent 放开。
 
 ```text
 Pattern -> PracticePlan -> AgentFlow -> SessionEvents -> FeedbackItems / ReviewItems
@@ -55,7 +55,7 @@ Pattern 可以决定本次练习的语境、纠错强度、是否使用语音、
 
 ## 实践校准后的学习闭环
 
-从 `input-driven-language-coach` 和 EnglishLearningWorkflow 的使用记录看，LinguaLoop 的 agent kernel 需要保护三条学习事实：
+从 `input-driven-language-coach` 和 EnglishLearningWorkflow 的使用记录看，Shinar 的 agent kernel 需要保护三条学习事实：
 
 1. 输入必须先被整理成可教学材料。raw subtitle、raw transcript 和 cleaned lesson-ready text 在数据模型中不能混为一谈。
 2. 用户输出才是学习证据。系统展示过解释、model answer 或 review item，不代表学习者已经掌握。
@@ -92,9 +92,9 @@ Codex、Claude Code、DeepSeek Harness 这类系统值得参考的是工程结�
 - 面向任意任务的自由规划 loop。
 - 让模型决定产品流程下一步做什么。
 - 把学习 Pattern 降级成普通 tool 或 skill。
-- 让外部 harness 的 session / tool / UI 概念进入 LinguaLoop 的 core schema。
+- 让外部 harness 的 session / tool / UI 概念进入 Shinar 的 core schema。
 
-核心原则是：通用 agent 解决开放任务；LinguaLoop agent 执行领域学习闭环。
+核心原则是：通用 agent 解决开放任务；Shinar agent 执行领域学习闭环。
 
 ## 推荐技术方向
 
@@ -131,14 +131,14 @@ apps
   web
   cli / dev playground
 
-lingualoop.core
+shinar.core
   domain models
   session events
   practice state machine
   feedback / review schemas
   pattern and capability contracts
 
-lingualoop.kernel
+shinar.kernel
   PatternRunner
   CapabilityRegistry
   AgentEngine protocol
@@ -146,25 +146,25 @@ lingualoop.kernel
   EventStore interface
   GraphCompiler
 
-lingualoop.engine.langgraph
+shinar.engine.langgraph
   LangGraphAgentEngine
   graph state mapping
   checkpoint adapter
   node wrappers
 
-lingualoop.llm
+shinar.llm
   typed LLM call helpers
   structured output validation
   provider abstraction
   PydanticAI adapter candidate
 
-lingualoop.plugins
+shinar.plugins
   llm-openai-compatible
   voice-livekit
   avatar-live2d
   importer-subtitles
 
-lingualoop.patterns
+shinar.patterns
   roleplay
   retell
   shadowing
@@ -184,11 +184,11 @@ patterns -> core pattern contracts + declared capabilities
 apps -> selected kernel, plugins, patterns, persistence
 ```
 
-## LinguaLoop 应手写的部分
+## Shinar 应手写的部分
 
 ### Core Models
 
-这些对象属于 LinguaLoop，不应该委托给 LangGraph、LiveKit 或 PydanticAI：
+这些对象属于 Shinar，不应该委托给 LangGraph、LiveKit 或 PydanticAI：
 
 - `UserProfile`
 - `LearningMaterial`
@@ -225,11 +225,11 @@ class AgentEngine:
     async def stream(self, session_id, event): ...
 ```
 
-Kernel 决定 LinguaLoop 语义下必须发生什么；engine adapter 决定如何执行。
+Kernel 决定 Shinar 语义下必须发生什么；engine adapter 决定如何执行。
 
 ### Event Store Interface
 
-Event store 应是 LinguaLoop 自己的接口，而不是暴露给领域层的 LangGraph checkpoint 对象。
+Event store 应是 Shinar 自己的接口，而不是暴露给领域层的 LangGraph checkpoint 对象。
 
 ```text
 append(event)
@@ -255,7 +255,7 @@ LangGraph 应承担：
 
 LangGraph 不应拥有：
 
-- LinguaLoop domain objects
+- Shinar domain objects
 - Pattern semantics
 - plugin permission model
 - review item schema
@@ -417,8 +417,8 @@ registry.register_pattern(RoleplayPattern())
 后续 package discovery：
 
 ```text
-lingualoop.plugins
-lingualoop.patterns
+shinar.plugins
+shinar.patterns
 ```
 
 通过 Python package entry points 实现。

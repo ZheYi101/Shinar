@@ -37,7 +37,7 @@ if library != ROOT / "foliate-js":
     shutil.copytree(
         library, ROOT / "foliate-js", dirs_exist_ok=True, ignore=shutil.ignore_patterns(".git")
     )
-FONT_ROOT = REPOSITORY / "src/lingualoop/desktop/qml/assets/fonts"
+FONT_ROOT = REPOSITORY / "src/shinar/desktop/qml/assets/fonts"
 shutil.copytree(FONT_ROOT, ROOT / "fonts", dirs_exist_ok=True)
 CHAPTERS = [
     (
@@ -106,14 +106,14 @@ with zipfile.ZipFile(ROOT / "sample.epub", "w") as archive:
     )
     archive.writestr(
         "book.opf",
-        f'<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="id">lingualoop-synthetic-reader-probe</dc:identifier><dc:title>A letter at the station</dc:title><dc:language>en</dc:language></metadata><manifest>{items}</manifest><spine>{spine}</spine></package>',
+        f'<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="id">shinar-synthetic-reader-probe</dc:identifier><dc:title>A letter at the station</dc:title><dc:language>en</dc:language></metadata><manifest>{items}</manifest><spine>{spine}</spine></package>',
     )
 
 (ROOT / "index.html").write_text(
     """<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; font-src 'self' blob: data:; connect-src 'self' blob:; frame-src blob:">
 <style>html,body{margin:0;height:100%;background:#f8f5ed;color:#302d28;font-family:'Segoe UI',sans-serif}body{display:flex;flex-direction:column}header{height:56px;padding:0 24px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #dcd8ce;font-size:14px}header span{color:#77776c;margin-left:auto;font-size:12px}foliate-view{display:block;flex:1;min-height:0}footer{height:36px;padding:0 24px;display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#77776c}body.dark{background:#20231f;color:#e1e3d9}body.dark header{border-color:#41453c}body.dark header span,body.dark footer{color:#a9afa0}</style></head>
-<body><header>A letter at the station <span>LinguaLoop · 阅读引擎技术小样</span></header><foliate-view></foliate-view><footer><span id="chapter"></span><span>合成材料 · foliate-js</span></footer><script type="module" src="probe.js"></script></body></html>""",
+<body><header>A letter at the station <span>Shinar · 阅读引擎技术小样</span></header><foliate-view></foliate-view><footer><span id="chapter"></span><span>合成材料 · foliate-js</span></footer><script type="module" src="probe.js"></script></body></html>""",
     encoding="utf-8",
 )
 

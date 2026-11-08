@@ -1,4 +1,4 @@
-﻿; Project translation of the installer pages used by LinguaLoop.
+; Project translation of the installer pages used by Shinar.
 ; Other error messages fall back to compiler:Default.isl.
 [LangOptions]
 LanguageName=简体中文
@@ -41,7 +41,7 @@ BrowseDialogTitle=选择文件夹
 BrowseDialogLabel=请选择文件夹，然后点击“确定”。
 NewFolderName=新建文件夹
 WelcomeLabel1=欢迎安装 [name]
-WelcomeLabel2=将在此电脑安装 [name/ver]。%n%n更新前请先退出旧版 LinguaLoop。
+WelcomeLabel2=将在此电脑安装 [name/ver]。%n%n更新前请先退出旧版 Shinar。
 WizardSelectDir=选择安装位置
 SelectDirDesc=将 [name] 安装到哪里？
 SelectDirLabel3=应用将安装到以下文件夹。
@@ -80,4 +80,4 @@ UninstalledMost=%1 已卸载。部分程序文件需要手动删除。
 
 [CustomMessages]
 CreateDesktopShortcut=创建桌面快捷方式
-LaunchLinguaLoop=打开 LinguaLoop
+LaunchShinar=打开 Shinar

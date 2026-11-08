@@ -121,13 +121,13 @@ class SyntheticRtc:
 
 
 def configure(vm, monkeypatch, tmp_path):
-    import lingualoop.desktop.continuous_voice as module
+    import shinar.desktop.continuous_voice as module
 
     monkeypatch.setattr(module, "managed_status", lambda *args: {"prepared": True})
     monkeypatch.setattr(module, "prepared_assets", lambda *args: True)
     monkeypatch.setattr(module, "vad_path", lambda *args, **kwargs: tmp_path / "vad.onnx")
     (tmp_path / "vad.onnx").touch()
-    from lingualoop.realtime.local_server import ARCHIVE_NAME
+    from shinar.realtime.local_server import ARCHIVE_NAME
 
     call = vm.voice.call
     (call.root / "sfu").mkdir(parents=True)
@@ -396,7 +396,7 @@ def test_pausing_microphone_keeps_the_confirmed_reply_running(desktop, monkeypat
 def test_pcm_frames_do_not_refresh_hidden_settings_or_reopen_failed_output(
     desktop, monkeypatch, tmp_path
 ):
-    import lingualoop.desktop.continuous_voice_presentation as module
+    import shinar.desktop.continuous_voice_presentation as module
 
     vm, window, *_ = desktop
     call = begin(vm, window, monkeypatch, tmp_path)
@@ -438,7 +438,7 @@ def test_pcm_frames_do_not_refresh_hidden_settings_or_reopen_failed_output(
 def test_permission_denial_does_not_connect_and_late_grant_cannot_start_after_stop(
     desktop, monkeypatch, tmp_path
 ):
-    import lingualoop.desktop.continuous_voice as module
+    import shinar.desktop.continuous_voice as module
 
     vm, window, *_ = desktop
     load_and_start(vm, window)
@@ -469,7 +469,7 @@ def test_permission_denial_does_not_connect_and_late_grant_cannot_start_after_st
 
 
 def test_permission_grant_connects_once_and_faults_are_actionable(desktop, monkeypatch, tmp_path):
-    import lingualoop.desktop.continuous_voice as module
+    import shinar.desktop.continuous_voice as module
 
     vm, window, *_ = desktop
     load_and_start(vm, window)

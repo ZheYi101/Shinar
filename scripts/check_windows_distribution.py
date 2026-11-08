@@ -18,21 +18,21 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 root, evidence = map(Path, sys.argv[1:])
 assert Path(sys.prefix).is_relative_to(root), sys.prefix
-import lingualoop.desktop.app as desktop
+import shinar.desktop.app as desktop
 assert Path(desktop.__file__).is_relative_to(root)
 from PySide6.QtCore import QSettings, QTimer, QObject, QPointF, Qt
 from PySide6.QtGui import QGuiApplication, QFontDatabase, QInputMethodEvent
 from PySide6.QtTest import QTest
 from PySide6.QtQuick import QQuickItem
 from PySide6.QtWebEngineQuick import QtWebEngineQuick
-from lingualoop.application import LearningWorkbench
-from lingualoop.infrastructure import SQLiteStore
-from lingualoop.providers import MockLearningLLMProvider
-from lingualoop.desktop.preferences import DesktopPreferences
-from lingualoop.desktop.viewmodel import LearningViewModel
-from lingualoop.desktop.identity import set_windows_app_id
-from lingualoop.local_speech.installation import _check_platform, runtime_spec
-from lingualoop.realtime.audio_ipc import encode_message, read_file_message
+from shinar.application import LearningWorkbench
+from shinar.infrastructure import SQLiteStore
+from shinar.providers import MockLearningLLMProvider
+from shinar.desktop.preferences import DesktopPreferences
+from shinar.desktop.viewmodel import LearningViewModel
+from shinar.desktop.identity import set_windows_app_id
+from shinar.local_speech.installation import _check_platform, runtime_spec
+from shinar.realtime.audio_ipc import encode_message, read_file_message
 import io
 _check_platform()
 assert runtime_spec('rtc-cpu').id == 'rtc-cpu'
@@ -49,15 +49,15 @@ vm = LearningViewModel(LearningWorkbench(MockLearningLLMProvider(),
 engine = desktop.create_engine(vm, initial_visible=True,
     window_settings=QSettings(str(evidence / 'window.ini'), QSettings.Format.IniFormat))
 window = engine.rootObjects()[0]
-window.setTitle('LinguaLoop · 安装包独立检查 · 本机模拟 API')
-assert app.applicationName() == 'LinguaLoop'
+window.setTitle('Shinar · 安装包独立检查 · 本机模拟 API')
+assert app.applicationName() == 'Shinar'
 assert not app.windowIcon().isNull()
 assert not window.icon().isNull()
 assert len(app.windowIcon().availableSizes()) == 9
 assert 'Noto Serif SC' in QFontDatabase.families()
 assert 'Noto Serif JP' in QFontDatabase.families()
 import ctypes
-assert ctypes.windll.shell32.ExtractIconExW(str(root / 'LinguaLoop.exe'), 0, None, None, 0) > 0
+assert ctypes.windll.shell32.ExtractIconExW(str(root / 'Shinar.exe'), 0, None, None, 0) > 0
 from livekit import rtc
 import onnxruntime
 import PySide6
@@ -171,7 +171,7 @@ def capture():
         assert engine.ai_services.restartRequired and not engine.ai_services.errorText
         assert 'package-dummy-key' not in engine.ai_services.store.path.read_text(encoding='utf-8')
         assert field('aiApiKeyInput').property('text') == ''
-        os.environ['LINGUALOOP_DATA_DIR'] = str(evidence)
+        os.environ['SHINAR_DATA_DIR'] = str(evidence)
         reopened = desktop.create_workbench(use_mock=False)
         assert reopened._provider._settings.base_url == url
         assert reopened._provider._settings.dialogue_model == 'packaged-chat'
@@ -231,7 +231,7 @@ def main() -> None:
     relocated = output / "移动 安装"
     with ZipFile(args.archive.resolve()) as archive:
         archive.extractall(relocated)
-    app = relocated / "LinguaLoop"
+    app = relocated / "Shinar"
     evidence = output / "evidence"
     evidence.mkdir()
     probe = output / "probe.py"
@@ -255,9 +255,9 @@ def main() -> None:
         RUN_REAL_AI_TESTS="0",
         QT_QPA_PLATFORM="windows" if args.visible else "offscreen",
         QT_QUICK_BACKEND="software",
-        LINGUALOOP_KIRIGAMI_MODE="off",
-        LINGUALOOP_DATA_DIR=str(evidence / "data"),
-        LINGUALOOP_SPEECH_DIR=str(evidence / "speech"),
+        SHINAR_KIRIGAMI_MODE="off",
+        SHINAR_DATA_DIR=str(evidence / "data"),
+        SHINAR_SPEECH_DIR=str(evidence / "speech"),
         PYTHONDONTWRITEBYTECODE="1",
     )
     result = subprocess.run(
@@ -277,7 +277,7 @@ def main() -> None:
     if not reports:
         raise SystemExit("QML smoke did not report successful completion")
     launcher = subprocess.run(
-        [str(app / "LinguaLoop.exe"), "--mock", "--smoke"], cwd=output, env=environment, timeout=45
+        [str(app / "Shinar.exe"), "--mock", "--smoke"], cwd=output, env=environment, timeout=45
     )
     if launcher.returncode:
         raise SystemExit(f"Native launcher failed: {launcher.returncode}")

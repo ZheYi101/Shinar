@@ -5,12 +5,12 @@ import wave
 
 import pytest
 
-from lingualoop.local_speech.samples import benchmark_audio
+from shinar.local_speech.samples import benchmark_audio
 
 
 @pytest.mark.parametrize("language", ["zh", "en", "ja"])
 def test_bundled_demo_is_public_attributed_pcm_and_hash_verified(language):
-    resources = files("lingualoop.local_speech").joinpath("benchmark_samples")
+    resources = files("shinar.local_speech").joinpath("benchmark_samples")
     manifest = json.loads(resources.joinpath("manifest.json").read_text("utf-8"))
     assert manifest["license"] == "CC-BY-4.0"
     assert "Google" in resources.joinpath("LICENSE.txt").read_text("utf-8")
@@ -31,7 +31,7 @@ def test_custom_recording_stays_optional_and_unknown_language_is_explicit(tmp_pa
 
 
 def test_corrupt_bundled_demo_never_reaches_inference(tmp_path, monkeypatch):
-    import lingualoop.local_speech.samples as module
+    import shinar.local_speech.samples as module
 
     resources = tmp_path / "benchmark_samples"
     resources.mkdir()

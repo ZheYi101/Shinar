@@ -17,9 +17,9 @@ from types import SimpleNamespace
 import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from lingualoop.realtime import PcmFrame, TurnRef
-from lingualoop.realtime.diagnostics import NativeTrace, ProbeError, ProbePhase, classify_probe_error, native_creation_evidence
-from lingualoop.realtime.local_server import (
+from shinar.realtime import PcmFrame, TurnRef
+from shinar.realtime.diagnostics import NativeTrace, ProbeError, ProbePhase, classify_probe_error, native_creation_evidence
+from shinar.realtime.local_server import (
     ARCHIVE_SHA256, RELEASE_URL, SERVER_VERSION, LocalServer, ensure_server, hidden_flags, socket_snapshot,
     validate_probe_stun_url,
     validate_rtc_address,
@@ -51,8 +51,8 @@ def synthetic_pcm(frame_index: int) -> PcmFrame:
 
 
 async def exercise(server: LocalServer, result: dict) -> None:
-    from lingualoop.realtime.livekit_transport import LiveKitTransport, TOPIC
-    from lingualoop.realtime import TurnEvent
+    from shinar.realtime.livekit_transport import LiveKitTransport, TOPIC
+    from shinar.realtime import TurnEvent
     session = "probe-" + uuid.uuid4().hex
     room = session
     started = time.perf_counter()

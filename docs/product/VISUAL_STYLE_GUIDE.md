@@ -1,6 +1,6 @@
 # 视觉风格设计：暖纸与墨迹（暂定）
 
-更新日期：2026-10-30。风格标识：`warm-paper-ink/v1`，仅用于设计与资产版本记录，不是应用配置项。
+更新日期：2026-11-08。风格标识：`warm-paper-ink/v1`，仅用于设计与资产版本记录，不是应用配置项。
 
 **状态：用户暂定采用的视觉方向。** [总体布局与逐页 UI 稿](./UI_LAYOUT_DESIGN.md)已形成首轮提案，首批 QML 组件已迁移，最终视觉与完整实机验收尚未完成，见[工作区指南](../desktop/WORKSPACE.md)。本文固定风格描述、参考图、基础配色与资产生成语言，不把概念图中的布局当作已确认的产品方案。
 
@@ -14,13 +14,21 @@
 
 文档职责分开维护：
 
-- [PROJECT_BRIEF](./PROJECT_BRIEF.md) 定义产品主旨：沉浸提供语境，LinguaLoop 帮你练输出。
+- [PROJECT_BRIEF](./PROJECT_BRIEF.md) 定义产品主旨：沉浸提供语境，Shinar 帮你练输出。
 - 本文定义视觉气质、色彩和资产风格，是后续视觉设计的统一入口。
 - [读后对照聊天功能设计](./CONVERSATION_WORKSPACE_DESIGN.md) 定义已认可的功能与交互；视觉稿不覆盖其中的选择、范围和会话语义。
 - [UI_SURFACE_PLAN](./UI_SURFACE_PLAN.md) 保留现有 MD3 实现与历史页面方案。当前 QML 已采用本暂定方向，具体覆盖与验证见工作区指南。
 - [Decision 0021](../decisions/TECH_DECISIONS.md#decision-0021) 记录本次暂定选择及未决项。
 
 ## 2. 当前视觉基准图
+
+### Shinar 品牌图标（2026-11-08）
+
+正式名称见[命名记录](./NAMING.md)。品牌图标用巴别塔的层叠圆塔、上升回廊、拱洞与未完成塔顶，塔基右侧结合对话气泡收尾；暖纸 `#F7F3E9` 与灰绿 `#56634F` 延续既有色板。形制借鉴巴别塔绘画意象，图形为项目自行绘制的几何 SVG；具体出处、解释和导出方式见[图标说明](../../src/shinar/desktop/assets/README.md)。
+
+图标服务于名称识别；不把塔、砖纹或宗教符号扩散为页面装饰。16–32px 优先辨认塔形与回廊，大尺寸再呈现拱洞；现有圆角方形容器及透明外边距适用于系统任务栏与侧栏。
+
+### 原有整体风格参考
 
 ![暖纸与墨迹 v1：浅色纸页、褐色文字、灰绿点缀与少量读后手账细节](./assets/visual-style/warm-paper-ink-reference-v1.png)
 
@@ -206,7 +214,7 @@ coffee stains, dense collage, childish doodles, thick marker lines or glossy 3D.
 | 奶油色纸条、半透明米色胶带和淡赭色植物印章 | 材料参考摘要以纸笺承载；摘要仍为实际整理内容，不添加引号或把摘要当成原文。印章有独立的底部空间，不压文字 |
 | 逐页稿的紧凑字标、聊天和导入布局 | 侧栏保留纯字标；聊天与导入不额外放插画，既有操作和信息结构不变 |
 
-纸笺与印章使用 SVG，布面书使用 PNG；资产来源、生成提示词和授权状态见[资产说明](../../src/lingualoop/desktop/qml/assets/decorative/README.md)。装饰由 `PaperTexture`、`InkDecoration`、`ReadingNote` 三个 QML 组件承接，无新增依赖或运行时网络请求；图像无点击、焦点或读屏语义。深色只验证兼容，整体配色定稿仍未完成。具体截图与检查见[装饰验证记录](../validation/engineering/UI_ORNAMENTS_2026-10-30.md)。
+纸笺与印章使用 SVG，布面书使用 PNG；资产来源、生成提示词和授权状态见[资产说明](../../src/shinar/desktop/qml/assets/decorative/README.md)。装饰由 `PaperTexture`、`InkDecoration`、`ReadingNote` 三个 QML 组件承接，无新增依赖或运行时网络请求；图像无点击、焦点或读屏语义。深色只验证兼容，整体配色定稿仍未完成。具体截图与检查见[装饰验证记录](../validation/engineering/UI_ORNAMENTS_2026-10-30.md)。
 
 ## 7. 图标与插画的生成规范
 
@@ -235,7 +243,7 @@ AI 可以生成这套新视觉资产。生成后仍应整理透明边界、统�
 
 ```text
 Use case: illustration-story.
-Asset type: one standalone functional UI icon for LinguaLoop.
+Asset type: one standalone functional UI icon for Shinar.
 Subject: {SUBJECT}.
 
 Visual style: quiet literary ink drawing from the same coherent icon family.
@@ -285,7 +293,7 @@ reproduce its layout, text or background.
 
 ```text
 Use case: illustration-story.
-Asset type: one small literary UI illustration for LinguaLoop.
+Asset type: one small literary UI illustration for Shinar.
 Subject: {SUBJECT}.
 
 Style: a refined reading-journal illustration, fine deep walnut pen linework

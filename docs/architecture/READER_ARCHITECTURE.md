@@ -22,7 +22,7 @@
 | `desktop/reader_runtime.py` | 临时 profile、文件白名单、专用 `ReaderBridge` | 解析、任意文件 API、业务持久化 |
 | `qml/components/SourceReader.qml`、`FoliateSurface.qml` | 视图选择、工具与弹层、懒加载、主题／尺寸、加载超时与回退 | 书籍解析、授权和消息提交规则 |
 | `desktop/reader/reader.js`、`index.html` | foliate 包装、样式、DOM ↔ 来源坐标、导航与位置事件 | 学习事实、模型 prompt、数据库或原件路径 |
-| `desktop/reader/foliate/` | 固定提交的第三方解析／布局引擎 | LinguaLoop 产品逻辑 |
+| `desktop/reader/foliate/` | 固定提交的第三方解析／布局引擎 | Shinar 产品逻辑 |
 
 允许 `epub_reader.py` 复用同层导入器的公开规范化／HTML 提取接口，保持新旧文本逐字对应；不再复制另一套清洗规则。WebEngine 的 Python 依赖只位于桌面装配入口与 `reader_runtime.py`，QML 依赖只位于 `FoliateSurface.qml`。业务层和格式适配器不得反向依赖这些模块。
 

@@ -28,11 +28,11 @@ async def run(args):
     load_dotenv(ROOT / '.env')
     if not args.real or os.getenv('RUN_REAL_AI_TESTS') != '1':
         raise ValueError('Requires --real and RUN_REAL_AI_TESTS=1')
-    from lingualoop.application import LearningWorkbench
-    from lingualoop.infrastructure import SQLiteStore
-    from lingualoop.infrastructure.material_import import import_material_file
-    from lingualoop.providers.openai_compatible import OpenAICompatibleLLMProvider
-    from lingualoop.core import LanguageEnum, ProficiencyLevel
+    from shinar.application import LearningWorkbench
+    from shinar.infrastructure import SQLiteStore
+    from shinar.infrastructure.material_import import import_material_file
+    from shinar.providers.openai_compatible import OpenAICompatibleLLMProvider
+    from shinar.core import LanguageEnum, ProficiencyLevel
     from benchmark_prepared_dialogue import AuditClient, inspect_analysis, candidate_hashes, wait_for_preparation
 
     args.data_dir.mkdir(parents=True, exist_ok=True)

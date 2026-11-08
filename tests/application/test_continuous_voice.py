@@ -1,8 +1,8 @@
 import asyncio
 
-from lingualoop.application.continuous_voice import ContinuousConversation
-from lingualoop.application.voice_session import VoiceSessionCoordinator
-from lingualoop.core.domain import MessageRole
+from shinar.application.continuous_voice import ContinuousConversation
+from shinar.application.voice_session import VoiceSessionCoordinator
+from shinar.core.domain import MessageRole
 from test_voice_session import make_work, Speech, wav_bytes
 
 

@@ -5,18 +5,18 @@ import json
 
 import pytest
 
-from lingualoop.application import LearningWorkbench
-from lingualoop.application.material_preparation import preparation_cache_key
-from lingualoop.application.source_index import build_source_index
-from lingualoop.core.domain import (
+from shinar.application import LearningWorkbench
+from shinar.application.material_preparation import preparation_cache_key
+from shinar.application.source_index import build_source_index
+from shinar.core.domain import (
     DialoguePreparation, DiscussionTopic, LanguageEnum as L, LearningMaterial,
     MaterialAnalysis, MaterialCharacter, PreparedChunk, ProficiencyLevel, SessionUserProfile,
 )
-from lingualoop.core.material_context import dialogue_knowledge
-from lingualoop.core.reading_scope import paragraph_boundary, scope_material
-from lingualoop.infrastructure import SQLiteStore
-from lingualoop.providers import MockLearningLLMProvider
-from lingualoop.providers.openai_compatible import _compact_reply_packet, _dialogue_system_prompt
+from shinar.core.material_context import dialogue_knowledge
+from shinar.core.reading_scope import paragraph_boundary, scope_material
+from shinar.infrastructure import SQLiteStore
+from shinar.providers import MockLearningLLMProvider
+from shinar.providers.openai_compatible import _compact_reply_packet, _dialogue_system_prompt
 
 
 class FreeProvider(MockLearningLLMProvider):
@@ -155,7 +155,7 @@ def test_failed_reference_attempts_are_capped_across_restart(tmp_path, monkeypat
         async def prepare_dialogue(self, **kwargs):
             self.background += 1
             raise RuntimeError("service unavailable")
-    monkeypatch.setattr("lingualoop.application.workbench_materials.dialogue_knowledge",
+    monkeypatch.setattr("shinar.application.workbench_materials.dialogue_knowledge",
                         lambda material, query: [{"section": query}])
     async def run():
         path = tmp_path / "budget.sqlite3"

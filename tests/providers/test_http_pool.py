@@ -6,7 +6,7 @@ from threading import Thread
 
 from pydantic import SecretStr
 
-from lingualoop.providers.openai_compatible import OpenAICompatibleLLMProvider, OpenAICompatibleLLMSettings
+from shinar.providers.openai_compatible import OpenAICompatibleLLMProvider, OpenAICompatibleLLMSettings
 
 
 def test_role_connections_are_isolated_and_dialogue_survives_a_six_second_pause(monkeypatch):

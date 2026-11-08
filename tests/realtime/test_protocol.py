@@ -2,8 +2,8 @@ import json
 
 import pytest
 
-from lingualoop.realtime import PcmFrame, TurnEvent, TurnReceiver, TurnRef
-from lingualoop.realtime.local_server import server_config
+from shinar.realtime import PcmFrame, TurnEvent, TurnReceiver, TurnRef
+from shinar.realtime.local_server import server_config
 
 
 def test_complete_requires_explicit_done_and_strict_sequence():

@@ -18,14 +18,14 @@ from PySide6.QtCore import QSettings, QTimer, qInstallMessageHandler, Qt
 from PySide6.QtGui import QGuiApplication, QFontDatabase, QInputMethodEvent
 from PySide6.QtTest import QTest
 
-from lingualoop.application import LearningWorkbench
-from lingualoop.desktop.app import create_engine
-from lingualoop.desktop.preferences import DesktopPreferences
-from lingualoop.desktop.speech_library import SpeechLibraryViewModel
-from lingualoop.desktop.viewmodel import LearningViewModel
-from lingualoop.infrastructure import SQLiteStore
-from lingualoop.local_speech.profiles import LocalSpeechProfile
-from lingualoop.providers.mock import MockLearningLLMProvider
+from shinar.application import LearningWorkbench
+from shinar.desktop.app import create_engine
+from shinar.desktop.preferences import DesktopPreferences
+from shinar.desktop.speech_library import SpeechLibraryViewModel
+from shinar.desktop.viewmodel import LearningViewModel
+from shinar.infrastructure import SQLiteStore
+from shinar.local_speech.profiles import LocalSpeechProfile
+from shinar.providers.mock import MockLearningLLMProvider
 from validate_ui_workspace import click, visible_item, wait_until
 
 
@@ -169,7 +169,7 @@ def main(args, *, before_human=None):
         window_settings=QSettings(str(root / "window.ini"), QSettings.Format.IniFormat),
     )
     window, ws = engine.rootObjects()[0], engine.workspace
-    window.setTitle("LinguaLoop · 连续语音独立验收 · Mock v2 · 音频修复版")
+    window.setTitle("Shinar · 连续语音独立验收 · Mock v2 · 音频修复版")
     window.showNormal()
     window.setPosition(16, 16)
     window.setWidth(1180)
@@ -186,7 +186,7 @@ def main(args, *, before_human=None):
         from unittest.mock import patch
         from test_desktop_continuous_voice import SyntheticBridge, SyntheticRtc
         from test_voice_readiness import Probe
-        from lingualoop.realtime.local_server import ARCHIVE_NAME
+        from shinar.realtime.local_server import ARCHIVE_NAME
 
         call.bridge_factory, call.process_factory = SyntheticBridge, SyntheticRtc
         # Synthetic transport must not depend on an existing model/runtime cache.
@@ -197,9 +197,9 @@ def main(args, *, before_human=None):
         vad.touch()
         mock_patches = [
             patch.object(app, "checkPermission", lambda permission: Qt.PermissionStatus.Granted),
-            patch("lingualoop.desktop.continuous_voice.managed_status", lambda *args: {"prepared": True}),
-            patch("lingualoop.desktop.continuous_voice.prepared_assets", lambda *args: True),
-            patch("lingualoop.desktop.continuous_voice.vad_path", lambda *args, **kwargs: vad),
+            patch("shinar.desktop.continuous_voice.managed_status", lambda *args: {"prepared": True}),
+            patch("shinar.desktop.continuous_voice.prepared_assets", lambda *args: True),
+            patch("shinar.desktop.continuous_voice.vad_path", lambda *args, **kwargs: vad),
         ]
         for pending_patch in mock_patches:
             pending_patch.start()

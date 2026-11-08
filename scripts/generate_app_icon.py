@@ -33,7 +33,7 @@ def render_icon(source: Path, size: int) -> bytes:
 
 def main() -> None:
     app = QGuiApplication.instance() or QGuiApplication([])
-    root = Path(__file__).resolve().parents[1] / "src/lingualoop/desktop/assets"
+    root = Path(__file__).resolve().parents[1] / "src/shinar/desktop/assets"
     source = root / "app-icon.svg"
     root.joinpath("app-icon.png").write_bytes(render_icon(source, 512))
     sizes = (16, 20, 24, 32, 40, 48, 64, 128, 256)

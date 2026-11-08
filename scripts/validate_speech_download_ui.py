@@ -26,8 +26,8 @@ def main():
     from PySide6.QtCore import QPoint, QPointF, Qt
     from PySide6.QtGui import QGuiApplication, QWheelEvent
     from PySide6.QtTest import QTest
-    from lingualoop.local_speech.catalog import load_catalog
-    from lingualoop.local_speech.downloads import DownloadCancelled, TransferEvent
+    from shinar.local_speech.catalog import load_catalog
+    from shinar.local_speech.downloads import DownloadCancelled, TransferEvent
     from test_local_speech_desktop import library_desktop
     from test_desktop_workflow import click, item
 
@@ -59,7 +59,7 @@ def main():
         return run
 
     try:
-        window.setTitle("LinguaLoop · 下载界面验收 · 合成任务与独立测试库")
+        window.setTitle("Shinar · 下载界面验收 · 合成任务与独立测试库")
         library.catalog = load_catalog()
         library.setFilter("en", "conversation")
         wait(lambda: not library.busy)

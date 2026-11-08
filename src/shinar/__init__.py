@@ -1,0 +1,1 @@
+"""Shinar Python package."""

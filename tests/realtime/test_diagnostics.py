@@ -1,10 +1,10 @@
 import pytest
 
-from lingualoop.realtime.diagnostics import (
+from shinar.realtime.diagnostics import (
     NativeCreationEvidence, ProbeError, ProbePhase, classify_probe_error, native_creation_evidence,
 )
-from lingualoop.realtime.local_server import validate_probe_stun_url
-from lingualoop.realtime.local_server import validate_rtc_address
+from shinar.realtime.local_server import validate_probe_stun_url
+from shinar.realtime.local_server import validate_rtc_address
 
 
 def test_exact_audited_loopback_stun_endpoint_is_valid():
@@ -82,7 +82,7 @@ def test_only_exact_os_owned_rfc1918_address_may_be_selected():
 
 
 def test_native_trace_only_exposes_whitelisted_metadata():
-    from lingualoop.realtime.diagnostics import NativeTrace
+    from shinar.realtime.diagnostics import NativeTrace
     trace = NativeTrace("10.2.3.4")
     trace.observe('local ice_candidate candidate:123 1 udp 12345 10.2.3.4 50000 typ host token=secret')
     trace.observe('received JoinResponse access_token=secret private-user-text')

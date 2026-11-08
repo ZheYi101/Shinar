@@ -1,6 +1,6 @@
-# Contributing to LinguaLoop
+# Contributing to Shinar
 
-感谢你考虑参与 LinguaLoop。项目当前处于早期阶段，最有价值的贡献是帮助明确学习闭环、MVP 范围、数据边界和可维护的实现路径。
+感谢你考虑参与 Shinar。项目当前处于早期阶段，最有价值的贡献是帮助明确学习闭环、MVP 范围、数据边界和可维护的实现路径。
 
 ## 贡献范围
 
@@ -51,7 +51,7 @@ Python 函数（含嵌套函数，按 AST 起止位置）不超过 100 行；第
 新增或单独整理模块时，对本次负责的文件执行格式化并检查 diff，例如：
 
 ```powershell
-uv run --locked ruff format src/lingualoop/core/ports.py
+uv run --locked ruff format src/shinar/core/ports.py
 git diff --check
 ```
 

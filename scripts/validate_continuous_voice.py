@@ -16,16 +16,16 @@ from collections import Counter
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from lingualoop.application.continuous_voice import ContinuousConversation
-from lingualoop.application.learning_workbench import LearningWorkbench
-from lingualoop.core.domain import LanguageEnum
-from lingualoop.infrastructure import SQLiteStore
-from lingualoop.local_speech.profiles import LocalSpeechProfile
-from lingualoop.local_speech.service import LocalSpeechService
-from lingualoop.providers.mock import MockLearningLLMProvider
-from lingualoop.realtime.audio_process import AudioSessionProcess
-from lingualoop.realtime.continuous_assets import vad_path
-from lingualoop.realtime.pcm import DeviceFormat, PCM48, PcmConverter
+from shinar.application.continuous_voice import ContinuousConversation
+from shinar.application.learning_workbench import LearningWorkbench
+from shinar.core.domain import LanguageEnum
+from shinar.infrastructure import SQLiteStore
+from shinar.local_speech.profiles import LocalSpeechProfile
+from shinar.local_speech.service import LocalSpeechService
+from shinar.providers.mock import MockLearningLLMProvider
+from shinar.realtime.audio_process import AudioSessionProcess
+from shinar.realtime.continuous_assets import vad_path
+from shinar.realtime.pcm import DeviceFormat, PCM48, PcmConverter
 
 
 class StreamingDialogue(MockLearningLLMProvider):
@@ -158,7 +158,7 @@ async def run_case(case, runtime, output, speech_cache=None):
         }:
             failures.append(kind)
 
-    from lingualoop.local_speech.installation import managed_status
+    from shinar.local_speech.installation import managed_status
 
     runtime_status = managed_status(runtime, "rtc-cpu")
     if speech_cache and not runtime_status.get("prepared"):

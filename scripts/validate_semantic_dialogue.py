@@ -22,9 +22,9 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from dotenv import load_dotenv
 
-from lingualoop.application import LearningWorkbench
-from lingualoop.application.semantic_preparation import SemanticPreparation, analysis_with_knowledge
-from lingualoop.core.domain import (
+from shinar.application import LearningWorkbench
+from shinar.application.semantic_preparation import SemanticPreparation, analysis_with_knowledge
+from shinar.core.domain import (
     LanguageEnum,
     LearningMaterial,
     Message,
@@ -32,11 +32,11 @@ from lingualoop.core.domain import (
     PracticeInstruction,
     ProficiencyLevel,
 )
-from lingualoop.core.knowledge import TurnEvidence
-from lingualoop.core.knowledge_context import assemble_turn_context, digest
-from lingualoop.infrastructure import SQLiteStore
-from lingualoop.infrastructure.material_import import import_material_file
-from lingualoop.providers import OpenAICompatibleLLMProvider
+from shinar.core.knowledge import TurnEvidence
+from shinar.core.knowledge_context import assemble_turn_context, digest
+from shinar.infrastructure import SQLiteStore
+from shinar.infrastructure.material_import import import_material_file
+from shinar.providers import OpenAICompatibleLLMProvider
 from benchmark_prepared_dialogue import AuditClient
 from model_request_guard import ModelRequestGuard
 
@@ -340,7 +340,7 @@ async def main():
     parser.add_argument("--real", action="store_true")
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
-    store = SQLiteStore(args.data_dir / "lingualoop.sqlite3")
+    store = SQLiteStore(args.data_dir / "shinar.sqlite3")
     if args.phase == "export":
         print({"native_reader_turns": export(store, args.output)})
         return

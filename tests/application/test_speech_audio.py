@@ -6,10 +6,10 @@ import wave
 
 import pytest
 
-from lingualoop.application.speech_audio import SpeechPlayoutBuffer, trim_speech_padding
-from lingualoop.application.speech_text import SpeechTextBuffer
-from lingualoop.application.voice_session import VoiceSessionCoordinator
-from lingualoop.core.voice import SpeechSegment
+from shinar.application.speech_audio import SpeechPlayoutBuffer, trim_speech_padding
+from shinar.application.speech_text import SpeechTextBuffer
+from shinar.application.voice_session import VoiceSessionCoordinator
+from shinar.core.voice import SpeechSegment
 from test_voice_session import Speech, Dialogue, make_work, wav_bytes
 
 

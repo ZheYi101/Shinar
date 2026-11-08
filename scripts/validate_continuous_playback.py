@@ -15,25 +15,25 @@ import wave
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / "src"), str(ROOT / "scripts")]
-os.environ.setdefault("LINGUALOOP_KIRIGAMI_MODE", "off")
+os.environ.setdefault("SHINAR_KIRIGAMI_MODE", "off")
 
 from PySide6.QtCore import QSettings, QTimer, QObject, Signal, Qt, QCoreApplication, QEvent
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtTest import QTest
 
-from lingualoop.application import LearningWorkbench
-from lingualoop.application.continuous_voice import ContinuousConversation
-from lingualoop.desktop.app import create_engine
-from lingualoop.desktop.pcm_audio import PcmAudioBridge
-from lingualoop.desktop.preferences import DesktopPreferences
-from lingualoop.desktop.speech_library import SpeechLibraryViewModel
-from lingualoop.desktop.viewmodel import LearningViewModel
-from lingualoop.desktop.voice import _SpeechRoute
-from lingualoop.infrastructure import SQLiteStore
-from lingualoop.local_speech.installation import managed_status
-from lingualoop.providers.mock import MockLearningLLMProvider
-from lingualoop.realtime.audio_process import AudioSessionProcess
-from lingualoop.realtime.continuous_assets import vad_path
+from shinar.application import LearningWorkbench
+from shinar.application.continuous_voice import ContinuousConversation
+from shinar.desktop.app import create_engine
+from shinar.desktop.pcm_audio import PcmAudioBridge
+from shinar.desktop.preferences import DesktopPreferences
+from shinar.desktop.speech_library import SpeechLibraryViewModel
+from shinar.desktop.viewmodel import LearningViewModel
+from shinar.desktop.voice import _SpeechRoute
+from shinar.infrastructure import SQLiteStore
+from shinar.local_speech.installation import managed_status
+from shinar.providers.mock import MockLearningLLMProvider
+from shinar.realtime.audio_process import AudioSessionProcess
+from shinar.realtime.continuous_assets import vad_path
 from validate_continuous_desktop import enter_text
 from validate_ui_workspace import click, wait_until
 
@@ -63,7 +63,7 @@ def main(args):
         window_settings=QSettings(str(output / "window.ini"), QSettings.Format.IniFormat),
     )
     window, ws, call = engine.rootObjects()[0], engine.workspace, vm.voice.call
-    window.setTitle("LinguaLoop · 合成音频检查 · 不开麦")
+    window.setTitle("Shinar · 合成音频检查 · 不开麦")
     window.setWidth(1180)
     window.setHeight(900)
     window.showNormal()

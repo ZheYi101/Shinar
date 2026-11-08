@@ -5,10 +5,10 @@ import pytest
 from langchain_core.messages import AIMessage
 from pydantic import SecretStr
 
-from lingualoop.application.material_preparation import prepare_material
-from lingualoop.core import LanguageEnum, LearningMaterial, SessionUserProfile
-from lingualoop.providers.mock import LegacyMockLearningLLMProvider
-from lingualoop.providers.openai_compatible import OpenAICompatibleLLMProvider, OpenAICompatibleLLMSettings
+from shinar.application.material_preparation import prepare_material
+from shinar.core import LanguageEnum, LearningMaterial, SessionUserProfile
+from shinar.providers.mock import LegacyMockLearningLLMProvider
+from shinar.providers.openai_compatible import OpenAICompatibleLLMProvider, OpenAICompatibleLLMSettings
 
 
 def profile():
@@ -105,9 +105,9 @@ def test_whole_book_json_failure_retries_with_all_sections(monkeypatch):
 
 
 def test_dialogue_selects_late_prepared_detail_without_reading_raw_book():
-    from lingualoop.core import MaterialAnalysis, PreparedChunk, DiscussionTopic, AnswerBranch
-    from lingualoop.providers.openai_compatible import _compact_reply_packet
-    from lingualoop.core.material_context import _terms
+    from shinar.core import MaterialAnalysis, PreparedChunk, DiscussionTopic, AnswerBranch
+    from shinar.providers.openai_compatible import _compact_reply_packet
+    from shinar.core.material_context import _terms
     quote = 'The lighthouse was empty.'
     branch = AnswerBranch(user_intent='Why return to the lighthouse?', response_points=['Mira returns after the storm to keep her promise.'],
         suggested_reply='Her promise matters more than safety.', follow_up='Did that change your view of her?', source_excerpts=[quote])
@@ -132,7 +132,7 @@ def test_dialogue_selects_late_prepared_detail_without_reading_raw_book():
 
 
 def test_reader_stance_survives_long_conversation_and_revision_is_explicit():
-    from lingualoop.core import Message, MessageRole, PracticeInstruction
+    from shinar.core import Message, MessageRole, PracticeInstruction
     client = object()
     provider = OpenAICompatibleLLMProvider(OpenAICompatibleLLMSettings(api_key=SecretStr('test'),
         base_url='https://example.test/v1', reasoning_model='pro'), reasoning_client=client, dialogue_client=client)
@@ -188,8 +188,8 @@ def test_parallel_failure_cancels_running_section_tasks():
 
 
 def test_empty_real_transport_response_does_not_save_a_blank_turn(tmp_path):
-    from lingualoop.application import LearningWorkbench
-    from lingualoop.infrastructure import SQLiteStore
+    from shinar.application import LearningWorkbench
+    from shinar.infrastructure import SQLiteStore
     class Empty(LegacyMockLearningLLMProvider):
         async def stream_reply(self, **kwargs):
             yield '  '

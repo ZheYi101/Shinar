@@ -9,16 +9,16 @@ import pytest
 from langchain_core.messages import AIMessageChunk
 from pydantic import SecretStr
 
-from lingualoop.application import LearningWorkbench
-from lingualoop.application.material_preparation import split_material
-from lingualoop.core import (
+from shinar.application import LearningWorkbench
+from shinar.application.material_preparation import split_material
+from shinar.core import (
     DialoguePreparation, LanguageEnum, LearningMaterial, Message, MessageRole,
     PracticeInstruction, ProficiencyLevel,
 )
-from lingualoop.infrastructure import SQLiteStore
-from lingualoop.infrastructure.material_import import import_material_file
-from lingualoop.providers.mock import LegacyMockLearningLLMProvider
-from lingualoop.providers.openai_compatible import OpenAICompatibleLLMProvider, OpenAICompatibleLLMSettings
+from shinar.infrastructure import SQLiteStore
+from shinar.infrastructure.material_import import import_material_file
+from shinar.providers.mock import LegacyMockLearningLLMProvider
+from shinar.providers.openai_compatible import OpenAICompatibleLLMProvider, OpenAICompatibleLLMSettings
 
 
 async def load(work, text="太郎は駅で友達の花子に会った。二人は旅行の予定を話した。"):
@@ -32,7 +32,7 @@ def test_chunks_cover_whole_source_without_loss_and_budget_is_explicit(monkeypat
     chunks = list(split_material(text))
     assert "".join(part for _, _, part in chunks) == text
     assert all(text[start:end] == content and len(content) <= 12000 for start, end, content in chunks)
-    monkeypatch.setenv("LINGUALOOP_MAX_MATERIAL_CHARS", "12000")
+    monkeypatch.setenv("SHINAR_MAX_MATERIAL_CHARS", "12000")
     with pytest.raises(ValueError, match="材料已保存"):
         list(split_material(text))
 
@@ -224,7 +224,7 @@ def test_dialogue_prompt_uses_bounded_preparation_and_ignores_reasoning_content(
 
 
 def test_dialogue_packet_deduplicates_evidence_and_current_user_without_changing_output_budget():
-    from lingualoop.providers.openai_compatible import _compact_reply_packet
+    from shinar.providers.openai_compatible import _compact_reply_packet
     quote = "二人は旅行について話した。"
     branches = [{"user_intent": "旅行が好き", "response_points": ["二人が旅行の話をした"],
         "suggested_reply": "いいですね。", "follow_up": "どこに行きたいですか？", "source_excerpts": [quote]}] * 3
@@ -281,9 +281,9 @@ def test_xlsx_import_reads_all_sheets_and_video_uses_subtitle_only(tmp_path):
 
 
 def test_eight_section_book_balances_topic_budget_and_custom_topic_retrieves_tail():
-    from lingualoop.application.material_preparation import _merge_analyses
-    from lingualoop.core import MaterialAnalysis, PreparedChunk, DiscussionTopic, AnswerBranch
-    from lingualoop.core.material_context import custom_topic_context
+    from shinar.application.material_preparation import _merge_analyses
+    from shinar.core import MaterialAnalysis, PreparedChunk, DiscussionTopic, AnswerBranch
+    from shinar.core.material_context import custom_topic_context
     analyses, chunks, source_parts = [], [], []
     offset = 0
     for index in range(8):
@@ -319,7 +319,7 @@ def test_material_wall_budget_keeps_completed_chunks_and_retry_resumes(tmp_path,
                 await asyncio.sleep(2)
             return await super().analyze_material(**kwargs)
     async def run():
-        monkeypatch.setenv("LINGUALOOP_PREPARATION_DEADLINE_SECONDS", "1")
+        monkeypatch.setenv("SHINAR_PREPARATION_DEADLINE_SECONDS", "1")
         provider = SlowSecond()
         work = LearningWorkbench(provider, event_store=SQLiteStore(tmp_path / "deadline.sqlite3"))
         with pytest.raises(ValueError, match="本次材料整理达到 1 秒"):

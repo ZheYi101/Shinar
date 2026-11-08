@@ -9,7 +9,7 @@ import struct
 
 import pytest
 
-from lingualoop.desktop.packaged import configuration_file
+from shinar.desktop.packaged import configuration_file
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -24,11 +24,12 @@ def build_module():
 
 
 def test_user_config_location_and_explicit_override(monkeypatch, tmp_path):
-    monkeypatch.delenv("LINGUALOOP_CONFIG_FILE", raising=False)
+    for key in ("SHINAR_CONFIG_FILE", "LINGUALOOP_CONFIG_FILE", "SHINAR_DATA_DIR", "LINGUALOOP_DATA_DIR"):
+        monkeypatch.delenv(key, raising=False)
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
-    assert configuration_file() == tmp_path / "LinguaLoop/.env"
+    assert configuration_file() == tmp_path / "Shinar/.env"
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("LINGUALOOP_CONFIG_FILE", "custom/model.env")
+    monkeypatch.setenv("SHINAR_CONFIG_FILE", "custom/model.env")
     assert configuration_file() == tmp_path / "custom/model.env"
 
 
@@ -53,7 +54,7 @@ def test_windows_icon_contains_decodable_sizes():
     pytest.importorskip("PySide6")
     from PySide6.QtGui import QImage
 
-    icon = (ROOT / "src/lingualoop/desktop/assets/app-icon.ico").read_bytes()
+    icon = (ROOT / "src/shinar/desktop/assets/app-icon.ico").read_bytes()
     reserved, kind, count = struct.unpack_from("<HHH", icon)
     assert (reserved, kind, count) == (0, 1, 9)
     sizes = []
@@ -78,7 +79,7 @@ def test_identity_module_does_not_eagerly_import_qt():
         [
             sys.executable,
             "-c",
-            "import sys; import lingualoop.desktop.identity; assert 'PySide6.QtGui' not in sys.modules",
+            "import sys; import shinar.desktop.identity; assert 'PySide6.QtGui' not in sys.modules",
         ],
         capture_output=True,
         text=True,

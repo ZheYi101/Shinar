@@ -12,7 +12,7 @@ import random
 import shutil
 from pathlib import Path
 
-from lingualoop.local_speech.evaluation_metrics import (
+from shinar.local_speech.evaluation_metrics import (
     aggregate_accuracy,
     distribution,
     error_metrics,
@@ -20,7 +20,7 @@ from lingualoop.local_speech.evaluation_metrics import (
     normalized_words,
     immediate_playback_gaps,
 )
-from lingualoop.local_speech.storage import atomic_json
+from shinar.local_speech.storage import atomic_json
 
 
 def collect(runs: list[Path]) -> list[dict]:
@@ -300,15 +300,15 @@ def listening_pack(reports: list[dict], output: Path) -> None:
             f'<article data-code="{code}" data-language="{model["language"]}" data-text="{row["item_id"]}"><h3>{code} · {model["language"]} · {html.escape(row["category"])}</h3><p>{html.escape(row["text"])}</p><audio controls preload="none" src="audio/{code}.wav"></audio><div class="scores">{fields}</div><textarea aria-label="听感备注" placeholder="漏读、错读、断句、机械感或其他问题；请写具体位置"></textarea></article>'
         )
     atomic_json(output / "listening-key.json", keys)
-    document = """<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LinguaLoop 语音盲听</title><style>body{font:16px/1.6 system-ui,'Microsoft YaHei',sans-serif;max-width:1050px;margin:24px auto;padding:0 18px;background:#f5f7fa;color:#162033}header{position:sticky;top:0;background:#f5f7faf5;padding:12px 0;border-bottom:1px solid #c9d3e0}button,select{font:inherit;padding:6px 10px}article{background:white;border:1px solid #d8e0eb;border-radius:12px;padding:18px;margin:16px 0}h3{margin-top:0}audio{width:100%;max-width:600px}.scores{display:flex;flex-wrap:wrap;gap:16px;margin:12px 0}label{display:flex;gap:8px;align-items:center}textarea{width:100%;box-sizing:border-box;min-height:60px;font:inherit}small{color:#526078}</style><header><h1>语音盲听</h1><p>戴同一副耳机，以舒适音量试听。每个维度 1 分最差、5 分最好；先选语言和同一句作对比。允许保留未评分，不能从测速推断听感。</p><label>语言<select id="lang"><option value="">全部</option><option>zh</option><option>en</option><option>ja</option></select></label><label>句子<select id="sentence"><option value="">全部</option></select></label><button id="export">导出已填评分</button><small id="status"></small></header><main>CARDS</main><script>
-const packId='PACK_ID',articles=[...document.querySelectorAll('article')],key='lingualoop-listening-v1-'+packId;
+    document = """<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Shinar 语音盲听</title><style>body{font:16px/1.6 system-ui,'Microsoft YaHei',sans-serif;max-width:1050px;margin:24px auto;padding:0 18px;background:#f5f7fa;color:#162033}header{position:sticky;top:0;background:#f5f7faf5;padding:12px 0;border-bottom:1px solid #c9d3e0}button,select{font:inherit;padding:6px 10px}article{background:white;border:1px solid #d8e0eb;border-radius:12px;padding:18px;margin:16px 0}h3{margin-top:0}audio{width:100%;max-width:600px}.scores{display:flex;flex-wrap:wrap;gap:16px;margin:12px 0}label{display:flex;gap:8px;align-items:center}textarea{width:100%;box-sizing:border-box;min-height:60px;font:inherit}small{color:#526078}</style><header><h1>语音盲听</h1><p>戴同一副耳机，以舒适音量试听。每个维度 1 分最差、5 分最好；先选语言和同一句作对比。允许保留未评分，不能从测速推断听感。</p><label>语言<select id="lang"><option value="">全部</option><option>zh</option><option>en</option><option>ja</option></select></label><label>句子<select id="sentence"><option value="">全部</option></select></label><button id="export">导出已填评分</button><small id="status"></small></header><main>CARDS</main><script>
+const packId='PACK_ID',articles=[...document.querySelectorAll('article')],key='shinar-listening-v1-'+packId;
 const sentence=document.querySelector('#sentence');[...new Set(articles.map(a=>a.dataset.text))].sort().forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;sentence.append(o)});
 function filter(){articles.forEach(a=>a.hidden=!!((lang.value&&a.dataset.language!==lang.value)||(sentence.value&&a.dataset.text!==sentence.value)))}const lang=document.querySelector('#lang');lang.onchange=sentence.onchange=filter;
 function values(){return articles.map(a=>({code:a.dataset.code,language:a.dataset.language,ratings:Object.fromEntries([...a.querySelectorAll('select')].map(s=>[s.dataset.score,s.value?Number(s.value):null])),notes:a.querySelector('textarea').value}))}
 try{const old=JSON.parse(localStorage.getItem(key)||'[]');articles.forEach(a=>{const row=old.find(r=>r.code===a.dataset.code);if(row){a.querySelectorAll('select').forEach(s=>s.value=row.ratings[s.dataset.score]||'');a.querySelector('textarea').value=row.notes||''}})}catch(e){}
 function save(){const data=values();try{localStorage.setItem(key,JSON.stringify(data))}catch(e){}document.querySelector('#status').textContent=' 已评分 '+data.filter(r=>Object.values(r.ratings).some(v=>v!==null)).length+'/'+articles.length}document.addEventListener('change',save);document.addEventListener('input',save);save();
 document.addEventListener('play',event=>{if(event.target.tagName==='AUDIO')document.querySelectorAll('audio').forEach(audio=>{if(audio!==event.target)audio.pause()})},true);
-document.querySelector('#export').onclick=()=>{const data={schema:'lingualoop-human-listening-v1',pack_id:packId,timestamp:new Date().toISOString(),formal_mos_study:false,ratings:values()};const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));a.download='lingualoop-listening-ratings.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
+document.querySelector('#export').onclick=()=>{const data={schema:'shinar-human-listening-v1',pack_id:packId,timestamp:new Date().toISOString(),formal_mos_study:false,ratings:values()};const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));a.download='shinar-listening-ratings.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
 </script></html>""".replace("CARDS", "\n".join(cards)).replace(
         "PACK_ID", hashlib.sha256(json.dumps(keys, sort_keys=True).encode()).hexdigest()[:16]
     )
@@ -330,7 +330,7 @@ def write_results(summary: list[dict], output: Path) -> None:
         return "—" if value is None else f"{value:.{digits}f}"
 
     lines = [
-        "# LinguaLoop 本机语音评测",
+        "# Shinar 本机语音评测",
         "",
         "CPU 每模型 2 线程；GPU 单列。STT 每语言 50 段真人朗读；TTS 每语言 12 条相同文本。",
         "首 PCM 从完整文本供给后计时，尚未测设备出声；离线 STT 从完整录音供给后计时。",

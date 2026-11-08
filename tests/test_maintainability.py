@@ -3,7 +3,7 @@
 import ast
 from pathlib import Path
 
-SOURCE = Path(__file__).resolve().parents[1] / "src" / "lingualoop"
+SOURCE = Path(__file__).resolve().parents[1] / "src" / "shinar"
 
 
 def source_files():

@@ -1,7 +1,7 @@
 import asyncio
 
-from lingualoop.core import SessionEvent, SessionEventType
-from lingualoop.kernel import InMemoryEventStore
+from shinar.core import SessionEvent, SessionEventType
+from shinar.kernel import InMemoryEventStore
 
 
 def test_event_store_returns_empty_list_for_unknown_session() -> None:

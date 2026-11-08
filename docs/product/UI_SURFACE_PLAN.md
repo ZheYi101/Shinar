@@ -1,4 +1,4 @@
-# LinguaLoop 页面方案与实现记录
+# Shinar 页面方案与实现记录
 
 ## 2026-10-30：自动发送的分轮语音已接入 QML
 
@@ -21,7 +21,7 @@
 
 ## 产品边界：读后使用，保持轻量（2026-10-28）
 
-用户明确：主要在读完小说后使用 LinguaLoop，不把应用做成小说阅读器。侧栏与圈点的探索须服务读后讨论，不以在应用内阅读、阅读时标注或提前整理摘录为前提。此前“边读边留想法”的概念示意不作为默认流程或已确认方案。
+用户明确：主要在读完小说后使用 Shinar，不把应用做成小说阅读器。侧栏与圈点的探索须服务读后讨论，不以在应用内阅读、阅读时标注或提前整理摘录为前提。此前“边读边留想法”的概念示意不作为默认流程或已确认方案。
 
 用户进一步明确：侧栏不只是阅读笔记，也应像和朋友共同指着书里的某一章、某一段或某一句交流。查看原文服务于表达、争论、联想和回忆，不限于核对 AI 答案。
 
@@ -57,7 +57,7 @@
 - [Hoshi MainShellUi.kt（b08acc09）](https://github.com/HuangAntimony/Hoshi-Reader-Android/blob/b08acc09a87c532564fa1139cbd5efae57923259/app/src/main/java/moe/antimony/hoshi/features/bookshelf/MainShellUi.kt) 与同目录 `BookshelfView.kt`：采用内容优先的自适应 rail / bottom bar、受约束的内容宽度和网格留白层级。
 - [Fushi 自绘桌面标题栏（98710dc9）](https://github.com/hajisensai/Fushi/blob/98710dc9cfddb5355872df7c662e61216626ae93/fushi/lib/src/utils/components/fushi_desktop_title_bar.dart)：参考应用主题与窗框连续、避免重复标题、保留桌面窗口操作的思路。
 
-两者为 GPL 项目。本轮仅参考交互与层级，未复制代码、图片、字体、图标或其他资产。LinguaLoop 保留自己的品牌、QML 组件与 Material Symbols 图标许可证。
+两者为 GPL 项目。本轮仅参考交互与层级，未复制代码、图片、字体、图标或其他资产。Shinar 保留自己的品牌、QML 组件与 Material Symbols 图标许可证。
 
 ## 主题与应用壳
 
@@ -103,7 +103,7 @@
 
 UI 负责人本地复验：`RUN_REAL_AI_TESTS=0` 下运行 `python -m pytest tests/test_desktop_workflow.py tests/test_desktop_imports.py tests/test_desktop_native_window.py -q`，结果 **16 passed in 19.48s**。这是 Mock / Qt 与隐藏 HWND 证据，不是 DeepSeek 真实请求或语音验收。
 
-历史分发验证：`uv build --wheel --out-dir build/package-check` 成功；`python scripts/check_wheel_resources.py build/package-check/lingualoop-0.1.0-py3-none-any.whl` 验证 **39 个 QML / SVG / license 资源完整**，从隔离临时目录导入 wheel 内的 `WindowController`，以临时 SQLite / QSettings 和隐藏窗口加载全部 QML，核对 frameless flags、窗口按钮、拖动区与缩放句柄。该历史候选 SHA256 为 `D05017B125D0AB515A0EFE9D920795D1B9B073876978FC48FF238F892A413449`，后被下述固定状态区修复替代，不能作为最终候选。未安装到用户全局环境、未发布。增强探针首次通过 QObject ownership 树查 Repeater 句柄失败，改用 QQuickItem 视觉树遍历后通过；wheel 内容及应用源码未因此更改。最终包身份与独立分发验收以 ROADMAP / TEXT_ACCEPTANCE 为准。
+历史分发验证：`uv build --wheel --out-dir build/package-check` 成功；`python scripts/check_wheel_resources.py build/package-check/shinar-0.1.0-py3-none-any.whl` 验证 **39 个 QML / SVG / license 资源完整**，从隔离临时目录导入 wheel 内的 `WindowController`，以临时 SQLite / QSettings 和隐藏窗口加载全部 QML，核对 frameless flags、窗口按钮、拖动区与缩放句柄。该历史候选 SHA256 为 `D05017B125D0AB515A0EFE9D920795D1B9B073876978FC48FF238F892A413449`，后被下述固定状态区修复替代，不能作为最终候选。未安装到用户全局环境、未发布。增强探针首次通过 QObject ownership 树查 Repeater 句柄失败，改用 QQuickItem 视觉树遍历后通过；wheel 内容及应用源码未因此更改。最终包身份与独立分发验收以 ROADMAP / TEXT_ACCEPTANCE 为准。
 
 首次 QML 失败是 `AbstractButton.action` FINAL 属性冲突，组件字段更名为 `glyph` 后通过。首次新增键盘测试误用了只支持 QWidget 的 `keyClicks`，随后传入整数又命中字符重载而插入大写；最终使用显式 `Qt.Key` 逐键事件，并保留精确草稿断言。导航快捷键在 offscreen 焦点下增加 `ApplicationShortcut` 上下文，单项复验通过。这些失败已修复，不代表真实服务已验收。
 

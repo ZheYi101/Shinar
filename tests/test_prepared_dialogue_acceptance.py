@@ -8,12 +8,12 @@ from pathlib import Path
 
 import pytest
 
-from lingualoop.application import LearningWorkbench
-from lingualoop.core import FeedbackTiming, LanguageEnum, PracticeOptions, ProficiencyLevel
-from lingualoop.core import AnswerBranch, DiscussionTopic, MaterialAnalysis
-from lingualoop.infrastructure import SQLiteStore
-from lingualoop.providers.mock import LegacyMockLearningLLMProvider
-from lingualoop.providers.openai_compatible import OpenAICompatibleLLMProvider, OpenAICompatibleLLMSettings
+from shinar.application import LearningWorkbench
+from shinar.core import FeedbackTiming, LanguageEnum, PracticeOptions, ProficiencyLevel
+from shinar.core import AnswerBranch, DiscussionTopic, MaterialAnalysis
+from shinar.infrastructure import SQLiteStore
+from shinar.providers.mock import LegacyMockLearningLLMProvider
+from shinar.providers.openai_compatible import OpenAICompatibleLLMProvider, OpenAICompatibleLLMSettings
 from langchain_core.messages import AIMessage
 from pydantic import SecretStr
 
@@ -144,7 +144,7 @@ def test_custom_topic_can_reach_detail_in_last_raw_chunk_beyond_summary(tmp_path
 
     async def scenario():
         # Prepared summaries deliberately omit the key. Retrieval must consult source chunks.
-        from lingualoop.core import LearningMaterial, PreparedChunk
+        from shinar.core import LearningMaterial, PreparedChunk
         fixture = LearningMaterial(title="旅の九章", source_language=LanguageEnum.JAPANESE, content=text,
             analysis=MaterialAnalysis(summary="二人は旅をした。", outline=["二人は旅をした。"],
                 topics=[DiscussionTopic(title="別れ", opening_question="どう思いますか。", source_excerpt=opening)],

@@ -14,7 +14,7 @@
 
 **用户明确的边界**：
 
-- 主要在自己读完小说后使用，保持轻量，不把 LinguaLoop 做成小说阅读器。
+- 主要在自己读完小说后使用，保持轻量，不把 Shinar 做成小说阅读器。
 - 想借鉴侧栏聊天和圈点，但侧栏不只是阅读笔记：体验应像与朋友一起指着书的某一章、某一段或某一句，围绕它表达、争论、联想。
 - 选择章节后默认讨论这一章，不再另点“聊这一章”确认；每段旁常驻“指这段”按钮的方案需重做。
 - 用户已认可重做后的交互：直接点正文段落或完成文字选区即聚焦，输入区同步显示范围；清除细选回到整章，换章保留草稿。
@@ -177,7 +177,7 @@
 
 现有能力与新增要求须分开：当前代码已经有材料导入、已读范围、本地片段索引、自由聊天、流式回复和历史；当前语境面板主要展示材料信息。统一对照布局、可靠章节指向、用户选段与逐轮来源关联、本文所述语音连续性均不能据此视为已实现。
 
-代码核对入口：[WorkbenchScaffold](../../src/lingualoop/desktop/qml/WorkbenchScaffold.qml)、[ConversationPage](../../src/lingualoop/desktop/qml/pages/ConversationPage.qml)、[source_index](../../src/lingualoop/application/source_index.py)、[material_context](../../src/lingualoop/core/material_context.py)。现有检索结果中片段范围与展示摘录不一定是同一精确范围；新增指向需计算并核对实际选段位置，不能直接复用粗粒度 chunk 边界冒充句子位置。
+代码核对入口：[WorkbenchScaffold](../../src/shinar/desktop/qml/WorkbenchScaffold.qml)、[ConversationPage](../../src/shinar/desktop/qml/pages/ConversationPage.qml)、[source_index](../../src/shinar/application/source_index.py)、[material_context](../../src/shinar/core/material_context.py)。现有检索结果中片段范围与展示摘录不一定是同一精确范围；新增指向需计算并核对实际选段位置，不能直接复用粗粒度 chunk 边界冒充句子位置。
 
 ## 13. 验收场景
 
