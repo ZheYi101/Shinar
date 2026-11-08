@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from shinar.desktop.tasks.preparation_progress import preparation_error, preparation_error_text, preparation_phase_text, preparation_transfer_text
+from shinar.desktop.tasks.preparation_progress import (
+    preparation_error,
+    preparation_error_text,
+    preparation_phase_text,
+    preparation_transfer_text,
+)
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -25,14 +30,6 @@ from shinar.local_speech.downloads import DownloadCancelled, TransferEvent
 PreparationOperation = Callable[
     [Event, Callable[[str], None], Callable[[TransferEvent], None]], None
 ]
-
-
-
-
-
-
-
-
 
 
 @dataclass

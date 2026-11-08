@@ -59,7 +59,7 @@ def main():
 
     try:
         window.setTitle("Shinar · 下载界面验收 · 合成任务与独立测试库")
-        library.catalog = load_catalog()
+        library.configure_catalog(load_catalog())
         library.setFilter("en", "conversation")
         wait(lambda: not library.busy)
         stt = next(r for r in library.models if r["task"] == "STT" and r["downloadBytes"])

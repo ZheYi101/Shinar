@@ -102,6 +102,8 @@ CLI 与桌面使用相同 Workbench 用例；CLI 导入先保存，显式确认�
 
 ## 执行、并发与失效
 
+语音库使用普通 Python 的 CatalogProjection、LibraryOperations 和 ResourceMonitor 分别拥有目录、操作及资源监测状态；SpeechPreparationJobs 保留下载队列。后台 LibraryWork 只接收冻结请求，不读取门面字段；阶段、完成及扫描事件回主线程复核原任务身份。嵌套快照只读，QML 值脱离所有者。Qt 音频、设备、计时器与信号仍由单一语音库 QObject 适配；LocalSpeechService 仍由 ViewModel 清理链关闭。
+
 Qt 控件、WebEngine profile 和音频对象属于主线程。网络与准备任务复用长期 asyncio worker；ZIP／文件及长文本处理进入后台，不在 QML 或 JS 中执行业务。后台结果通过 queued signal 返回，不能在 worker 中直接修改 Qt 控件。
 
 结果生效须核对材料、会话、请求代际和当前路由；取消不是唯一的有效性保障。导航、换线程、新一轮消息与退出时，旧任务即使晚到也不能覆盖当前状态。关闭流程由创建者取消任务并释放资源，重试复用原业务入口。

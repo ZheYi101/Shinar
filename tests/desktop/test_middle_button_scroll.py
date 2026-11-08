@@ -15,7 +15,7 @@ from tests.support.qt import click, item, until
 
 def test_model_middle_button_scroll_and_exit(library_desktop, width):
     _, library, _, window, _, _ = library_desktop
-    library.catalog = load_catalog()
+    library.configure_catalog(load_catalog())
     library.setFilter("en", "conversation")
     until(lambda: not library.busy)
     window.setWidth(width)

@@ -35,23 +35,24 @@ def test_library_download_benchmark_select_and_restart(library_desktop):
     assert not item(window, "speechSelect-test-tts").isEnabled()
     assert read_json(root / "speech/selections.json")["en:conversation:tts"]["id"] == "test-tts"
     restored = SpeechLibraryViewModel(root / "speech")
-    restored.catalog = library.catalog
+    restored.configure_catalog(library.catalog)
     restored.setFilter("en", "conversation")
     until(lambda: not restored.busy)
     assert restored.models[0]["installed"] and restored.models[0]["measured"]
     restored.close()
 
 
-def test_progress_does_not_recreate_model_cards(library_desktop):
+def test_progress_does_not_recreate_model_cards(library_desktop, monkeypatch):
     app, library, vm, window, engine, root = library_desktop
     models = QSignalSpy(library.modelsChanged)
     progress = QSignalSpy(library.progressChanged)
 
-    def wait_for_cancel():
-        library._cancel.wait(2)
-        return library._snapshot()
-
-    library._start("测试进度更新", wait_for_cancel)
+    from shinar.desktop.speech_library.work import LibraryWork
+    def wait_for_cancel(work):
+        work._cancel.wait(2)
+        return {}
+    monkeypatch.setattr(LibraryWork, "_snapshot", wait_for_cancel)
+    library.refresh()
     QTest.qWait(400)
     assert library.busy and models.count() == 0
     assert progress.count() >= 2
@@ -66,7 +67,7 @@ def test_default_stt_demo_benchmarks_and_selects_same_service_without_file_picke
     import asyncio
     import sys
     from types import SimpleNamespace
-    import shinar.desktop.speech_library.viewmodel as module
+    import shinar.desktop.speech_library.work as module
     import shinar.local_speech.service as service_module
     import shinar.local_speech.model_profile as profiles
     from shinar.local_speech.downloads import DownloadCancelled
@@ -74,8 +75,8 @@ def test_default_stt_demo_benchmarks_and_selects_same_service_without_file_picke
 
     _, library, vm, window, _, root = library_desktop
     package = next(p for p in load_catalog() if p.id == "sensevoice-int8-20240717")
-    library.catalog = [package]
-    monkeypatch.setattr(library.store, "installed", lambda _: True)
+    library.configure_catalog([package])
+    monkeypatch.setattr(type(library.store), "installed", lambda self, _: True)
     monkeypatch.setattr(library.local_service.store, "installed", lambda _: True)
     monkeypatch.setattr(service_module, "detect_hardware", module.detect_hardware)
     monkeypatch.setattr(service_module, "runtime_status", lambda *a, **k: {"prepared": True})
@@ -101,7 +102,7 @@ def test_default_stt_demo_benchmarks_and_selects_same_service_without_file_picke
                         ]}},
         })
 
-    monkeypatch.setattr("shinar.desktop.speech_library.operations.benchmark", benchmark)
+    monkeypatch.setattr("shinar.desktop.speech_library.work.benchmark", benchmark)
     library.setFilter("en", "conversation")
     until(lambda: not library.busy)
     click(window, "speechBenchmark-" + package.id, scroll="speechModelsPage")
@@ -135,7 +136,15 @@ def test_preview_cannot_echo_into_active_voice_or_fall_back_from_a_removed_devic
     preview = library.store.root / "reports/fixture.wav"
     preview.parent.mkdir(parents=True, exist_ok=True)
     preview.write_bytes(b"synthetic fixture")
-    library._rows = [{"id": "test-tts", "preview": str(preview)}]
+    from shinar.desktop.speech_library.work import LibraryWork
+    original = LibraryWork._snapshot
+    def snapshot(work):
+        result = original(work)
+        result["rows"][0]["preview"] = str(preview)
+        return result
+    monkeypatch.setattr(LibraryWork, "_snapshot", snapshot)
+    library.setFilter("en", "conversation")
+    until(lambda: not library.busy)
     played = []
     library._player = SimpleNamespace(setSource=lambda value: played.append(value),
                                       play=lambda: played.append("play"), stop=lambda: None)
@@ -153,7 +162,7 @@ def test_voicevox_terms_and_style_are_explicit_and_do_not_replace_a_model_id(lib
     from shinar.local_speech.model_profile import accepted_terms, voice_choice
     app, library, vm, window, engine, root = library_desktop
     package = next(p for p in load_catalog() if p.id == "voicevox-japanese")
-    library.catalog = [package]
+    library.configure_catalog([package])
     library.setFilter("ja", "conversation")
     until(lambda: not library.busy)
     assert not accepted_terms(library.store.root, package)
@@ -173,7 +182,7 @@ def test_voicevox_terms_and_style_are_explicit_and_do_not_replace_a_model_id(lib
 @pytest.mark.parametrize("theme,width", [("light", 360), ("dark", 360), ("light", 1440), ("dark", 800)])
 def test_compute_subpage_device_budget_and_idle_settings(library_desktop, monkeypatch, theme, width):
     from PySide6.QtCore import Qt
-    import shinar.desktop.speech_library.viewmodel as module
+    import shinar.desktop.speech_library.monitor as module
     app, library, vm, window, engine, root = library_desktop
     monkeypatch.setattr(module, "resource_snapshot", lambda *args: {
         "gpus": [{"index": 0, "name": "测试 GPU", "used_mb": 2345, "total_mb": 8192, "utilization": 37}],
@@ -205,7 +214,8 @@ def test_local_route_uses_conversation_language_and_does_not_call_remote(library
     from shinar.local_speech.compute import ComputeSettings, save_compute
     save_compute(library.store.root, ComputeSettings(local_stt=True))
     vm.preferences.setValue("targetLanguage", "japanese")
-    library._language = "en"
+    library.setFilter("en", "conversation")
+    until(lambda: not library.busy)
     calls = []
     async def transcribe(audio, language):
         calls.append((audio, language))
@@ -248,13 +258,12 @@ def test_inference_status_does_not_run_installation_checks_on_gui_thread(
     until(lambda: not library.busy)
     gui_thread = get_ident()
     snapshots = []
-    original = library._runtime_snapshot
-
-    def snapshot():
+    from shinar.desktop.speech_library.work import LibraryWork
+    original = LibraryWork._runtime_snapshot
+    def snapshot(work):
         snapshots.append(get_ident())
-        return original()
-
-    monkeypatch.setattr(library, "_runtime_snapshot", snapshot)
+        return original(work)
+    monkeypatch.setattr(LibraryWork, "_runtime_snapshot", snapshot)
     runtime_changes = QSignalSpy(library.runtimesChanged)
     for i in range(20):
         library.inferenceStatus.emit(f"TTS CPU {i}")
@@ -274,21 +283,21 @@ def test_stt_and_tts_download_together_with_live_component_progress(library_desk
     base = library.catalog[0]
     stt = base.model_copy(update={"id": "fixture-stt", "name": "Fixture STT", "task": "stt"})
     tts = base.model_copy(update={"id": "fixture-tts", "name": "Fixture TTS"})
-    library.catalog = [stt, tts]
+    library.configure_catalog([stt, tts])
     library.setFilter("en", "conversation")
     until(lambda: not library.busy)
     gates = {stt.id: Event(), tts.id: Event()}
-    original = library.store.install
+    original = type(library.store).install
 
-    def install(package, **kwargs):
+    def install(store, package, **kwargs):
         transfer = kwargs["on_transfer"]
         transfer(TransferEvent(package.id + ".onnx", "downloading", 128, 1024))
         while not gates[package.id].wait(0.01):
             if kwargs["cancel"].is_set():
                 raise DownloadCancelled()
-        return original(package, **kwargs)
+        return original(store, package, **kwargs)
 
-    monkeypatch.setattr(library.store, "install", install)
+    monkeypatch.setattr(type(library.store), "install", install)
     try:
         click(window, "speechTabSTT")
         click(window, "speechInstall-" + stt.id, scroll="speechModelsPage")

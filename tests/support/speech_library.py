@@ -19,6 +19,7 @@ from shinar.desktop.presentation.viewmodel import LearningViewModel
 from shinar.infrastructure import SQLiteStore
 from shinar.local_speech.catalog import Artifact, load_catalog
 from shinar.local_speech import RUNTIME_VERSION
+from shinar.local_speech.downloads import ModelStore
 from shinar.local_speech.storage import atomic_json
 from shinar.providers import MockLearningLLMProvider
 from tests.support.audio import FakeAudio
@@ -29,6 +30,14 @@ from contextlib import contextmanager
 from tests.support.patches import Patches
 
 
+class SyntheticModelStore(ModelStore):
+    def install(self, model, **kwargs):
+        with httpx.Client(
+            transport=httpx.MockTransport(lambda _: httpx.Response(200, content=b"model"))
+        ) as client:
+            return super().install(model, client=client, **kwargs)
+
+
 @contextmanager
 def speech_library_scene(tmp_path):
     with Patches() as changes:
@@ -36,7 +45,7 @@ def speech_library_scene(tmp_path):
 
 
 def _speech_library_scene(tmp_path, monkeypatch):
-    import shinar.desktop.speech_library.viewmodel as module
+    import shinar.desktop.speech_library.work as module
 
     app = QGuiApplication.instance() or QGuiApplication(["speech-library-test"])
     if os.name == "nt":
@@ -52,11 +61,11 @@ def _speech_library_scene(tmp_path, monkeypatch):
     }
     monkeypatch.setattr(module, "detect_hardware", lambda _: hardware)
     monkeypatch.setattr(
-        "shinar.desktop.speech_library.operations.prepare_managed_runtime",
+        "shinar.desktop.speech_library.work.prepare_managed_runtime",
         lambda *args, **kwargs: {"prepared": True},
     )
     monkeypatch.setattr(module, "runtime_status", lambda *args, **kwargs: {"prepared": True})
-    library = SpeechLibraryViewModel(tmp_path / "speech")
+    library = SpeechLibraryViewModel(tmp_path / "speech", store_factory=SyntheticModelStore)
     artifact = Artifact(
         path="model.onnx",
         url="https://models.example/test",
@@ -71,16 +80,7 @@ def _speech_library_scene(tmp_path, monkeypatch):
             "required_files": ["model.onnx"],
         }
     )
-    library.catalog = [package]
-    original = library.store.install
-
-    def install(model, **kwargs):
-        with httpx.Client(
-            transport=httpx.MockTransport(lambda _: httpx.Response(200, content=b"model"))
-        ) as transport:
-            return original(model, client=transport, **kwargs)
-
-    monkeypatch.setattr(library.store, "install", install)
+    library.configure_catalog([package])
 
     def benchmark(store, packages, language, **_):
         atomic_json(
@@ -100,7 +100,7 @@ def _speech_library_scene(tmp_path, monkeypatch):
             },
         )
 
-    monkeypatch.setattr("shinar.desktop.speech_library.operations.benchmark", benchmark)
+    monkeypatch.setattr("shinar.desktop.speech_library.work.benchmark", benchmark)
     workbench = LearningWorkbench(
         MockLearningLLMProvider(), event_store=SQLiteStore(tmp_path / "app.sqlite3")
     )
