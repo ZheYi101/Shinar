@@ -46,6 +46,7 @@ Shinar 是一个把沉浸式输入转化为语音输出练习的开源语言学�
 - 保持单一业务入口：材料、会话、已读授权与确认消息由 Workbench／core 管理；QML 与 WebEngine 不另建会话、预算、模型调用或持久化流程。新增能力先明确数据所有者、依赖方向、异步失效条件与失败回退。
 - 对话瞬态展示只能由 ViewModel 的 `present_conversation(ConversationEvent)` 更新；控制器读取只读快照，不直接写展示字段或发送门面的对话信号。异步事件保留原任务身份与代际，草稿版本只控制确认清稿，不阻止有效回复显示。
 - 桌面 Python 根目录仅保留包／装配／打包入口；其余按 `shell/presentation/workspace/voice/speech_library/tasks` 归属。QML 和固定阅读器资源路径保持独立稳定。边界扫描递归覆盖子包；运行时依赖环排除 `TYPE_CHECKING`。同一 QObject 的职责基类命名为 `*Mixin`，不视为第二个所有者。
+- 三个桌面门面沿用 Decision 0046：属性 Mixin 只读取／委托；语音库、材料投影、草稿、复盘、操作、导入、导航与阅读分别由普通 Python 所有者管理，禁止恢复可写状态别名。后台冻结输入并保留独立职责身份，控制器通过 refresh_learning(ProjectionChange) 请求学习投影更新。Qt 公开元对象契约由 tests/desktop/test_facade_contracts.py 固定。
 - 连续语音的 `CallCoordinator` 唯一拥有通话状态，`CallPreparation` 独立拥有准备和扫描状态；通过公开运行接口调用 Qt 能力，不保存完整 ViewModel 或其他控制器。通话、准备、麦克风与播放身份分别失效，准备完成不自动开聊。
 - 规范化原文、哈希和 Python 字符区间是来源事实。DOM、CFI、页码和滚动位置只作显示定位；不能用首次引文匹配替代精确坐标，不能因升级引擎或修复排版重写历史快照。改变规范化／来源索引语义须显式版本化并说明兼容方案。
 - EPUB 解析、原件读写和显示投影留在无 Qt 的 `infrastructure/epub_reader.py`；通用来源操作留在 `application/source_document.py`。Qt profile、资源白名单与 WebChannel 只在桌面适配边界。JS 负责渲染与坐标转换，不能决定已读授权或生成对话依据。
@@ -103,5 +104,3 @@ uv run --locked ruff check --select F401 src/shinar/desktop src/shinar/applicati
 
 - 回答用户时直接说明做了什么、改了哪些文件、还有什么未决事项。
 - 需要用户决策时，只提出会影响交付结果的问题；能合理默认的事项先默认并记录。
-
-- 三个桌面门面沿用 Decision 0046：属性 Mixin 只读取／委托；语音库、材料投影、草稿、复盘、操作、导入、导航与阅读分别由普通 Python 所有者管理，禁止恢复可写状态别名。后台冻结输入并保留独立职责身份，控制器通过 refresh_learning(ProjectionChange) 请求学习投影更新。Qt 公开元对象契约由 tests/desktop/test_facade_contracts.py 固定。

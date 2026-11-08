@@ -51,6 +51,8 @@ Python 函数（含嵌套函数，按 AST 起止位置）不超过 100 行；第
 
 桌面边界检查递归扫描子包，识别导入／简单赋值别名、嵌套属性和字符串 `getattr/setattr` 私有访问；同一 QObject 的 `*Mixin` 属于同一所有者。运行时导入环排除 `TYPE_CHECKING` 专用导入。连续语音通话状态只能由 `CallCoordinator` 更新，对话展示只能经既有统一入口更新。
 
+桌面属性 Mixin 只能读取快照或委托命令；状态写入与后台操作属于普通协作者，不能重新新增门面的可写字段别名。tests/desktop/test_facade_contracts.py 固定三个门面公开 Qt 元对象契约、共享状态零债务和无 Qt／完整门面依赖边界；新增异步结果必须保留原任务身份。
+
 Qt 回归集中在 `tests/desktop`，其 `conftest.py` 管理 Qt fixture 和测试平台；共享 Fake、合成音频、交互与场景工厂位于 `tests/support`。普通上下文管理器负责场景释放，不依赖 pytest，不在导入时设置平台环境。验证脚本可使用支持模块，但不能导入具体 `test_*.py`、访问 fixture `__wrapped__` 或向路径注入 tests 目录。测试 monkeypatch 必须指向真正执行操作的模块，不能靠未使用重导出维持旧补丁。LangGraph 实验测试位于 `tests/engine`。
 
 新增或单独整理模块时，对本次负责的文件执行格式化并检查 diff，例如：
@@ -87,5 +89,3 @@ $env:RUN_REAL_AI_TESTS='0'
 ## License
 
 开源许可证尚未确定。在确定前，请不要假设本项目已采用 MIT、Apache-2.0 或其他许可证。
-
-桌面属性 Mixin 只能读取快照或委托命令；状态写入与后台操作属于普通协作者，不能重新新增门面的可写字段别名。tests/desktop/test_facade_contracts.py 固定三个门面公开 Qt 元对象契约、共享状态零债务和无 Qt／完整门面依赖边界；新增异步结果必须保留原任务身份。

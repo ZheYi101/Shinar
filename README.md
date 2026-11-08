@@ -109,6 +109,8 @@ Shinar 面向已经在进行沉浸输入、希望把熟悉内容转化为口语�
 
 ## 本地验证
 
+桌面状态职责和异步失效契约见 [Decision 0046](docs/decisions/TECH_DECISIONS.md#decision-0046)，本轮工程验收见[三个桌面门面所有权记录](docs/validation/engineering/DESKTOP_STATE_OWNERSHIP_2026-11-08.md)。
+
 完整更名后使用 `shinar`／`shinar-desktop` 命令。现有 `.env` 的 `LINGUALOOP_*` 仍可读取；同名 `SHINAR_*` 优先，显式空值也不会恢复旧值。已有旧库及其 EPUB 原件目录原地复用，不自动搬移个人数据；全新安装默认使用 `%LOCALAPPDATA%\Shinar\shinar.sqlite3`，偏好写入 Shinar 命名空间并按键回读旧偏好。详情见[更名记录](./docs/product/NAMING.md#完整工程迁移)。
 
 桌面对话展示采用只读快照和单一事件入口；控制器修改时须保留任务失效及新草稿保护，契约见[系统架构](./docs/architecture/ARCHITECTURE.md#执行并发与失效)。维护性测试同时检查文件／函数大小和展示更新边界。
@@ -376,5 +378,3 @@ uv sync --dev --extra desktop --extra realtime
 逐模型的中英日严格评测见[语音评测记录](./docs/validation/speech/LOCAL_SPEECH_STRICT_EVALUATION_2026-10-28.md)：公开真人语料的 CER/WER、冷/热首结果、首 PCM、合成/播报字速、独立候选环境及匿名听评包分开记录。评测脚本与模型资产放在独立目录，不切换正常应用的语音 provider；未取得人工评分的听感项目保持未验收。
 
 本地语音的普通下载、分类型环境和声音选择见[设置闭环指南](docs/desktop/LOCAL_SPEECH_SETUP.md)；Windows 安装与免安装分发见[分发指南](docs/desktop/WINDOWS_DISTRIBUTION.md)，真人设备与安装证据分别记录。
-
-桌面状态职责和异步失效契约见 [Decision 0046](docs/decisions/TECH_DECISIONS.md#decision-0046)，本轮工程验收见[三个桌面门面所有权记录](docs/validation/engineering/DESKTOP_STATE_OWNERSHIP_2026-11-08.md)。
