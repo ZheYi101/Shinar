@@ -717,18 +717,22 @@ class LearningWorkbench(MaterialWorkbench):
             self._profile = self._material.profile
 
     async def aclose(self) -> None:
-        if self._reply_task and self._reply_task is not asyncio.current_task():
-            self._reply_task.cancel()
-            await asyncio.gather(self._reply_task, return_exceptions=True)
         self._cancel_preparation()
-        tasks = list(self._material_tasks.values())
-        for task in tasks:
-            if not task.done():
+        tasks = [*self._material_tasks.values(), *self._preparation_tasks]
+        if self._reply_task:
+            tasks.append(self._reply_task)
+        pending = []
+        for task in set(tasks) - {asyncio.current_task()}:
+            if task.done():
+                # Completed seed tasks can belong to an already closed loop.
+                # Read their outcome without attaching new callbacks to that loop.
+                if not task.cancelled():
+                    task.exception()
+            else:
                 task.cancel()
-        if tasks:
-            await asyncio.gather(*tasks, return_exceptions=True)
-        if self._preparation_tasks:
-            await asyncio.gather(*self._preparation_tasks, return_exceptions=True)
+                pending.append(task)
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
         close = getattr(self._provider, "aclose", None)
         if close:
             await close()

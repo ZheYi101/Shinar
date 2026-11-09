@@ -182,13 +182,14 @@ def test_failed_reference_attempts_are_capped_across_restart(tmp_path, monkeypat
         await work.start_session()
         for turn in range(5):
             await work.send_message(f"The friend returns to the station {turn}.")
-            await asyncio.sleep(0.01)
+            async with asyncio.timeout(2):
+                while work.preparation_status == "preparing":
+                    await asyncio.sleep(0)
         assert provider.background == 3 and work.session.reference_refresh_count == 3
         assert len(work.session.messages) == 11
         await work.aclose()
         restored = LearningWorkbench(Failing(), event_store=SQLiteStore(path))
         await restored.send_message("Another view about the friend returning.")
-        await asyncio.sleep(0.01)
-        assert restored._provider.background == 0
+        assert restored.preparation_status == "idle" and restored._provider.background == 0
         await restored.aclose()
     asyncio.run(run())
