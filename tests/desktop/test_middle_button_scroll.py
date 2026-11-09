@@ -15,7 +15,11 @@ from tests.support.qt import click, item, until
 
 def test_model_middle_button_scroll_and_exit(library_desktop, width):
     _, library, _, window, _, _ = library_desktop
-    library.configure_catalog(load_catalog())
+    catalog = load_catalog()
+    source = next(p for p in catalog if p.id == "sensevoice-int8-20240717")
+    # Keep enough content to exercise scrolling as the compact page gets shorter.
+    extra = source.model_copy(update={"id": source.id + "-scroll-fixture"})
+    library.configure_catalog([*catalog, extra])
     library.setFilter("en", "conversation")
     until(lambda: not library.busy)
     window.setWidth(width)

@@ -8,9 +8,15 @@ ColumnLayout {
     required property var controller
     Layout.fillWidth: true
     spacing: 8
-    MLabel { text: qsTr("AI API 连接"); role: "title" }
+    RowLayout {
+        Layout.fillWidth: true
+        MLabel { text: qsTr("AI API 连接"); role: "label" }
+        MHelpButton {
+            objectName: "aiConnectionHelp"
+            helpText: qsTr("支持 OpenAI 兼容接口，推理与对话可使用同一模型。读取模型列表不会生成内容或发送学习材料。Windows 使用当前用户的系统加密保存密钥。保存后需重新打开软件生效。")
+        }
+    }
     MLabel { text: controller.sourceText; role: "supporting" }
-    MLabel { text: qsTr("支持 OpenAI 兼容接口。保存后重新打开软件生效；当前对话使用启动时的配置。"); role: "supporting" }
     MLabel { text: qsTr("API 基础地址"); role: "label" }
     MTextField {
         objectName: "aiBaseUrlInput"; Layout.fillWidth: true
@@ -26,7 +32,6 @@ ColumnLayout {
         onTextEdited: controller.setApiKey(text)
         inputMethodHints: Qt.ImhHiddenText | Qt.ImhNoPredictiveText
     }
-    MLabel { text: qsTr("Windows 使用当前用户的系统加密保存密钥，安装包不含个人密钥。"); role: "supporting"; font.pixelSize: 12 }
     MButton {
         objectName: "testAiConnectionButton"
         text: controller.busy ? qsTr("正在读取模型…") : controller.modelsLoaded ? qsTr("刷新模型列表") : qsTr("读取模型列表")
@@ -58,7 +63,6 @@ ColumnLayout {
         onActivated: controller.dialogueModel = currentIndex === 0 ? "" : controller.modelOptions[currentIndex - 1]
     }
     MLabel { visible: text.length > 0; text: controller.modelSelectionHint; role: "supporting" }
-    MLabel { text: qsTr("推理与对话是两个独立角色，可以使用同一个模型。连接检查只读取模型列表，不生成内容或发送学习材料。"); role: "supporting" }
     Flow {
         Layout.fillWidth: true; spacing: 8
         MButton { objectName: "saveAiConfigurationButton"; text: qsTr("保存配置"); enabled: controller.canSave; onClicked: controller.save() }

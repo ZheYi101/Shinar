@@ -8,6 +8,7 @@ ColumnLayout {
     id: page
     spacing: 8
     signal openCompute()
+    signal openStorage()
     property string pendingModel: ""
     property string uninstallModel: ""
     property bool pairBenchmark: false
@@ -67,11 +68,18 @@ ColumnLayout {
         }
         MButton { objectName: "speechRefresh"; text: qsTr("刷新"); variant: "text"; enabled: !speechLibrary.operationBusy; onClicked: speechLibrary.refresh() }
         MButton { objectName: "speechPairBenchmark"; text: qsTr("配对测速"); variant: "text"; enabled: !speechLibrary.operationBusy && speechLibrary.downloadCount === 0; onClicked: speechLibrary.runPairBenchmark("") }
+        MButton { objectName: "openSpeechCompute"; text: qsTr("计算与加速"); variant: "outlined"; onClicked: page.openCompute() }
+        MButton { objectName: "openSpeechStorage"; text: qsTr("存储管理"); variant: "text"; onClicked: page.openStorage() }
+        MHelpButton {
+            objectName: "speechBenchmarkHelp"
+            text: qsTr("测速说明")
+            helpText: qsTr("测速使用内置示例；也可在模型详情中选择自己的录音。首次通过“测速并选用”后，模型用于当前语言和用途；实时语音对话需在“实时对话”下选用。")
+        }
     }
-    MLabel { objectName: "speechLibraryStatus"; text: speechLibrary.status; role: "supporting"; font.pixelSize: 12; maximumLineCount: 2; elide: Text.ElideRight; Accessible.role: Accessible.AlertMessage }
+    MLabel { objectName: "speechLibraryStatus"; visible: text.length > 0; text: speechLibrary.status; role: "supporting"; Accessible.role: Accessible.AlertMessage }
     SpeechStorageUsage {
         objectName: "speechStorageUsage"; usage: speechLibrary.storageUsage; collapsible: true
-        explanation: qsTr("文件占用含本地语音共享环境和缓存，不含软件安装目录及学习资料；硬链接只计一次。预计下载含缺少的共享组件；安装需可用空间含临时余量，运行内存见模型详情。")
+        explanation: qsTr("这里是已存到本机的语音文件，包含模型、共享运行环境和缓存；不含软件本身或学习资料。硬链接只计一次。各模型的下载量和安装预留空间见列表，运行内存见详情。")
     }
     RowLayout {
         visible: speechLibrary.operationBusy
@@ -80,8 +88,7 @@ ColumnLayout {
         MButton { objectName: "speechCancel"; text: qsTr("取消操作"); variant: "text"; onClicked: speechLibrary.cancel() }
     }
     SpeechDownloadJobs { Layout.fillWidth: true }
-    MLabel { objectName: "speechSelectionSummary"; text: qsTr("当前语言／用途已选 · STT：%1 · TTS：%2").arg((speechLibrary.models.find(m => m.task === "STT" && m.selected) || {}).name || qsTr("未选用")).arg((speechLibrary.models.find(m => m.task === "TTS" && m.selected) || {}).name || qsTr("未选用")); role: "supporting"; font.pixelSize: 12; maximumLineCount: 3; elide: Text.ElideRight }
-    MLabel { text: speechLibrary.scenario === "conversation" ? qsTr("默认使用内置示例测速；首次点击“测速并选用”，通过后即可用于此语言的对话。") : qsTr("此处选择用于当前用途；语音对话请切换到“实时对话”另行选用。"); role: "supporting"; font.pixelSize: 12 }
+    MLabel { objectName: "speechSelectionSummary"; text: qsTr("识别：%1 · 合成：%2").arg((speechLibrary.models.find(m => m.task === "STT" && m.selected) || {}).name || qsTr("未选用")).arg((speechLibrary.models.find(m => m.task === "TTS" && m.selected) || {}).name || qsTr("未选用")); role: "supporting" }
     RowLayout {
         Layout.fillWidth: true; spacing: 8
         MButton { objectName: "speechTabSTT"; text: qsTr("语音识别 STT (%1)").arg(page.availableModels.filter(m => m.task === "STT").length); variant: page.taskFilter === "STT" ? "tonal" : "text"; onClicked: { page.taskFilter = "STT"; models.positionViewAtBeginning() } }

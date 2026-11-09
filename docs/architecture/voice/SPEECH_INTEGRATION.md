@@ -1,5 +1,7 @@
 # TTS / STT 实际接入方案
 
+语音存储维护沿用独立资源边界，位置配置、根目录租约、清理与事务迁移契约见 [Decision 0047](../../decisions/TECH_DECISIONS.md#decision-0047) 和[存储管理指南](../../desktop/SPEECH_STORAGE.md)。`SpeechStorageController` 仅拥有维护展示与任务身份，不成为模型配置、会话或推理状态的第二写入者。
+
 状态：**总体蓝图；2026-10-30 已接入 QML 连续 PCM／RTC、端点自动提交、AEC 参考和插话取消；真人设备门禁待完成**。本轮采用范围与实际接口以[连续语音指南](../../desktop/CONTINUOUS_VOICE.md)为准，下文历史表格不作为当前交付清单。VOICEVOX/Melo 设置入口与独立环境已接线，见第 17 节；原生 partial、完整 ModelSupervisor 和云端部署仍为后续范围。
 
 后续用户选择先实现无 UI 基础链路：确认事务、双角色对话复用、分句合成、冻结的本地后端和真实 RTC WAV/PCM。该阶段证据见 [Python 指南](../../desktop/VOICE_PYTHON.md)和[基础验收](../../validation/speech/VOICE_PYTHON_INTEGRATION_2026-10-29.md)；后续桌面接线与未通过项以[连续语音指南](../../desktop/CONTINUOUS_VOICE.md)、[本地设置指南](../../desktop/LOCAL_SPEECH_SETUP.md)及对应验收记录为准，下文目标设计不能直接当作已交付。
@@ -630,6 +632,8 @@ JobEvent: job_id, voice_session_id, turn_id?, generation?, stage, error_code?
 ## 17. 本地设置闭环接口（2026-10-30）
 
 `local_speech.installation` 提供冻结的 `RuntimeSpec`、`InstallationPlan`，以及 `make_plan()` / `runtime_plan()` / `prepare_managed_runtime()` / `managed_status()`。准备入口显式下载固定版本资源，使用独立候选目录，成功探针后原子更新就绪指针；失败不替换旧指针。推理与修复共享模型锁，其他实例正在使用模型时也不能替换关联环境。新增准备错误使用 `speech_*` 码，由桌面翻译。
+
+安装计划描述当前请求仍需准备的资源：已安装模型与已就绪环境不因下载缓存被清理而重新计入下载量；显式环境修复使用 `runtime_plan(..., repair=True)`。未就绪环境可复用已安装共享资源、原包指纹对应的 wheelhouse，以及绑定原 UV 包 SHA 与可执行文件 SHA 的安装收据。计划只读取轻量安装清单和文件大小，实际复用 wheel 或 UV 前重新校验内容 SHA；取消校验不会发布候选环境。删除下载缓存不隐式取消安装就绪状态，修复缺少的原始资源仍按固定身份重新下载。
 
 `model_profile.VoiceOption` 定义 `id`、标签、可选 `speaker_id` / `style_id` / 署名。`build_profile()` 是测速、分轮与连续语音共同的冻结入口。`voices.json` 保存候选，`selections.json` 的既有选择项增加可选 `voice_id`；旧条目与 Lessac 保留。VOICEVOX 的 `voice-terms.json` 按包指纹记录确认。声音只切换 profile，不重复下载共享权重，也不修改已经绑定的会话。
 

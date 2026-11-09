@@ -922,6 +922,8 @@ desktop = [
     { name = "pyside6" },
 ]
 dev = [
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "pytest" },
     { name = "ruff" },
 ]
@@ -939,6 +941,8 @@ realtime = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "pytest" },
     { name = "ruff" },
 ]
@@ -954,6 +958,7 @@ requires-dist = [
     { name = "livekit-api", marker = "extra == 'continuous-voice'", specifier = "==1.2.2" },
     { name = "livekit-api", marker = "extra == 'realtime'", specifier = "==1.2.2" },
     { name = "loguru", specifier = ">=0.7.3" },
+    { name = "numpy", marker = "extra == 'dev'", specifier = ">=2,<3" },
     { name = "numpy", marker = "extra == 'local-speech'", specifier = ">=2,<3" },
     { name = "onnxruntime", marker = "extra == 'continuous-voice'", specifier = "==1.23.2" },
     { name = "openpyxl", specifier = ">=3.1,<4" },
@@ -972,6 +977,7 @@ provides-extras = ["local-speech", "desktop", "realtime", "continuous-voice", "d
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "numpy", specifier = ">=2,<3" },
     { name = "pytest", specifier = ">=8" },
     { name = "ruff", specifier = "==0.16.5" },
 ]

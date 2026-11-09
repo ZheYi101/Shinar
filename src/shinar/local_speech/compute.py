@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from typing import Literal
 
 from .storage import atomic_json, read_json
+from .storage_lease import storage_lease
 
 
 class ComputeSettings(BaseModel):
@@ -29,7 +30,8 @@ def load_compute(root: Path) -> ComputeSettings:
 
 
 def save_compute(root: Path, settings: ComputeSettings) -> None:
-    atomic_json(root / "compute.json", settings.model_dump())
+    with storage_lease(root):
+        atomic_json(root / "compute.json", settings.model_dump())
 
 
 def device_profile(package) -> dict:

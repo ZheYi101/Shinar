@@ -11,7 +11,7 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true
         MButton { text: pane.expanded ? qsTr("收起下载任务") : qsTr("展开下载任务"); variant: "text"; onClicked: pane.expanded = !pane.expanded }
-        MLabel { text: qsTr("%1 项进行中 · 最多同时 3 项").arg(speechLibrary.downloadCount); role: "supporting"; font.pixelSize: 12 }
+        MLabel { text: qsTr("%1 项进行中").arg(speechLibrary.downloadCount); role: "supporting"; font.pixelSize: 12 }
         MButton { text: qsTr("清除已结束"); variant: "text"; onClicked: speechLibrary.downloadJobs.clearFinished() }
     }
     ScrollView {

@@ -25,7 +25,6 @@ Rectangle {
         MLabel { objectName: "mockDialogueNotice"; visible: learningViewModel.providerLabel.indexOf("Mock") >= 0; text: bar.width < 600 ? "Mock" : qsTr("Mock 对话"); role: "supporting"; font.pixelSize: 11; Layout.fillWidth: false; Layout.rightMargin: 12; ToolTip.visible: mockHover.hovered; ToolTip.text: qsTr("离线测试语料，未调用对话模型。"); ToolTip.delay: 650; HoverHandler { id: mockHover } }
         MButton { objectName: "openSourceButton"; visible: workspace.route === "chat"; text: qsTr("原文"); variant: "text"; implicitHeight: AppTheme.topBarHeight; enabled: learningViewModel.hasSession; onClicked: workspace.toggleSource() }
         WindowAction { visible: workspace.route === "chat"; glyph: "more"; label: qsTr("对话操作"); objectName: "conversationMenuButton"; onClicked: secondaryMenu.open() }
-        WindowAction { visible: workspace.route !== "chat"; glyph: "more"; label: qsTr("更多：复盘和设置"); objectName: "secondaryMenuButton"; onClicked: secondaryMenu.open() }
         WindowAction { label: qsTr("最小化"); objectName: "windowMinimizeButton"; onClicked: desktopWindow.minimize() }
         WindowAction { glyph: desktopWindow.maximized ? "restore" : "maximize"; label: desktopWindow.maximized ? qsTr("还原窗口") : qsTr("最大化"); objectName: "windowMaximizeButton"; onClicked: desktopWindow.toggleMaximized() }
         WindowAction { glyph: "close"; label: qsTr("关闭窗口"); objectName: "windowCloseButton"; onClicked: desktopWindow.close() }

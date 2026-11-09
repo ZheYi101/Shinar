@@ -1,6 +1,7 @@
 """Parent-side isolated RTC/DSP process, on the application's asyncio worker."""
 
 import asyncio
+from contextlib import ExitStack
 from pathlib import Path
 import sys
 import os
@@ -11,6 +12,7 @@ from typing import Any
 
 from shinar.local_speech.runtime import child_environment
 from shinar.local_speech.processes import terminate_tree
+from shinar.local_speech.storage_lease import checked_root, storage_lease
 from .audio_ipc import encode_message, read_message
 
 
@@ -30,10 +32,43 @@ class AudioSessionProcess:
         self._closed = False
         self._spawn_task = None
         self._close_task = None
+        self._storage_roots: tuple[Path, ...] = ()
+        self._storage_leases = None
+
+    @property
+    def storage_roots(self) -> tuple[Path, ...]:
+        return self._storage_roots
+
+    def configure_storage(self, roots) -> None:
+        """Freeze the directories used by this process before it is spawned."""
+        if self._spawn_task is not None or self._closed:
+            raise RuntimeError("audio_worker_already_started")
+        self._storage_roots = tuple(dict.fromkeys(checked_root(Path(root)) for root in roots))
+
+    def _retain_storage(self) -> None:
+        if self._storage_leases is not None:
+            return
+        with ExitStack() as leases:
+            for root in self._storage_roots:
+                leases.enter_context(storage_lease(root))
+            self._storage_leases = leases.pop_all()
+
+    def _release_storage(self) -> None:
+        if self._storage_leases is not None:
+            leases, self._storage_leases = self._storage_leases, None
+            leases.close()
 
     async def start(self, config: dict) -> dict:
         if self._closed or self._close_task:
             raise RuntimeError("audio_worker_closed")
+        self._retain_storage()
+        try:
+            return await self._start(config)
+        except BaseException:
+            await self.close()
+            raise
+
+    async def _start(self, config: dict) -> dict:
         # Absolute bootstrap works in a checkout and a wheel, without relying on PYTHONPATH.
         self._spawn_task = asyncio.create_task(
             asyncio.create_subprocess_exec(
@@ -114,6 +149,13 @@ class AudioSessionProcess:
         await asyncio.shield(self._close_task)
 
     async def _close(self):
+        try:
+            await self._close_resources()
+        finally:
+            if self.process is None or self.process.returncode is not None:
+                self._release_storage()
+
+    async def _close_resources(self):
         if self._closed:
             return
         if self._spawn_task and self.process is None:

@@ -80,6 +80,8 @@ $env:RUN_REAL_AI_TESTS='0'
 
 `.github/workflows/checks.yml` 在 Windows / Python 3.11、3.13 上执行相同的静态检查和离线回归。QML/图标变更另运行 README 的 wheel 资源检查；真人语音与真实模型延迟属于单独验收。
 
+`dev` 依赖包含离线音频转换测试所需的 NumPy，无需安装语音模型。固定的 foliate-js 文件由 `.gitattributes` 保留上游字节，避免 Windows 自动换行转换破坏清单中的 SHA-256 校验。
+
 ## 逐步降低维护成本
 
 优先整理 ViewModel 和 OpenAI-compatible provider 的职责：界面状态、会话历史投影、模型配置、prompt 构造、输出解析与网络生命周期应有清晰边界。每次拆出一个可独立验证的职责，保持现有入口与缓存兼容，不按行数机械拆文件。应用层对具体 SQLiteStore 的依赖和 provider 对检索私有函数的依赖也是后续整理项。

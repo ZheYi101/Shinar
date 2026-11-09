@@ -1,6 +1,8 @@
 """Conversation reading, keyboard entry and navigation remain usable across widths."""
 
-from PySide6.QtCore import QPointF, Qt
+import pytest
+
+from PySide6.QtCore import QPointF, Qt, QUrl
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtTest import QTest
 
@@ -90,3 +92,43 @@ def test_sidebar_button_has_hover_press_and_reduced_motion_feedback(desktop):
     QGuiApplication.processEvents()
     assert surface.property("scale") == 0.92
     QTest.mouseRelease(window, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, center)
+
+
+def _sidebar_icon_geometry(window, name):
+    button = item(window, name)
+    pending = [button.property("contentItem")]
+    while pending:
+        candidate = pending.pop()
+        source = candidate.property("source")
+        if isinstance(source, QUrl) and source.toString().endswith("/" + button.property("symbol") + ".svg"):
+            center = candidate.mapToScene(QPointF(candidate.width() / 2, candidate.height() / 2))
+            return center.x(), center.y(), candidate.width(), candidate.height()
+        pending.extend(candidate.childItems())
+    raise AssertionError(f"No rendered icon found for {name}")
+
+
+@pytest.mark.parametrize("width", [800, 1180])
+def test_sidebar_icons_and_brand_stay_aligned_during_collapse(desktop, width):
+    vm, window, *_ = desktop
+    window.setWidth(width)
+    workspace = workspace_of(window)
+    workspace.navigate("settings")
+    names = ["nav0", "nav3"] + ["settings-" + key for key in (
+        "appearance", "learning", "services", "audio", "local", "data"
+    )]
+    QTest.qWait(200)
+    expected = {name: _sidebar_icon_geometry(window, name) for name in names}
+    brand = item(window, "sidebarBrandIcon")
+    brand_center = brand.mapToScene(QPointF(brand.width() / 2, brand.height() / 2))
+    for collapsed in (True, False):
+        workspace.toggleSidebar()
+        assert workspace.collapsed is collapsed
+        for delay in (0, 40, 80, 140):
+            QTest.qWait(delay)
+            for name in names:
+                geometry = _sidebar_icon_geometry(window, name)
+                assert geometry == pytest.approx(expected[name], abs=0.5), (name, collapsed, delay)
+                assert geometry[0] == pytest.approx(brand_center.x(), abs=0.5)
+                assert geometry[2:] == (24, 24)
+            actual_brand = brand.mapToScene(QPointF(brand.width() / 2, brand.height() / 2))
+            assert actual_brand == brand_center

@@ -2,17 +2,17 @@
   "repository": "https://github.com/johnfactotum/foliate-js",
   "commit": "78914aef4466eb960965702401634c2cb348e9b1",
   "files": {
-    "view.js": "9560990d1b903d091b18614c6b48e3bbd64b8c074ea1f3182345cd27452d31c6",
-    "epub.js": "cd3858a2171231c94b05e73d8d4c1e7de60d726312540724ab04e74868a2edf8",
-    "epubcfi.js": "8f652c1c7c4913161f75559c626e166b5425fff240064903963239808e7b27dc",
-    "paginator.js": "81ed6ba98e0b1555476a7be9c6021266f5e9e001cbdbc77db6c6ccf2d40fa725",
-    "fixed-layout.js": "fca458178b49ee77be50a2d09fe3e68f891733745e9b72ca529ba310312bab3b",
-    "overlayer.js": "9fd0b8338daa2ccc0aea27cc8ac212581dd44dba427491a0ea82ba609b827225",
-    "progress.js": "2997f57bd3e8d28cef20a6c4cb269295737e87a8695676583664bf6f99b38a7c",
-    "text-walker.js": "4c7df0f905d92dbfeb5d23df935feda8e8b3df1a820143b8119dfe68bcdd5241",
-    "search.js": "2904a88de33c2d28fde57409b40cfcecedcd8442089933828e21ce8489113d45",
-    "vendor/zip.js": "0550b9f155506a214796e14ff0be5fd24a2a3d9b0f712161975087cf2396ad46",
-    "LICENSE": "0740957f70db5da0a21f4332abca301b4dfe038970af398db70c7990173bc74d"
+    "view.js": "e0093af921feb03bb58fb51aeedc321fa108a4158d215f6913ecf7925415c945",
+    "epub.js": "dfe347495039e9b5991478986ec6b7713cf9efbcd8f475a77ef7b967c5176298",
+    "epubcfi.js": "e1a688ad5c84bf31f33cef467f92c7a6d060a0f17ec37c1d3c048e9c7b1cf645",
+    "paginator.js": "51cec81572d5d182e231fe68ce9c3b5489a0976b36172060516336ba893565ea",
+    "fixed-layout.js": "7aee1d15d8e0479b8a6c59a20304b250dafc4c7dc158147a2b2c6bed9e180b4c",
+    "overlayer.js": "d3d3396e3083277ccbd4f17c407621159b22a407107e43ce75ca3014578094fb",
+    "progress.js": "544f5e90babc0cb31c5caf971a5f06dd6249ec06600cb62f672fa7179811fde1",
+    "text-walker.js": "4ad740ab6142b5be428700ef4d270253cef6649cf6e047ae7d2698a7aec65e92",
+    "search.js": "31e846bdc095a645de0e94f7baa2c9e136561a363a2f774d4032e72cfa1fb0ef",
+    "vendor/zip.js": "2a0d43157e4a447c6e43351225758795b75a33e8dfec10c6767248df2182949a",
+    "LICENSE": "b621ffc351fe263bc9b09dd0bc1c9332fda9c462a3904c1e4f0b4d3236b9c28c"
   },
   "vendor_licenses": {
     "vendor/ZIP-LICENSE": {

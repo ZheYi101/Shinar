@@ -1,6 +1,5 @@
 import asyncio
 import json
-from pathlib import Path
 import sys
 
 import pytest
@@ -57,7 +56,7 @@ def test_settings_persist_without_touching_learning_data(tmp_path):
     settings = ComputeSettings(local_stt=True, stt_device="cuda", idle_seconds=30)
     save_compute(tmp_path, settings)
     assert load_compute(tmp_path) == settings
-    assert list(tmp_path.iterdir()) == [tmp_path / "compute.json"]
+    assert {path.name for path in tmp_path.iterdir()} == {"compute.json", ".storage.lock"}
 
 
 def test_unsupported_process_telemetry_is_unknown_not_zero(monkeypatch):
@@ -188,4 +187,6 @@ def test_local_worker_reused_then_closed_and_keeps_audio_out_of_files(tmp_path, 
         assert not service.pids and created[0].returncode == -9
 
     asyncio.run(run())
-    assert {p.name for p in tmp_path.iterdir()} == {"selections.json", "compute.json", ".locks"}
+    assert {p.name for p in tmp_path.iterdir()} == {
+        "selections.json", "compute.json", ".locks", ".storage.lock",
+    }

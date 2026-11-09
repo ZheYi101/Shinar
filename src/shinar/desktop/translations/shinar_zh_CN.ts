@@ -4,17 +4,12 @@
 <context>
     <name>AIServiceSettings</name>
     <message>
-        <location filename="../qml/components/AIServiceSettings.qml" line="+11"/>
+        <location filename="../qml/components/AIServiceSettings.qml" line="+13"/>
         <source>AI API 连接</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>支持 OpenAI 兼容接口。保存后重新打开软件生效；当前对话使用启动时的配置。</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="+7"/>
         <location line="+3"/>
         <source>API 基础地址</source>
         <translation type="unfinished"></translation>
@@ -41,12 +36,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>Windows 使用当前用户的系统加密保存密钥，安装包不含个人密钥。</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+6"/>
         <source>正在读取模型…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -88,27 +78,27 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+10"/>
         <source>配置已变更。请退出并重新打开 Shinar 以启用。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-21"/>
+        <location line="-20"/>
         <source>选择推理模型</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="-35"/>
+        <source>支持 OpenAI 兼容接口，推理与对话可使用同一模型。读取模型列表不会生成内容或发送学习材料。Windows 使用当前用户的系统加密保存密钥。保存后需重新打开软件生效。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+46"/>
         <source>选择对话模型</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>推理与对话是两个独立角色，可以使用同一个模型。连接检查只读取模型列表，不生成内容或发送学习材料。</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+6"/>
         <source>保存配置</source>
         <translation type="unfinished"></translation>
     </message>
@@ -159,28 +149,33 @@
 <context>
     <name>ContinuousVoiceSetup</name>
     <message>
-        <location filename="../qml/components/ContinuousVoiceSetup.qml" line="+15"/>
+        <location filename="../qml/components/ContinuousVoiceSetup.qml" line="+17"/>
         <source>连续语音组件</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>已准备。点击开始语音后才开启持续监听。</source>
+        <source>已就绪</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+0"/>
-        <source>包含语音连接、回声处理、人声检测及独立运行环境；准备期间不开麦。</source>
+        <source>未准备</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>组件用于语音连接、回声处理和人声检测。准备时不开麦；点击“开始语音”后才持续监听。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>只统计连续语音组件的本地文件，硬链接只计一次；不含软件、学习资料或识别与合成模型。运行内存另计。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+8"/>
-        <source>按本地文件大小统计，硬链接只计一次；不含软件安装目录、学习资料或 STT/TTS 模型。运行内存取决于实际使用。</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>当前文件：%1；文件完成后继续校验、安装和验证。</source>
+        <source>当前文件：%1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -915,12 +910,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../speech_library/viewmodel.py" line="+64"/>
-        <source>点击刷新，检测当前可用资源。</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+194"/>
+        <location filename="../speech_library/viewmodel.py" line="+256"/>
         <source>正在准备独立 Python 与安装工具…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -970,13 +960,28 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+290"/>
+        <location line="+215"/>
+        <source>语音存储正在维护，请等待操作结束后重试。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>语音存储位置已更改，请退出并重新打开软件。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+67"/>
         <source>计算设置的数值无效。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <location line="+117"/>
+        <source>存储正在维护或位置已更改。请等待操作结束；迁移成功后请重启软件。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../speech_library/formats.py" line="+61"/>
-        <location filename="../speech_library/viewmodel.py" line="-146"/>
+        <location filename="../speech_library/viewmodel.py" line="-258"/>
         <source>请先停止语音并释放已加载模型，再修复运行环境。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -991,12 +996,12 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+138"/>
+        <location line="+134"/>
         <source>正在释放空闲模型；运行中的推理会先完成。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-246"/>
+        <location line="-242"/>
         <source>尚未检测硬件</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1036,7 +1041,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../speech_library/viewmodel.py" line="+139"/>
+        <location filename="../speech_library/viewmodel.py" line="+145"/>
         <source>请先阅读并确认此版本的语音模型与角色条款。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1062,7 +1067,7 @@
     </message>
     <message>
         <location line="+3"/>
-        <source>缓存盘空间不足，请按页面的“安装需可用空间”释放空间后重试。</source>
+        <source>缓存盘空间不足，请查看容量说明中的安装空间预算，释放空间后重试。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1088,16 +1093,6 @@
     <message>
         <location line="+7"/>
         <source>本地语音准备未完成，请检查网络、磁盘和运行环境后重试。</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+10"/>
-        <source>后台下载继续进行，可在任务列表查看每项进度。</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>模型状态已更新。下载后请先测速，再选用。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1147,7 +1142,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../speech_library/viewmodel.py" line="-402"/>
+        <location filename="../speech_library/viewmodel.py" line="-394"/>
         <source>检测硬件与本地模型…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1208,7 +1203,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+141"/>
+        <location line="+139"/>
         <source>此配置已在严格评测与试听中排除，请选择其他模型。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1218,12 +1213,12 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+31"/>
+        <location line="+36"/>
         <source>已保存本语言的模型；后续语音按计算设置绑定，当前轮次保留原配置，连续语音需重新开始。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-296"/>
+        <location line="-299"/>
         <source>请先停止语音，再试听模型声音。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1388,7 +1383,12 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+68"/>
+        <location line="+33"/>
+        <source>需下载约 %1 MiB · 安装前需留出 %2 MiB</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+35"/>
         <source>正在请求麦克风权限…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1542,12 +1542,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+37"/>
-        <source>预计下载 %1 MiB · 安装需可用空间 %2 MiB（含临时文件和余量，不是最终占用或运行内存）。</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+51"/>
+        <location line="+88"/>
         <source>麦克风已暂停，可发送文字</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2130,7 +2125,7 @@
 <context>
     <name>LocalSpeechLibrary</name>
     <message>
-        <location filename="../qml/components/LocalSpeechLibrary.qml" line="+29"/>
+        <location filename="../qml/components/LocalSpeechLibrary.qml" line="+30"/>
         <source>选择本地测速录音（16kHz、单声道、16-bit PCM、最多 60 秒）</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2220,8 +2215,28 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+5"/>
-        <source>文件占用含本地语音共享环境和缓存，不含软件安装目录及学习资料；硬链接只计一次。预计下载含缺少的共享组件；安装需可用空间含临时余量，运行内存见模型详情。</source>
+        <location line="+1"/>
+        <source>计算与加速</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>存储管理</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>测速说明</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>测速使用内置示例；也可在模型详情中选择自己的录音。首次通过“测速并选用”后，模型用于当前语言和用途；实时语音对话需在“实时对话”下选用。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>这里是已存到本机的语音文件，包含模型、共享运行环境和缓存；不含软件本身或学习资料。硬链接只计一次。各模型的下载量和安装预留空间见列表，运行内存见详情。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2237,17 +2252,7 @@
     </message>
     <message>
         <location line="+0"/>
-        <source>当前语言／用途已选 · STT：%1 · TTS：%2</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>默认使用内置示例测速；首次点击“测速并选用”，通过后即可用于此语言的对话。</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>此处选择用于当前用途；语音对话请切换到“实时对话”另行选用。</source>
+        <source>识别：%1 · 合成：%2</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2263,6 +2268,19 @@
     <message>
         <location line="+41"/>
         <source>这个语言和用途暂时没有此类候选模型。</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>MHelpButton</name>
+    <message>
+        <location filename="../qml/components/MHelpButton.qml" line="+9"/>
+        <source>说明</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>关闭</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -2512,11 +2530,6 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>表达复习</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <location line="+5"/>
         <source>本轮小结</source>
         <translation type="unfinished"></translation>
@@ -2551,49 +2564,12 @@
 <context>
     <name>SettingsPage</name>
     <message>
-        <location filename="../qml/pages/SettingsPage.qml" line="+18"/>
+        <location filename="../qml/pages/SettingsPage.qml" line="+12"/>
         <source>‹ 本地语音模型</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-5"/>
-        <location line="+6"/>
-        <location line="+56"/>
-        <source>计算与加速</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="-62"/>
-        <source>外观</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>学习偏好</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>模型与服务</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>音频设备</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>数据与隐私</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>设置</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+20"/>
+        <location line="+14"/>
         <source>显示语言</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2745,8 +2721,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-39"/>
-        <location line="+40"/>
+        <location line="+1"/>
         <source>本地语音模型</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2801,6 +2776,16 @@
     <message>
         <location line="+0"/>
         <source>远程服务</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>模型文件与运行环境</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>存储管理</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2908,17 +2893,12 @@
 <context>
     <name>SpeechComputePage</name>
     <message>
-        <location filename="../qml/pages/SpeechComputePage.qml" line="+21"/>
+        <location filename="../qml/pages/SpeechComputePage.qml" line="+23"/>
         <source>计算设备</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>自动模式对已验证提速明显的模型优先使用 GPU。硬件或空闲显存不足时考虑 CPU，并显示原因；手动选 GPU 时失败会直接报告。</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+2"/>
+        <location line="+4"/>
         <source>语音识别 STT</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2953,17 +2933,22 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>关闭本地服务后使用已配置的远程连接。请先在语音模型中为对话语言选择模型。</source>
+        <location line="-23"/>
+        <source>自动模式按模型和可用显存选择 GPU 或 CPU；手动选 GPU 时失败会直接报告。关闭本地识别或合成后使用已配置的远程服务。本地模型按语言和用途选用。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+29"/>
         <source>显存与模型驻留</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
+        <source>显存预算用于加载前检查和 CUDA 内存池配置，不是进程显存硬上限；驱动和运行库还会额外占用。降低预算可能改用 CPU 或需要更小的模型。释放模型会增加下次加载的等待时间。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>语音显存预算（MiB）</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3008,42 +2993,27 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>显存预算用于加载前准入与 CUDA 内存池配置，驱动、上下文和库还会额外占用；并非整个进程的硬上限。降低预算可能触发 CPU 或要求更换模型。空闲释放会增加下一次首字等待。</source>
+        <location line="+7"/>
+        <source>每 2 秒采样。整卡使用率包含其他应用；Windows 驱动可能不提供进程显存读数。监测不会加载尚未使用的模型。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+10"/>
+        <source>NVIDIA GPU 需要合适的显卡驱动，驱动变化后请重新检查。软件按需准备 CUDA / cuDNN 运行库，通常无需完整 CUDA Toolkit。安装预留空间包含临时文件，实际占用见空间说明。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-11"/>
         <source>当前资源</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>每 2 秒采样。整卡使用率含其他应用，不等于本软件占用；Windows 驱动可能不提供进程显存读数。没有推理时不为监测而加载模型。</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+4"/>
+        <location line="+10"/>
         <source>运行环境</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>NVIDIA GPU 需要合适的显卡驱动。软件按需下载匹配的 CUDA / cuDNN 运行库到独立目录，通常无需安装完整 CUDA Toolkit。安装需可用空间含临时文件和余量，不是最终硬盘占用或运行内存。</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+6"/>
-        <source>已通过计算探针（驱动变化后请重检）</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>尚未准备或验证</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+0"/>
+        <location line="+8"/>
         <source>ONNX CPU</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3065,6 +3035,16 @@
     <message>
         <location line="+0"/>
         <source>Melo 英文 NVIDIA GPU</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>已验证</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>未准备或未验证</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3097,7 +3077,7 @@
     </message>
     <message>
         <location line="+1"/>
-        <source>%1 项进行中 · 最多同时 3 项</source>
+        <source>%1 项进行中</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3130,17 +3110,17 @@
     <name>SpeechModelRow</name>
     <message>
         <location filename="../qml/components/SpeechModelRow.qml" line="+26"/>
-        <location line="+36"/>
+        <location line="+35"/>
         <source>已选用</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-36"/>
+        <location line="-35"/>
         <source>低延迟候选</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+3"/>
         <source>文件已安装</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3170,12 +3150,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-3"/>
-        <source>模型下载文件 %1 MiB</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+13"/>
+        <location line="+10"/>
         <source>已加入下载</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3231,21 +3206,41 @@
     </message>
     <message>
         <location line="+3"/>
-        <source>显存准入估算 %1 MiB（非硬上限）</source>
+        <source>显存准入估算 %1 MiB</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+10"/>
+        <source>更改声音在下次开始语音时生效。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>运行内存（RAM）实测 %1 MiB</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>运行内存（RAM）：尚无本机实测</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>测速内存预留 %1 MiB</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>容量与内存说明</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-26"/>
         <source>声音 / 风格</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>连续语音中的模型与声音保持不变，更改在下次开始语音时生效。</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+4"/>
+        <location line="+15"/>
         <source>查看此版本模型与角色条款</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3256,31 +3251,21 @@
     </message>
     <message>
         <location line="+3"/>
+        <source>模型下载包 %1 MiB（不含共享组件）</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>模型安装文件 %1 MiB · 模型下载缓存 %2 MiB</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>以上仅计本模型；共享运行环境另计。下载缓存保留以便复用和修复。</source>
+        <location line="+6"/>
+        <source>模型下载包仅含本模型的下载文件，共享运行环境另计；下载包大小不等于安装后的占用。模型安装文件和下载缓存也仅计本模型，缓存保留供复用与修复。运行内存不能从下载大小推算。测速内存预留和显存准入估算用于判断是否适合启动，不是实测占用或硬上限。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>运行内存（RAM）实测 %1 MiB，含模型进程及推理引擎；不含界面和其他语音进程。</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>运行内存（RAM）：尚无本机实测，不能从下载大小推算。</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>测速内存预留预算 %1 MiB，属于准入估算，不是实际内存占用或硬上限。</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+4"/>
+        <location line="+5"/>
         <source>校验文件</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3298,7 +3283,12 @@
 <context>
     <name>SpeechPreparationSize</name>
     <message>
-        <location filename="../qml/components/SpeechPreparationSize.qml" line="+12"/>
+        <location filename="../qml/components/SpeechPreparationSize.qml" line="+10"/>
+        <source>安装空间预算约 %1，包含下载文件、解包和安装临时副本及安全余量，不代表最终磁盘占用或运行内存。下载量包含模型和缺少的共享组件；完整下载缓存可复用，估算未扣除断点文件。实际安装前会检查可用空间。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
         <source>%1 GiB</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3308,13 +3298,223 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>预计下载 %1 · 安装需可用空间 %2</source>
+        <location line="+8"/>
+        <source>需下载约 %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+5"/>
-        <source>下载量包含缺少的共享组件；可用空间含安装临时文件和余量，不是最终硬盘占用或运行内存。</source>
+        <location line="+11"/>
+        <source>容量说明</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>SpeechStorageController</name>
+    <message>
+        <location filename="../speech_library/storage_management.py" line="+29"/>
+        <source>语音资源正在使用中。请结束通话、测速或下载后重试。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>文件已发生变化，请重新扫描后再清理。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>存储位置已更改，请退出并重新打开软件。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>请选择一个新的空文件夹。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>新位置不能位于原目录内、包含原目录或使用磁盘根目录。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>目标磁盘可用空间不足。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>文件或运行环境验证未通过，原位置保留。请检查磁盘后重试。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>选定的存储位置不可用，请连接相应磁盘后重试。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>所选位置含有链接或目录联接，请选择普通文件夹。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>操作已取消。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>存储操作未完成。原位置保留，请检查磁盘权限、可用空间后重试。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+58"/>
+        <source>存储位置由启动环境变量指定，请修改 SHINAR_SPEECH_DIR 后重启。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>模型与运行环境</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>安装与下载缓存</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>配置、报告及其他</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+41"/>
+        <source>正在取消并等待资源释放…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>正在扫描…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>正在处理…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>正在复制模型文件…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>正在校验模型文件…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>正在重建并验证运行环境…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>正在保存新位置…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>正在处理存储文件…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>部分文件无法读取，统计不完整。请检查权限后重新扫描。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>新位置已验证。请退出并重新打开软件；原位置保留，可确认使用正常后再处理。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>缓存已清理。</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>SpeechStoragePage</name>
+    <message>
+        <location filename="../qml/pages/SpeechStoragePage.qml" line="+24"/>
+        <source>模型与运行环境位置</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>更改位置</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>文件合计 %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>重新扫描</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>空间说明</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>按文件大小统计，硬链接只计一次；不等同于磁盘分配的空间。可清理量会排除仍被运行环境引用的硬链接和未完成下载。清理后重新安装或修复时可能需要再次下载。这里不包含学习资料、对话历史或连续通话组件；更改位置不会搬动它们。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>可清理约 %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>清理缓存…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>取消</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>选择新的空文件夹</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>清理约 %1 缓存？</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>删除已完成的下载文件和可再生成的安装缓存。保留已安装模型、运行环境、未完成下载和学习资料。重新安装或修复时可能需要再次下载。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>迁移模型与运行环境？</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>新位置：%1
+
+复制模型后会重建并验证运行环境；可能需要下载缺少的安装文件。成功后重启生效。原位置保留，取消或失败不会切换位置。
+
+目标需预留约 %2 GiB。</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -3358,6 +3558,44 @@
     <message>
         <location line="+4"/>
         <source>已安装资源 %1 · 下载与安装缓存 %2 · 其他 %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>StartupError</name>
+    <message>
+        <location filename="../qml/StartupError.qml" line="+11"/>
+        <source>Shinar · 无法打开语音资源</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+46"/>
+        <source>存储位置配置文件</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>退出</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../shell/startup_error.py" line="+18"/>
+        <source>所选语音资源位置不可用。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>请连接或恢复所选磁盘后重新打开 Shinar；也可以检查下面的存储位置配置。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>语音资源的存储位置配置无法读取。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>请检查下面的配置文件，修复后重新打开 Shinar。</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -3419,11 +3657,6 @@
     <message>
         <location line="+1"/>
         <source>对话操作</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>更多：复盘和设置</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3509,7 +3742,7 @@
 <context>
     <name>WorkspaceSidebar</name>
     <message>
-        <location filename="../qml/components/WorkspaceSidebar.qml" line="+42"/>
+        <location filename="../qml/components/WorkspaceSidebar.qml" line="+44"/>
         <location line="+4"/>
         <source>材料库</source>
         <translation type="unfinished"></translation>

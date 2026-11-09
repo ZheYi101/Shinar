@@ -39,12 +39,12 @@ class SyntheticModelStore(ModelStore):
 
 
 @contextmanager
-def speech_library_scene(tmp_path):
+def speech_library_scene(tmp_path, *, navigate=True):
     with Patches() as changes:
-        yield from _speech_library_scene(tmp_path, changes)
+        yield from _speech_library_scene(tmp_path, changes, navigate=navigate)
 
 
-def _speech_library_scene(tmp_path, monkeypatch):
+def _speech_library_scene(tmp_path, monkeypatch, *, navigate=True):
     import shinar.desktop.speech_library.work as module
 
     app = QGuiApplication.instance() or QGuiApplication(["speech-library-test"])
@@ -121,7 +121,11 @@ def _speech_library_scene(tmp_path, monkeypatch):
     )
     scaffold.setProperty("currentPage", 3)
     QTest.qWait(100)
-    click(window, "settings-local")
+    if navigate:
+        click(window, "settings-local")
+    else:
+        engine.workspace.setCategory("local")
+        engine.workspace.navigate("settings")
     until(
         lambda: any(
             obj.property("visible")

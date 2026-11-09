@@ -75,6 +75,15 @@ def hidden_flags() -> int:
 
 def ensure_server(cache: Path, *, download: bool = False, cancel=None,
                   progress=lambda done, total: None, on_transfer=lambda event: None) -> Path:
+    from shinar.local_speech.storage_lease import storage_lease
+
+    with storage_lease(cache.parent, cancel=cancel):
+        return _ensure_server(cache, download=download, cancel=cancel,
+                              progress=progress, on_transfer=on_transfer)
+
+
+def _ensure_server(cache: Path, *, download: bool, cancel,
+                   progress, on_transfer) -> Path:
     from shinar.local_speech.downloads import TransferEvent
 
     archive = cache / ARCHIVE_NAME

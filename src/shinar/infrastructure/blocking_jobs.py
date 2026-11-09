@@ -75,6 +75,39 @@ def _execute(request: BlockingRequest, cancel, emit):
             cancel=cancel,
             on_transfer=lambda value: emit("transfer", value),
         )
+    if request.operation.startswith("speech_storage_"):
+        return _storage_operation(request, cancel, emit)
+    raise ValueError("unknown_blocking_operation")
+
+
+def _storage_operation(request, cancel, emit):
+    from shinar.local_speech.storage_inventory import scan_storage
+
+    if request.operation == "speech_storage_scan":
+        return scan_storage(*request.args).to_dict()
+    if request.operation == "speech_storage_clean":
+        from shinar.local_speech.storage_cleanup import clean_storage
+
+        return clean_storage(*request.args, cancel=cancel)
+    if request.operation == "speech_storage_preview":
+        from shinar.local_speech.storage_migration import preview_migration
+
+        return preview_migration(*request.args).to_dict()
+    if request.operation == "speech_storage_migrate":
+        from shinar.local_speech.storage_migration import migrate_storage
+
+        last_stage = None
+
+        def stage(value):
+            nonlocal last_stage
+            if value != last_stage:
+                last_stage = value
+                emit("stage", value)
+
+        return migrate_storage(
+            *request.args, **dict(request.options or {}), cancel=cancel,
+            on_stage=stage,
+        )
     raise ValueError("unknown_blocking_operation")
 
 

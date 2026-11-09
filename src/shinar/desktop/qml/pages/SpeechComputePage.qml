@@ -18,8 +18,11 @@ ScrollView {
         spacing: AppTheme.gapLarge
         MCard {
             color: "transparent"; padding: 0
-            MLabel { text: qsTr("计算设备"); role: "title" }
-            MLabel { text: qsTr("自动模式对已验证提速明显的模型优先使用 GPU。硬件或空闲显存不足时考虑 CPU，并显示原因；手动选 GPU 时失败会直接报告。"); role: "supporting" }
+            RowLayout {
+                Layout.fillWidth: true
+                MLabel { text: qsTr("计算设备"); role: "label" }
+                MHelpButton { objectName: "speechDeviceHelp"; helpText: qsTr("自动模式按模型和可用显存选择 GPU 或 CPU；手动选 GPU 时失败会直接报告。关闭本地识别或合成后使用已配置的远程服务。本地模型按语言和用途选用。") }
+            }
             Repeater {
                 model: [{key: "stt_device", title: qsTr("语音识别 STT")}, {key: "tts_device", title: qsTr("语音合成 TTS")}]
                 ColumnLayout {
@@ -42,11 +45,14 @@ ScrollView {
             MSpinBox { objectName: "speechGpuIndex"; from: 0; to: 15; value: speechLibrary.compute.gpu_index; enabled: !speechLibrary.busy; onValueModified: speechLibrary.setCompute("gpu_index", value) }
             MSwitch { objectName: "localSttEnabled"; text: qsTr("使用本地识别"); checked: speechLibrary.compute.local_stt; enabled: !speechLibrary.busy; onToggled: speechLibrary.setCompute("local_stt", checked) }
             MSwitch { objectName: "localTtsEnabled"; text: qsTr("使用本地合成"); checked: speechLibrary.compute.local_tts; enabled: !speechLibrary.busy; onToggled: speechLibrary.setCompute("local_tts", checked) }
-            MLabel { text: qsTr("关闭本地服务后使用已配置的远程连接。请先在语音模型中为对话语言选择模型。"); role: "supporting" }
         }
         MCard {
             color: "transparent"; padding: 0
-            MLabel { text: qsTr("显存与模型驻留"); role: "title" }
+            RowLayout {
+                Layout.fillWidth: true
+                MLabel { text: qsTr("显存与模型驻留"); role: "label" }
+                MHelpButton { objectName: "speechResidencyHelp"; helpText: qsTr("显存预算用于加载前检查和 CUDA 内存池配置，不是进程显存硬上限；驱动和运行库还会额外占用。降低预算可能改用 CPU 或需要更小的模型。释放模型会增加下次加载的等待时间。") }
+            }
             MLabel { text: qsTr("语音显存预算（MiB）"); role: "label" }
             MSpinBox { objectName: "speechVramBudget"; from: 512; to: 65536; stepSize: 256; editable: true; value: speechLibrary.compute.vram_budget_mb; enabled: !speechLibrary.busy; onValueModified: speechLibrary.setCompute("vram_budget_mb", value) }
             MLabel { text: qsTr("为其他应用保留的空闲显存（MiB）"); role: "label" }
@@ -62,26 +68,31 @@ ScrollView {
                 onActivated: speechLibrary.setCompute("idle_seconds", values[currentIndex])
             }
             MButton { objectName: "speechReleaseModels"; text: qsTr("释放已加载模型"); variant: "outlined"; onClicked: speechLibrary.releaseModels() }
-            MLabel { text: qsTr("显存预算用于加载前准入与 CUDA 内存池配置，驱动、上下文和库还会额外占用；并非整个进程的硬上限。降低预算可能触发 CPU 或要求更换模型。空闲释放会增加下一次首字等待。"); role: "supporting" }
         }
         MCard {
             color: "transparent"; padding: 0
-            MLabel { text: qsTr("当前资源"); role: "title" }
+            RowLayout {
+                Layout.fillWidth: true
+                MLabel { text: qsTr("当前资源"); role: "label" }
+                MHelpButton { objectName: "speechResourceHelp"; helpText: qsTr("每 2 秒采样。整卡使用率包含其他应用；Windows 驱动可能不提供进程显存读数。监测不会加载尚未使用的模型。") }
+            }
             MLabel { text: speechLibrary.hardwareSummary; role: "supporting" }
             MLabel { objectName: "speechResourceSummary"; text: speechLibrary.resourceSummary; role: "label" }
-            MLabel { text: qsTr("每 2 秒采样。整卡使用率含其他应用，不等于本软件占用；Windows 驱动可能不提供进程显存读数。没有推理时不为监测而加载模型。"); role: "supporting" }
         }
         MCard {
             color: "transparent"; padding: 0
-            MLabel { text: qsTr("运行环境"); role: "title" }
-            MLabel { text: qsTr("NVIDIA GPU 需要合适的显卡驱动。软件按需下载匹配的 CUDA / cuDNN 运行库到独立目录，通常无需安装完整 CUDA Toolkit。安装需可用空间含临时文件和余量，不是最终硬盘占用或运行内存。"); role: "supporting" }
+            RowLayout {
+                Layout.fillWidth: true
+                MLabel { text: qsTr("运行环境"); role: "label" }
+                MHelpButton { objectName: "speechRuntimeHelp"; helpText: qsTr("NVIDIA GPU 需要合适的显卡驱动，驱动变化后请重新检查。软件按需准备 CUDA / cuDNN 运行库，通常无需完整 CUDA Toolkit。安装预留空间包含临时文件，实际占用见空间说明。") }
+            }
             Repeater {
                 model: ["cpu", "cuda", "voicevox-cpu", "melo-cpu", "melo-cuda"]
                 ColumnLayout {
                     required property string modelData
                     Layout.fillWidth: true
-                    MLabel { text: ({cpu: qsTr("ONNX CPU"), cuda: qsTr("ONNX NVIDIA GPU"), "voicevox-cpu": qsTr("VOICEVOX CPU"), "melo-cpu": qsTr("Melo 英文 CPU"), "melo-cuda": qsTr("Melo 英文 NVIDIA GPU")})[modelData] + " · " + (speechLibrary.runtimes[modelData].prepared ? qsTr("已通过计算探针（驱动变化后请重检）") : qsTr("尚未准备或验证")); role: "label" }
-                    SpeechPreparationSize { downloadMiB: speechLibrary.runtimes[modelData].downloadMiB; requiredFreeMiB: speechLibrary.runtimes[modelData].diskMiB }
+                    MLabel { text: ({cpu: qsTr("ONNX CPU"), cuda: qsTr("ONNX NVIDIA GPU"), "voicevox-cpu": qsTr("VOICEVOX CPU"), "melo-cpu": qsTr("Melo 英文 CPU"), "melo-cuda": qsTr("Melo 英文 NVIDIA GPU")})[modelData] + " · " + (speechLibrary.runtimes[modelData].prepared ? qsTr("已验证") : qsTr("未准备或未验证")); role: "label" }
+                    SpeechPreparationSize { visible: !speechLibrary.runtimes[modelData].prepared; explain: true; downloadMiB: speechLibrary.runtimes[modelData].downloadMiB; requiredFreeMiB: speechLibrary.runtimes[modelData].diskMiB }
                     Flow {
                         Layout.fillWidth: true
                         spacing: 8
@@ -91,7 +102,7 @@ ScrollView {
                 }
             }
         }
-        MLabel { objectName: "computeStatus"; text: speechLibrary.status; Accessible.role: Accessible.AlertMessage }
+        MLabel { objectName: "computeStatus"; visible: text.length > 0; text: speechLibrary.status; Accessible.role: Accessible.AlertMessage }
         ProgressBar { Layout.fillWidth: true; visible: speechLibrary.busy; indeterminate: true }
         MButton { text: qsTr("取消当前任务"); variant: "outlined"; visible: speechLibrary.busy; onClicked: speechLibrary.cancel() }
         Item { Layout.preferredHeight: 16 }

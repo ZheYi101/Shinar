@@ -6,6 +6,7 @@ from shinar.local_speech import adapter_revision
 from shinar.local_speech.benchmark import benchmark
 from shinar.local_speech.hardware import detect_hardware
 from shinar.local_speech.storage import atomic_json, read_json
+from shinar.local_speech.storage_lease import storage_lease
 from shinar.local_speech.compute import resolve_device, runtime_version
 from shinar.local_speech.runtime import probe_runtime, runtime_python, runtime_status
 from shinar.local_speech.installation import (
@@ -38,7 +39,8 @@ class LibraryWork:
         self.emit("progress", (done, total))
 
     def execute(self, kind, args, kwargs):
-        return getattr(self, kind)(*args, **kwargs)
+        with storage_lease(self.store.root, cancel=self._cancel):
+            return getattr(self, kind)(*args, **kwargs)
 
     def prepareRuntime(self, device):
         if device not in {"cpu", "cuda", "voicevox-cpu", "melo-cpu", "melo-cuda", "rtc-cpu"}:
@@ -120,7 +122,11 @@ class LibraryWork:
                     gpu_index=settings.gpu_index,
                 )
 
-        return operation
+        def leased_operation(cancel, stage, transfer):
+            with storage_lease(self.store.root, wait=True, cancel=cancel):
+                return operation(cancel, stage, transfer)
+
+        return leased_operation
 
     def uninstall(self, id):
 

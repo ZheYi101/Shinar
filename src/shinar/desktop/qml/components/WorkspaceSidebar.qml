@@ -11,14 +11,16 @@ Rectangle {
     function go(route) { workspace.navigate(route); activated() }
     PaperTexture { anchors.fill: parent }
     ColumnLayout {
-        anchors.fill: parent; anchors.margins: sidebar.collapsed ? 6 : 10
+        anchors.fill: parent; anchors.margins: 6
+        anchors.topMargin: 10; anchors.bottomMargin: 10
         spacing: 3
         Item {
             Layout.fillWidth: true; Layout.preferredHeight: 46; Layout.bottomMargin: 10
             Image {
                 id: brandIcon
+                objectName: "sidebarBrandIcon"
                 anchors.left: parent.left
-                anchors.leftMargin: sidebar.collapsed ? Math.round((parent.width - width) / 2) : 6
+                anchors.leftMargin: 9
                 anchors.verticalCenter: parent.verticalCenter
                 width: 26; height: 26
                 source: "../../assets/app-icon.svg"
@@ -26,7 +28,7 @@ Rectangle {
             }
             MLabel {
                 visible: !sidebar.collapsed
-                anchors.left: brandIcon.right; anchors.leftMargin: 8
+                anchors.left: brandIcon.right; anchors.leftMargin: 9
                 anchors.right: parent.right
                 anchors.verticalCenter: brandIcon.verticalCenter
                 height: brandIcon.height
@@ -46,7 +48,7 @@ Rectangle {
             Accessible.name: qsTr("材料库")
         }
         SidebarItem { visible: workspace.route !== "settings"; text: qsTr("导入材料"); symbol: "add"; collapsed: sidebar.collapsed; Layout.fillWidth: true; selected: workspace.route === "import"; onClicked: sidebar.go("import") }
-        MLabel { visible: !sidebar.collapsed; text: workspace.route === "settings" ? qsTr("设置") : qsTr("材料与对话"); role: "supporting"; font.pixelSize: 11; Layout.leftMargin: 10; Layout.topMargin: 18; Layout.bottomMargin: 6 }
+        MLabel { opacity: sidebar.collapsed ? 0 : 1; Accessible.ignored: sidebar.collapsed; text: workspace.route === "settings" ? qsTr("设置") : qsTr("材料与对话"); role: "supporting"; font.pixelSize: 11; wrapMode: Text.NoWrap; elide: Text.ElideRight; Layout.leftMargin: 14; Layout.topMargin: 18; Layout.bottomMargin: 6 }
         ScrollView {
             Layout.fillWidth: true; Layout.fillHeight: true
             contentWidth: availableWidth; clip: true

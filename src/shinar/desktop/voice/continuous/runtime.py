@@ -133,6 +133,11 @@ class CallRuntime:
             status = managed_status(self.root, "rtc-cpu")
             if status.get("prepared"):
                 process.python = status["python"]
+            roots = [self.root]
+            local = self._vm.local_speech
+            if local and any(local.enabled(task) for task in ("stt", "tts")):
+                roots.append(local.store.root)
+            process.configure_storage(roots)
         return process
 
     def new_bridge(self):

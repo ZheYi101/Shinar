@@ -328,8 +328,7 @@ def test_frameless_controls_and_window_geometry(desktop):
     window.showNormal()
     window.requestActivate()
     assert window.windowState() == Qt.WindowState.WindowNoState
-    click(window, "secondaryMenuButton")
-    QTest.keyClick(window, Qt.Key.Key_Escape)
+    assert window.findChild(QObject, "secondaryMenuButton") is None
     click(window, "windowCloseButton")
     until(lambda: not window.isVisible())
 

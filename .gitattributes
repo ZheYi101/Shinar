@@ -1,3 +1,5 @@
 # Preserve the upstream terms bytes and Markdown hard-break spaces.
 src/shinar/local_speech/runtime_resources/VOICEVOX-TERMS-0.17.0.txt -text whitespace=-blank-at-eol
 src/shinar/local_speech/runtime_resources/ENG-TO-IPA-LICENSE.txt -text
+# Preserve the exact bytes checked by the pinned reader vendor manifest.
+src/shinar/desktop/reader/foliate/** text eol=lf

@@ -16,6 +16,7 @@ from shinar.application import LearningWorkbench
 from shinar.cli import build_provider
 
 from shinar.configuration import getenv
+from shinar.configuration_location import SpeechStorageLocationError
 
 
 # Keep DLL directory handles alive for the lifetime of the process. Windows
@@ -240,6 +241,7 @@ def create_engine(viewmodel: Any, *, window_settings=None, initial_visible: bool
     engine.lifecycle.set_quit_handler(engine.shutdown.quit)
     engine.shutdown.finished.connect(engine.lifecycle.close)
     engine.rootContext().setContextProperty("desktopShutdown", engine.shutdown)
+    _configure_storage_management(engine, library, viewmodel, speech_library is not None)
     engine.rootContext().setContextProperty("learningViewModel", viewmodel)
     engine.rootContext().setContextProperty("desktopWindow", controller)
     engine.rootContext().setContextProperty("initialWindowVisible", initial_visible)
@@ -257,6 +259,24 @@ def create_engine(viewmodel: Any, *, window_settings=None, initial_visible: bool
     engine.lifecycle.attach(engine.rootObjects()[0])
     engine.window_controller = controller
     return engine
+
+
+def _configure_storage_management(engine, library, viewmodel, injected):
+    from shinar.desktop.speech_library.storage_management import SpeechStorageController
+
+    isolated = injected or hasattr(engine, "mock_resources")
+    config_path = library.store.root.parent / "speech-location.json" if isolated else None
+    controller = SpeechStorageController(
+        library.store.root, config_path=config_path,
+        location_locked=not isolated and bool(getenv("SHINAR_SPEECH_DIR") or getenv("SHINAR_DATA_DIR")),
+        available=lambda: not (library.busy or viewmodel.voiceController.active
+                               or viewmodel.voiceController.continuous.active),
+        release=library.releaseModels, parent=engine,
+    )
+    engine.storage_management = controller
+    engine.rootContext().setContextProperty("speechStorage", controller)
+    engine.shutdown.register("speech-storage", controller.begin_shutdown, controller.finish_shutdown)
+    _load_qt()["QGuiApplication"].instance().aboutToQuit.connect(controller.close)
 
 
 def _apply_default_font(qgui_application: Any, qfont: Any) -> None:
@@ -308,6 +328,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         from shinar.desktop.shell.identity import set_windows_app_id
         set_windows_app_id()
         app = qt["QApplication"](["shinar-desktop", *list(argv or sys.argv[1:])])
+        if not config.use_mock:
+            # Validate a selected external drive before opening the learning store.
+            from shinar.configuration import speech_directory
+
+            load_dotenv(dotenv_path=Path.cwd() / ".env")
+            speech_directory()
         from shinar.desktop.presentation.viewmodel import LearningViewModel
 
         viewmodel = LearningViewModel(create_workbench(use_mock=config.use_mock), config.provider_label)
@@ -319,6 +345,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             QTimer.singleShot(0, app.quit)
         app.aboutToQuit.connect(lambda: _keep_alive(engine, viewmodel))
         return app.exec()
+    except SpeechStorageLocationError as exc:
+        from shinar.desktop.shell.startup_error import show_storage_startup_error
+
+        return show_storage_startup_error(exc, app=app)
     except ImportError as exc:
         print(f"错误：{exc}", file=sys.stderr)
         return 2

@@ -280,7 +280,7 @@ class ContinuousVoiceController(QObject):
         return (
             QCoreApplication.translate(
                 "Desktop",
-                "预计下载 %1 MiB · 安装需可用空间 %2 MiB（含临时文件和余量，不是最终占用或运行内存）。",
+                "需下载约 %1 MiB · 安装前需留出 %2 MiB",
             )
             .replace("%1", f"{sizes['downloadMiB']:.1f}")
             .replace("%2", f"{sizes['requiredFreeMiB']:.1f}")

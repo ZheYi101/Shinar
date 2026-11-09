@@ -1,5 +1,6 @@
 from threading import Event
 
+from PySide6.QtCore import QObject, QPointF, Qt
 from PySide6.QtTest import QTest
 
 from shinar.local_speech.downloads import TransferEvent
@@ -15,7 +16,15 @@ def test_local_model_labels_separate_download_disk_and_unmeasured_ram(library_de
     until(lambda: not library.busy and bool(library.models))
     row = library.models[0]
     assert "totalMiB" in library.storageUsage and row["cacheMiB"] == 0
+    package = item(window, "speechPackageSize-" + row["id"])
+    assert not package.isVisible()
+    model_row = item(window, "speechModel-" + row["id"])
+    summary = model_row.findChild(QObject, "speechPreparationSummary")
+    assert summary.property("visible") and "需下载约" in summary.property("text")
+    assert "安装" not in summary.property("text")
     click(window, "speechDetails-" + row["id"])
+    assert package.isVisible() and "不含共享组件" in package.property("text")
+    assert "安装空间预算约" in item(window, "speechCapacityHelp-" + row["id"]).property("helpText")
     memory = item(window, "speechMemory-" + row["id"]).property("text")
     assert "尚无本机实测" in memory and "0 MiB" not in memory
     assert "本地语音文件共" in item(window, "speechStorageUsage-total").property("text")
@@ -64,7 +73,7 @@ def test_continuous_file_completion_is_not_whole_setup_completion(desktop, monke
         assert "运行库" in item(window, "continuousSetupStage").property("text")
         assert item(window, "continuousSetupComponent").property("text") == "livekit-rtc.whl"
         assert "当前文件" in item(window, "continuousSetupFileProgress").property("text")
-        assert "文件完成后继续" in item(window, "continuousSetupFileProgress").property("text")
+        assert "11.0" in item(window, "continuousSetupFileProgress").property("text")
         assert not item(window, "prepareContinuousVoice").isEnabled()
         assert audio.plays == 0
     finally:
@@ -89,3 +98,25 @@ def test_continuous_storage_refresh_is_read_only_and_rejects_old_root(desktop, t
     call.receive_event(CallEvent("", "setup_storage", value=("old-root", 0, {"totalMiB": 999})))
     assert call.setupStorage == {} and call.connectionState == "off"
     assert not vm.busy and audio.plays == 0
+
+
+def test_model_library_keeps_controls_and_on_demand_help_accessible(library_desktop):
+    _, library, _, window, _, _ = library_desktop
+    until(lambda: not library.busy)
+    assert not item(window, "speechLibraryStatus").isVisible()
+    for width in (360, 1180):
+        window.setWidth(width)
+        QTest.qWait(80)
+        for name in ("speechLanguage", "speechScenario", "openSpeechCompute", "speechBenchmarkHelp"):
+            control = item(window, name)
+            end = control.mapToScene(QPointF(control.width(), control.height()))
+            assert control.isVisible() and 0 < end.x() <= width and end.y() < window.height()
+        assert item(window, "speechModelsPage").height() > window.height() / 2
+        help_button = item(window, "speechBenchmarkHelp")
+        help_button.forceActiveFocus()
+        QTest.keyClick(window, Qt.Key.Key_Space)
+        popup = window.findChild(QObject, "speechBenchmarkHelp-popup")
+        until(lambda: popup.property("opened"))
+        assert "内置示例" in help_button.property("helpText")
+        QTest.keyClick(window, Qt.Key.Key_Escape)
+        until(lambda: not popup.property("visible"))

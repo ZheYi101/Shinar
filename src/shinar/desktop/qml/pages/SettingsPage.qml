@@ -7,20 +7,13 @@ import "../components"
 ColumnLayout {
     id: shell
     property int section: 0
-    spacing: 20
-    MLabel {
-        Layout.fillWidth: true; Layout.maximumWidth: 720; Layout.alignment: Qt.AlignHCenter
-        text: shell.section > 0 ? qsTr("计算与加速") : ({appearance:qsTr("外观"),learning:qsTr("学习偏好"),services:qsTr("模型与服务"),audio:qsTr("音频设备"),local:qsTr("本地语音模型"),data:qsTr("数据与隐私")})[workspace.settingsCategory] || qsTr("设置")
-        font.pixelSize: 22; font.weight: Font.DemiBold
-        Layout.topMargin: 4; Layout.bottomMargin: 4
-    }
+    spacing: 8
     RowLayout { visible: shell.section > 0
         MButton { objectName: "speechSettingsBack"; text: qsTr("‹ 本地语音模型"); variant: "text"; onClicked: shell.section = 0 }
-        MLabel { text: qsTr("计算与加速"); role: "supporting" }
     }
     StackLayout {
         Layout.fillWidth: true; Layout.fillHeight: true
-        currentIndex: shell.section > 0 ? 2 : workspace.settingsCategory === "local" ? 1 : 0
+        currentIndex: shell.section > 0 ? shell.section : workspace.settingsCategory === "local" ? 1 : 0
         ScrollView {
             id: overview
             objectName: "settingsOverview"
@@ -64,19 +57,14 @@ ColumnLayout {
                     visible: workspace.settingsCategory === "data"; Layout.fillWidth: true; spacing: 0
                     SettingsValue { label: qsTr("本地数据"); value: qsTr("材料、已发送消息与复习项保存在本机。未发送草稿只保留在本次运行中；录音临时处理，结束会话后清理。") }
                     SettingsValue { label: qsTr("远程服务"); value: qsTr("使用远程模型时，相应文字或音频会发送到已配置服务。") }
+                    SettingsRow { label: qsTr("模型文件与运行环境"); MButton { objectName: "openDataSpeechStorage"; text: qsTr("存储管理"); variant: "outlined"; onClicked: { workspace.setCategory("local"); shell.section = 3 } } }
                     SettingsRow { label: qsTr("当前工作区"); divider: false; MButton { text: qsTr("重置当前选择"); variant: "outlined"; enabled: !workspace.threadLocked; onClicked: learningViewModel.resetSession() } }
                 }
             }
         }
-        ColumnLayout {
-            RowLayout {
-                Layout.fillWidth: true
-                Item { Layout.fillWidth: true }
-                MButton { objectName: "openSpeechCompute"; text: qsTr("计算与加速"); variant: "outlined"; onClicked: shell.section = 2 }
-            }
-            LocalSpeechLibrary { Layout.fillWidth: true; Layout.fillHeight: true; onOpenCompute: shell.section = 2 }
-        }
+        LocalSpeechLibrary { Layout.fillWidth: true; Layout.fillHeight: true; onOpenCompute: shell.section = 2; onOpenStorage: shell.section = 3 }
         SpeechComputePage { }
+        SpeechStoragePage { Layout.fillWidth: true; Layout.fillHeight: true }
     }
     Connections { target: workspace; function onChanged() { if (workspace.settingsCategory !== "local") shell.section = 0 } }
 }

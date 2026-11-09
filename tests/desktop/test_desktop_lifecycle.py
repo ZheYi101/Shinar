@@ -130,10 +130,11 @@ def test_close_behavior_setting_can_be_changed_with_keyboard(desktop, lifecycle)
     assert vm.preferences.closeBehavior == "background"
 
 
-def test_tray_activation_and_window_menu_override_background_choice(
+def test_tray_activation_and_conversation_menu_override_background_choice(
     desktop, lifecycle, monkeypatch
 ):
     vm, window, *_ = desktop
+    load_and_start(vm, window)
     vm.preferences.setValue("closeBehavior", "background")
     click(window, "windowCloseButton")
     assert not window.isVisible()
@@ -141,7 +142,7 @@ def test_tray_activation_and_window_menu_override_background_choice(
     assert window.isVisible()
     requested = []
     monkeypatch.setattr(lifecycle._application, "quit", lambda: requested.append(True))
-    click(window, "secondaryMenuButton")
+    click(window, "conversationMenuButton")
     click(window, "exitApplicationMenuItem")
     until(lambda: bool(requested))
     assert requested == [True] and not lifecycle.closePromptVisible

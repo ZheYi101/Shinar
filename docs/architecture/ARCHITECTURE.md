@@ -48,7 +48,7 @@ flowchart TB
 | `desktop.presentation` | `LearningViewModel`；`LearningPropertiesMixin` 与 `ConversationViewMixin` 属于同一 QObject，瞬态展示由 `ConversationPresentation` 写入 |
 | `desktop.workspace` | `DesktopWorkspaceController`；`ReaderWorkspaceMixin` 复用该 QObject 的阅读、导航和编辑状态 |
 | `desktop.voice` | 分轮录音、预检、Qt 音频和公开 `SpeechRoute`；`continuous/` 保管连续通话协作 |
-| `desktop.speech_library` | `SpeechLibraryViewModel`；`SpeechLibraryOperationsMixin` 复用该 QObject 的目录和操作状态；下载任务列表单独管理任务 |
+| `desktop.speech_library` | `SpeechLibraryViewModel` 适配 CatalogProjection／LibraryOperations／ResourceMonitor；下载沿用 SpeechPreparationJobs；独立 SpeechStorageController 管理存储维护任务的 Qt 展示 |
 | `desktop.tasks` | 共享 worker、准备进度格式化、语音错误展示；不反向依赖具体语音门面 |
 
 同一 QObject 的具名 Mixin 是职责分组，尚未隔离全部共享状态。ViewModel、Workspace 和语音库的进一步状态拆分保留为债务：出现第二个状态写入者或新增异步状态前，先冻结公开快照与失效规则，再抽出普通协作者，不能继续扩张 Mixin 或增加第二个 QObject 所有者。
@@ -97,6 +97,8 @@ CLI 与桌面使用相同 Workbench 用例；CLI 导入先保存，显式确认�
 领域数据结构与默认值须兼容旧 payload。改变规范化或索引语义必须明确版本、迁移／回退方案，不能靠重新导入静默替换既有历史。数据库、WAL／SHM 与原件目录均按敏感数据处理；日志不记录完整材料、对话、录音或凭据。
 
 语音容量展示区分下载资产、安装磁盘准入余量、已存在文件和运行内存。`local_speech/usage.py` 在后台只读统计语音缓存，不跟随外部链接，硬链接去重；桌面共享容量组件只格式化数据，不能把安装估算当作 RAM 或最终占用。连续语音准备事件保留阶段和文件身份，单文件 100% 不表示整项准备完成。口径见[本地语音设置指南](../desktop/LOCAL_SPEECH_SETUP.md#容量与内存显示口径2026-11-07)。
+
+模型位置配置集中在 `configuration_location`；维护统计、清理计划与事务迁移分别由 `local_speech/storage_inventory.py`、`storage_cleanup.py`、`storage_migration.py` 拥有。所有实际使用者遵守根目录共享租约，清理／迁移独占；安装和驻留模型的原有包锁继续保留。维护通过已有具名阻塞子进程边界运行，位置提交后重启装配，不热改服务根目录。原库保留，独立连续通话组件与学习库不在迁移范围。契约与验证边界见[Decision 0047](../decisions/TECH_DECISIONS.md#decision-0047)。
 
 页面展示过某段材料不等于学习者掌握了。反馈与复习项关联真实输出或明确的用户动作；预测、识别猜测和未发送草稿不能成为学习证据。只有转写时不推断发音质量。
 

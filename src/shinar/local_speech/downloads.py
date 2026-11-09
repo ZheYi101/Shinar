@@ -16,6 +16,7 @@ import httpx
 
 from .catalog import ModelPackage, safe_relative
 from .storage import atomic_json, read_json
+from .storage_lease import storage_lease, StorageCancelledError
 
 
 class DownloadCancelled(RuntimeError):
@@ -34,6 +35,16 @@ class TransferEvent:
 def package_lock(
     root: Path, package: ModelPackage, *, wait=False, cancel=None, on_wait=lambda: None
 ):
+    try:
+        with storage_lease(root, wait=wait, cancel=cancel, on_wait=on_wait):
+            with _package_lock(root, package, wait=wait, cancel=cancel, on_wait=on_wait):
+                yield
+    except StorageCancelledError:
+        raise DownloadCancelled("已取消，已下载部分保留以便继续。") from None
+
+
+@contextmanager
+def _package_lock(root, package, *, wait, cancel, on_wait):
     locks = root / ".locks"
     locks.mkdir(parents=True, exist_ok=True)
     with (locks / (package.id + ".lock")).open("a+b") as stream:

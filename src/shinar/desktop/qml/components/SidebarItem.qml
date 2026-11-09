@@ -10,15 +10,20 @@ Basic.ItemDelegate {
     implicitHeight: 38
     leftPadding: 10
     rightPadding: 10
+    topPadding: 7
+    bottomPadding: 7
     spacing: 10
     hoverEnabled: true
     font.family: AppTheme.uiFont
     font.pixelSize: 13
     font.weight: selected ? Font.Medium : Font.Normal
-    display: collapsed ? Basic.AbstractButton.IconOnly : Basic.AbstractButton.TextBesideIcon
+    // Keep the icon anchored at the left while the rail width animates.
+    // The collapsed content width fits the icon; the text is clipped away.
+    display: Basic.AbstractButton.TextBesideIcon
+    contentItem.clip: true
     icon.source: symbol ? Qt.resolvedUrl("../assets/" + symbol + ".svg") : ""
-    icon.width: 18
-    icon.height: 18
+    icon.width: 24
+    icon.height: 24
     icon.color: AppTheme.colorOnSurface
     palette.text: AppTheme.colorOnSurface
     palette.highlightedText: AppTheme.colorOnSurface

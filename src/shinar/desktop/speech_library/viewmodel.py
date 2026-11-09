@@ -25,6 +25,7 @@ from shinar.desktop.speech_library.state import LibraryRequest, LibraryOperation
 from shinar.desktop.speech_library.monitor import ResourceMonitor
 from shinar.desktop.speech_library.work import LibraryWork
 from shinar.local_speech.storage import atomic_json, read_json
+from shinar.local_speech.storage_lease import storage_lease
 from shinar.local_speech.compute import save_compute, runtime_version
 from shinar.local_speech import adapter_revision
 from shinar.desktop.speech_library.formats import catalog_display, work_error
@@ -60,9 +61,6 @@ class SpeechLibraryViewModel(QObject):
             ResourceMonitor(),
         )
         self._projection.configure(catalog if catalog is not None else load_catalog())
-        self._operations.status(
-            QCoreApplication.translate("Desktop", "点击刷新，检测当前可用资源。")
-        )
         self.changed.connect(self.statusChanged)
         self._event.connect(self._receive, Qt.ConnectionType.QueuedConnection)
         self.local_service = LocalSpeechService(self.store.root, status=self.inferenceStatus.emit)
@@ -514,6 +512,12 @@ class SpeechLibraryViewModel(QObject):
             self.modelsChanged.emit()
         error = work_error(error)
         errors = {
+            "speech_storage_busy": QCoreApplication.translate(
+                "Desktop", "语音存储正在维护，请等待操作结束后重试。"
+            ),
+            "speech_storage_moved": QCoreApplication.translate(
+                "Desktop", "语音存储位置已更改，请退出并重新打开软件。"
+            ),
             "speech_voice_terms_required": QCoreApplication.translate(
                 "Desktop", "请先阅读并确认此版本的语音模型与角色条款。"
             ),
@@ -530,7 +534,7 @@ class SpeechLibraryViewModel(QObject):
                 "Desktop", "运行环境未通过实际计算验证，请检查驱动或重新准备。"
             ),
             "speech_setup_disk_insufficient": QCoreApplication.translate(
-                "Desktop", "缓存盘空间不足，请按页面的“安装需可用空间”释放空间后重试。"
+                "Desktop", "缓存盘空间不足，请查看容量说明中的安装空间预算，释放空间后重试。"
             ),
             "speech_voice_invalid": QCoreApplication.translate(
                 "Desktop", "声音选项无效，请重新选择。"
@@ -555,18 +559,7 @@ class SpeechLibraryViewModel(QObject):
             if error.startswith("speech_")
             else error
         )
-        self._operations.status(
-            error
-            or (
-                QCoreApplication.translate(
-                    "Desktop", "后台下载继续进行，可在任务列表查看每项进度。"
-                )
-                if self.downloadCount
-                else QCoreApplication.translate(
-                    "Desktop", "模型状态已更新。下载后请先测速，再选用。"
-                )
-            )
-        )
+        self._operations.status(error)
         self.changed.emit()
 
         if not error and result and result.get("selectAfterBenchmark"):
@@ -592,7 +585,8 @@ class SpeechLibraryViewModel(QObject):
             self._operations.status(QCoreApplication.translate("Desktop", "计算设置的数值无效。"))
             self.changed.emit()
             return
-        save_compute(self.store.root, updated)
+        if not self._save_settings(lambda: save_compute(self.store.root, updated)):
+            return
         self.local_service.request_release()
         self.configurationChanged.emit()
         self.refresh()
@@ -617,7 +611,8 @@ class SpeechLibraryViewModel(QObject):
             data[id] = package.fingerprint
         else:
             data.pop(id, None)
-        atomic_json(self.store.root / "voice-terms.json", data)
+        if not self._save_settings(lambda: atomic_json(self.store.root / "voice-terms.json", data)):
+            return
         self.refresh()
 
     @Slot(str, str)
@@ -630,7 +625,8 @@ class SpeechLibraryViewModel(QObject):
             return
         data = read_json(self.store.root / "voices.json", {})
         data[id] = voice_id
-        atomic_json(self.store.root / "voices.json", data)
+        if not self._save_settings(lambda: atomic_json(self.store.root / "voices.json", data)):
+            return
         self.refresh()
 
     @Slot(str)
@@ -675,12 +671,17 @@ class SpeechLibraryViewModel(QObject):
                 if k in {"speaker_id", "style_id"}
             },
         }
-        atomic_json(self.store.root / "selections.json", selected)
+        def save_selection():
+            atomic_json(self.store.root / "selections.json", selected)
+            if self.scenario == "conversation":
+                settings = load_compute(self.store.root)
+                save_compute(
+                    self.store.root, settings.model_copy(update={f"local_{package.task}": True})
+                )
+
+        if not self._save_settings(save_selection):
+            return
         if self.scenario == "conversation":
-            settings = load_compute(self.store.root)
-            save_compute(
-                self.store.root, settings.model_copy(update={f"local_{package.task}": True})
-            )
             self.local_service.request_release()
             self.configurationChanged.emit()
         self._projection.select(id, package.task)
@@ -692,6 +693,18 @@ class SpeechLibraryViewModel(QObject):
             )
         )
         self.changed.emit()
+
+    def _save_settings(self, write):
+        try:
+            with storage_lease(self.store.root):
+                write()
+        except (RuntimeError, OSError):
+            self._operations.status(QCoreApplication.translate(
+                "Desktop", "存储正在维护或位置已更改。请等待操作结束；迁移成功后请重启软件。"
+            ))
+            self.changed.emit()
+            return False
+        return True
 
     @Slot(str)
     def install(self, id):

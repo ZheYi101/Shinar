@@ -112,29 +112,54 @@ def managed_status(root: Path, runtime_id: str) -> dict:
 
 def make_plan(root: Path, package: ModelPackage, language: str, device: str) -> InstallationPlan:
     spec = runtime_spec(runtime_id_for(package, device))
-    size, disk = _asset_plan(root, spec, package.files)
+    assets = () if ModelStore(root).installed(package) else package.files
+    size, disk = _asset_plan(root, spec, assets)
     return InstallationPlan(package.id, spec.id, language, device, size, disk)
 
 
-def runtime_plan(root: Path, runtime_id: str) -> InstallationPlan:
+def runtime_plan(root: Path, runtime_id: str, *, repair: bool = False) -> InstallationPlan:
     spec = runtime_spec(runtime_id)
-    size, disk = _asset_plan(root, spec, (), runtime_required=True)
+    size, disk = _asset_plan(root, spec, (), runtime_required=repair)
     return InstallationPlan("", spec.id, "", spec.device, size, disk)
+
+
+def _runtime_assets(root: Path, spec: RuntimeSpec) -> list[Artifact]:
+    store = ModelStore(root)
+    assets = [Artifact.model_validate(w) for w in spec.wheels if "resource" not in w]
+    for name in ("python", *spec.resources):
+        package = resource_package(name)
+        if not store.installed(package):
+            assets.extend(package.files)
+    bootstrap = Artifact.model_validate(manifest()["uv"])
+    if not _bootstrap_receipt(root, bootstrap):
+        assets.append(bootstrap)
+    return assets
+
+
+def _cached_asset(root: Path, spec: RuntimeSpec, artifact: Artifact) -> bool:
+    # Plans are cheap snapshots. Actual reuse verifies SHA256 before installing.
+    candidates = [root / "downloads" / artifact.sha256]
+    if any(w["sha256"] == artifact.sha256 and w["path"] == artifact.path for w in spec.wheels):
+        candidates.append(root / "wheelhouses" / spec.fingerprint / artifact.path)
+    for path in candidates:
+        try:
+            if not path.is_symlink() and path.is_file() and path.stat().st_size == artifact.size:
+                return True
+        except OSError:
+            pass
+    return False
 
 
 def _asset_plan(
     root: Path, spec: RuntimeSpec, model_assets, *, runtime_required=False
 ) -> tuple[int, int]:
-    data = manifest()
     assets = [*model_assets]
     if runtime_required or not managed_status(root, spec.id)["prepared"]:
-        assets.extend(Artifact.model_validate(w) for w in spec.wheels if "resource" not in w)
-        assets.extend(resource_package("python").files)
-        assets.append(Artifact.model_validate(data["uv"]))
-        for name in spec.resources:
-            assets.extend(resource_package(name).files)
+        assets.extend(_runtime_assets(root, spec))
     unique = {a.sha256: a for a in assets}
-    pending = [a for a in unique.values() if not (root / "downloads" / a.sha256).is_file()]
+    if not unique:
+        return 0, 0
+    pending = [a for a in unique.values() if not _cached_asset(root, spec, a)]
     size = sum(a.size for a in pending)
     disk = (
         sum(a.size + a.unpacked_limit for a in unique.values())
@@ -159,22 +184,63 @@ def _check_cancel(cancel) -> None:
         raise DownloadCancelled("speech_setup_cancelled")
 
 
+def _verified_file(path: Path, size: int, checksum: str, cancel=None) -> bool:
+    try:
+        if path.is_symlink() or not path.is_file() or path.stat().st_size != size:
+            return False
+        digest = hashlib.sha256()
+        with path.open("rb") as stream:
+            while chunk := stream.read(1024 * 1024):
+                _check_cancel(cancel)
+                digest.update(chunk)
+        return digest.hexdigest() == checksum
+    except OSError:
+        return False
+
+
+def _bootstrap_receipt(root: Path, artifact: Artifact, *, verify=False, cancel=None) -> dict:
+    folder = root / "bootstrap" / artifact.sha256
+    marker = read_json(folder / "ready.json", {})
+    try:
+        target = folder / "uv.exe"
+        if (
+            marker.get("artifact_sha256") != artifact.sha256
+            or not isinstance(marker["sha256"], str)
+            or len(marker["sha256"]) != 64
+            or target.is_symlink()
+            or not target.is_file()
+            or target.stat().st_size != marker["size"]
+        ):
+            return {}
+        if verify and not _verified_file(target, marker["size"], marker["sha256"], cancel):
+            return {}
+        return marker
+    except (AttributeError, KeyError, OSError, TypeError):
+        return {}
+
+
 def _uv(store: ModelStore, cancel, progress) -> Path:
     artifact = Artifact.model_validate(manifest()["uv"])
-    blob = store.fetch_artifact(artifact, cancel=cancel, progress=progress)
     target = store.root / "bootstrap" / artifact.sha256 / "uv.exe"
+    if _bootstrap_receipt(store.root, artifact, verify=True, cancel=cancel):
+        return target
+    blob = store.fetch_artifact(artifact, cancel=cancel, progress=progress)
     with zipfile.ZipFile(blob) as archive:
         candidates = [i for i in archive.infolist() if i.filename.endswith("/uv.exe")]
         if len(candidates) != 1 or candidates[0].file_size > 100 * 1024**2:
             raise SpeechSetupError("speech_bootstrap_invalid")
         expected = hashlib.sha256(archive.read(candidates[0])).hexdigest()
-        if target.is_file() and hashlib.sha256(target.read_bytes()).hexdigest() == expected:
-            return target
-        target.parent.mkdir(parents=True, exist_ok=True)
-        tmp = target.with_suffix("." + uuid4().hex)
-        with archive.open(candidates[0]) as source, tmp.open("xb") as output:
-            shutil.copyfileobj(source, output)
-        os.replace(tmp, target)
+        if not _verified_file(target, candidates[0].file_size, expected, cancel):
+            target.parent.mkdir(parents=True, exist_ok=True)
+            tmp = target.with_suffix("." + uuid4().hex)
+            with archive.open(candidates[0]) as source, tmp.open("xb") as output:
+                shutil.copyfileobj(source, output)
+            os.replace(tmp, target)
+        atomic_json(target.parent / "ready.json", {
+            "artifact_sha256": artifact.sha256,
+            "sha256": expected,
+            "size": candidates[0].file_size,
+        })
     return target
 
 
@@ -234,7 +300,7 @@ def prepare_managed_runtime(
         old = managed_status(root, runtime_id)
         if old["prepared"] and not repair:
             return old
-        if shutil.disk_usage(root).free < runtime_plan(root, runtime_id).disk_bytes:
+        if shutil.disk_usage(root).free < runtime_plan(root, runtime_id, repair=repair).disk_bytes:
             raise SpeechSetupError("speech_setup_disk_insufficient")
         stage("speech_setup_bootstrap")
         uv = _uv(store, cancel, progress)
@@ -317,6 +383,8 @@ def _prepare_wheelhouse(store, spec, cancel, progress, stage):
                 raise SpeechSetupError("speech_runtime_resource_corrupt")
             target.write_bytes(content)
         else:
+            if _verified_file(target, item["size"], item["sha256"], cancel):
+                continue
             blob = store.fetch_artifact(
                 Artifact.model_validate(item), cancel=cancel, progress=progress
             )

@@ -50,6 +50,11 @@ def speech_directory() -> Path:
     data = getenv("SHINAR_DATA_DIR")
     if data:
         return Path(data).expanduser().absolute() / "speech"
+    from shinar.configuration_location import load_speech_location
+
+    saved = load_speech_location()
+    if saved is not None:
+        return saved
     if sys.platform == "win32":
         base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData/Local"))
     else:
