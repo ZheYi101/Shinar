@@ -182,10 +182,12 @@ def preview_migration(root: Path, destination: Path) -> MigrationPlan:
     source, target = _paths(root, destination)
     quarantines = _quarantines(source)
     selected = _files(source, quarantines)
-    runtimes = tuple(sorted(
-        name for name in manifest()["runtimes"]
-        if managed_status(source, name).get("prepared")
-    ))
+    runtime_ids = []
+    for name in manifest()["runtimes"]:
+        status = managed_status(source, name)
+        if status.get("prepared") or status.get("repairRequired") == "speech_runtime_nltk_missing":
+            runtime_ids.append(name)
+    runtimes = tuple(sorted(runtime_ids))
     copied = sum(item.size for item in selected)
     required = copied + sum(runtime_plan(source, name, repair=True).disk_bytes for name in runtimes)
     retained = tuple(sorted((

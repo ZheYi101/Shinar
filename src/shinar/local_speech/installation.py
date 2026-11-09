@@ -105,7 +105,16 @@ def managed_status(root: Path, runtime_id: str) -> dict:
                 for name in runtime_spec(runtime_id).resources
             )
         )
-        return {**ready, "prepared": valid, "python": str(python)}
+        result = {**ready, "prepared": valid, "python": str(python)}
+        result.pop("repairRequired", None)
+        if valid and runtime_id.startswith("melo-"):
+            from .offline_nltk import validate_nltk_data
+
+            try:
+                validate_nltk_data(folder / "support/nltk_data")
+            except ValueError:
+                result.update(prepared=False, repairRequired="speech_runtime_nltk_missing")
+        return result
     except (KeyError, ValueError, OSError):
         return {"prepared": False}
 
@@ -340,6 +349,10 @@ def prepare_managed_runtime(
 def probe_managed_runtime(
     root: Path, runtime_id: str, python: str, *, gpu_index=0, cancel=None
 ) -> dict:
+    if runtime_id.startswith("melo-"):
+        from .offline_nltk import validate_nltk_data
+
+        validate_nltk_data(Path(python).parent.parent / "support/nltk_data")
     config = {
         "runtime_id": runtime_id,
         "gpu_index": gpu_index,
@@ -426,6 +439,14 @@ def _install_melo_support(root, folder, cancel):
 
     for blob in nlp.rglob("*.zip"):
         parent = support / "nltk_data" / blob.parent.relative_to(nlp)
+        _check_cancel(cancel)
+        parent.mkdir(parents=True, exist_ok=True)
+        archive_copy = parent / blob.name
+        archive_copy.unlink(missing_ok=True)
+        try:
+            os.link(blob, archive_copy)
+        except OSError:
+            shutil.copyfile(blob, archive_copy)
         with zipfile.ZipFile(blob) as archive:
             total = 0
             for info in archive.infolist():

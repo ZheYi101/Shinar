@@ -41,6 +41,10 @@ def load_model(spec, threads):
     if spec.get("nltk_path"):
         import os
         os.environ["NLTK_DATA"] = spec["nltk_path"]
+    if spec["adapter"] == "melo_english":
+        from offline_nltk import configure_offline_nltk
+
+        configure_offline_nltk(spec.get("nltk_path", ""))
     if spec["adapter"] in {"voicevox", "melo_english"}:
         from native_tts import NativeTts
         return NativeTts(spec, threads)

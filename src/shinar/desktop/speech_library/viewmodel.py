@@ -512,6 +512,9 @@ class SpeechLibraryViewModel(QObject):
             self.modelsChanged.emit()
         error = work_error(error)
         errors = {
+            "speech_runtime_nltk_missing": QCoreApplication.translate(
+                "Desktop", "本地英语发音资料缺失，请重新准备 Melo 运行环境。"
+            ),
             "speech_storage_busy": QCoreApplication.translate(
                 "Desktop", "语音存储正在维护，请等待操作结束后重试。"
             ),

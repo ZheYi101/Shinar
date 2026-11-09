@@ -961,6 +961,11 @@
     </message>
     <message>
         <location line="+215"/>
+        <source>本地英语发音资料缺失，请重新准备 Melo 运行环境。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
         <source>语音存储正在维护，请等待操作结束后重试。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -981,7 +986,7 @@
     </message>
     <message>
         <location filename="../speech_library/formats.py" line="+61"/>
-        <location filename="../speech_library/viewmodel.py" line="-258"/>
+        <location filename="../speech_library/viewmodel.py" line="-261"/>
         <source>请先停止语音并释放已加载模型，再修复运行环境。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -996,12 +1001,12 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+134"/>
+        <location line="+137"/>
         <source>正在释放空闲模型；运行中的推理会先完成。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-242"/>
+        <location line="-245"/>
         <source>尚未检测硬件</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1041,7 +1046,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../speech_library/viewmodel.py" line="+145"/>
+        <location filename="../speech_library/viewmodel.py" line="+148"/>
         <source>请先阅读并确认此版本的语音模型与角色条款。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1142,7 +1147,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../speech_library/viewmodel.py" line="-394"/>
+        <location filename="../speech_library/viewmodel.py" line="-397"/>
         <source>检测硬件与本地模型…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1203,7 +1208,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+139"/>
+        <location line="+142"/>
         <source>此配置已在严格评测与试听中排除，请选择其他模型。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1218,7 +1223,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-299"/>
+        <location line="-302"/>
         <source>请先停止语音，再试听模型声音。</source>
         <translation type="unfinished"></translation>
     </message>

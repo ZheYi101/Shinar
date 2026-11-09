@@ -21,6 +21,9 @@ def probe(config: dict) -> dict:
 
         folder = Path(sys.executable).parent.parent
         os.environ["NLTK_DATA"] = str(folder / "support/nltk_data")
+        from offline_nltk import configure_offline_nltk
+
+        configure_offline_nltk(folder / "support/nltk_data")
         os.environ["SHINAR_EVAL_BERT_DIR"] = config["resources"]["bert"]
         os.environ["LINGUALOOP_EVAL_BERT_DIR"] = config["resources"]["bert"]
         sys.path[:0] = [str(folder / "support/MeloTTS"), str(folder / "support/english_frontend")]
