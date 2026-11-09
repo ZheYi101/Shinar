@@ -41,4 +41,4 @@ $env:QT_SCALE_FACTOR='1.5'
 .venv\Scripts\python.exe -m scripts.validate_speech_storage --evidence build/storage-governance/ui-150
 ```
 
-当前验证边界及证据见[存储管理验收](../validation/engineering/SPEECH_STORAGE_2026-11-09.md)。
+软件回归与发行资源检查见[存储管理验收](../validation/engineering/SPEECH_STORAGE_2026-11-09.md)。随后经用户授权执行的个人模型库迁移、环境独立性及实际清理结果单列于[本机迁移验收](../validation/engineering/SPEECH_STORAGE_HOST_2026-11-09.md)，不代表软件会自动整理其他开发目录。
