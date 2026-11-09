@@ -22,7 +22,9 @@ def configure_application_identity(app: Any) -> None:
 
     app.setApplicationName("Shinar")
     app.setApplicationDisplayName("Shinar")
-    app.setOrganizationName("Shinar")
+    # Windows QStandardPaths includes both organization and application names.
+    # Preferences use explicit ProductSettings namespaces, independently of this.
+    app.setOrganizationName("" if os.name == "nt" else "Shinar")
     try:
         app.setApplicationVersion(version("shinar"))
     except PackageNotFoundError:

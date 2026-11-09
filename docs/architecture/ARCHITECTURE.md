@@ -54,6 +54,7 @@ flowchart TB
 同一 QObject 的具名 Mixin 是职责分组，尚未隔离全部共享状态。ViewModel、Workspace 和语音库的进一步状态拆分保留为债务：出现第二个状态写入者或新增异步状态前，先冻结公开快照与失效规则，再抽出普通协作者，不能继续扩张 Mixin 或增加第二个 QObject 所有者。
 
 桌面入口使用 `QApplication` 承载原有 QML 窗口和 Qt 系统托盘菜单；Qt Widgets 只用于原生托盘边界。
+Windows 的 Qt 组织名留空、应用名保持 Shinar，避免 QStandardPaths 将界面缓存放进重复的 `Shinar/Shinar` 目录；缓存使用 `%LOCALAPPDATA%\Shinar\cache`。QSettings 仍由 ProductSettings 显式指定新旧命名空间，业务数据与语音资源位置由 configuration 边界决定，不依赖 Qt 缓存路径。阅读器继续使用临时 off-the-record profile。
 `DesktopWindowController` 保管窗口几何并在原生关闭事件中委托 `DesktopLifecycleController` 判断关闭策略。
 后者管理关闭询问、隐藏／恢复和显式退出；策略 `closeBehavior` 属于 QSettings 外观偏好，默认 `ask`。
 后台运行只是隐藏同一窗口，既有 worker、下载、语音和业务会话继续；不另建进程、会话或持久化路径。
