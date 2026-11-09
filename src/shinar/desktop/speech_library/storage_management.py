@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from copy import deepcopy
 from pathlib import Path
 from threading import Event
@@ -51,8 +52,24 @@ def _message(code):
         "SpeechStorageController", "存储操作未完成。原位置保留，请检查磁盘权限、可用空间后重试。"))
 
 
-async def _nothing():
-    return None
+async def _wait_for_release(completion):
+    if completion is None:
+        return
+    pending = asyncio.wrap_future(completion)
+    try:
+        await asyncio.shield(pending)
+    except asyncio.CancelledError:
+        # Cancelling the maintenance future must not abandon an actual release
+        # running on the model service's owning event loop.
+        await pending
+        raise
+
+
+async def _finish_release(completion):
+    try:
+        await _wait_for_release(completion)
+    except (Exception, asyncio.CancelledError):
+        pass  # The model owner's shutdown handles release failures; join its task.
 
 
 class SpeechStorageController(QObject):
@@ -62,13 +79,15 @@ class SpeechStorageController(QObject):
     _stageArrived = Signal(str, str)
 
     def __init__(self, root, *, config_path=None, location_locked=False,
-                 available=lambda: True, release=lambda: None, runner=run_blocking, parent=None):
+                 available=lambda: True, release=lambda: None, resume=lambda: None,
+                 runner=run_blocking, parent=None):
         super().__init__(parent)
         self._root = Path(root).absolute()
         self._config_path = config_path
         self._location_locked = location_locked
         self._available = available
         self._release = release
+        self._resume = resume
         self._runner = runner
         self._worker = AsyncWorker(self)
         self._worker.jobCompleted.connect(self._completed)
@@ -76,6 +95,7 @@ class SpeechStorageController(QObject):
         self._job = ""
         self._operation = ""
         self._cancel = None
+        self._release_completion = None
         self._inventory = {}
         self._preview = {}
         self._status = ""
@@ -185,7 +205,6 @@ class SpeechStorageController(QObject):
                 self._status = _message("speech_storage_busy")
                 self.changed.emit()
                 return
-            self._release()
         identity = uuid4().hex
         stopped = Event()
         request = BlockingRequest("speech_storage_" + operation, args, options)
@@ -197,8 +216,17 @@ class SpeechStorageController(QObject):
         )
         runner = self._runner
         deliver = self._stageArrived.emit
+        try:
+            released = self._release() if operation in {"clean", "migrate"} else None
+            self._release_completion = released
+        except Exception as error:
+            self._completed(identity, None, str(error))
+            return
 
         async def execute():
+            await _wait_for_release(released)
+            if stopped.is_set():
+                raise RuntimeError("speech_storage_cancelled")
             return await runner(request, cancel=stopped,
                                 on_event=lambda kind, value: deliver(identity, str(value)))
 
@@ -227,6 +255,7 @@ class SpeechStorageController(QObject):
             return
         operation = self._operation
         self._job, self._operation, self._cancel = "", "", None
+        self._release_completion = None
         # A cancellation can race the child's durable location commit. Report
         # the committed location even if its final acknowledgement was lost.
         if operation == "migrate" and error and self._migration_committed():
@@ -249,6 +278,8 @@ class SpeechStorageController(QObject):
         else:
             self._inventory = {}
             self._status = QCoreApplication.translate("SpeechStorageController", "缓存已清理。")
+        if operation in {"clean", "migrate"} and not self._restart:
+            self._resume()
         self.changed.emit()
         if not error and operation == "clean":
             self.refresh()
@@ -267,7 +298,8 @@ class SpeechStorageController(QObject):
         self._closing = True
         self.cancel()
         self._job = ""
-        self._worker.begin_shutdown(_nothing)
+        completion = self._release_completion
+        self._worker.begin_shutdown(lambda: _finish_release(completion))
 
     def finish_shutdown(self):
         return self._worker.finish_shutdown()
@@ -276,4 +308,5 @@ class SpeechStorageController(QObject):
         self._closing = True
         self.cancel()
         self._job = ""
-        self._worker.close(_nothing)
+        completion = self._release_completion
+        self._worker.close(lambda: _finish_release(completion))

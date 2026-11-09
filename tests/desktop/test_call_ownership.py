@@ -104,3 +104,69 @@ def test_preparation_failure_retry_cancel_and_late_completion_never_start_a_call
         await asyncio.gather(*runtime.tasks)
         assert not preparation.snapshot.active
     asyncio.run(run())
+
+
+def test_changing_storage_clears_old_failure_and_rejects_completion(monkeypatch, tmp_path):
+    import shinar.desktop.voice.continuous.preparation as module
+    from shinar.desktop.voice.continuous.state import PreparationSnapshot
+
+    async def run():
+        runtime = Runtime(tmp_path / "old")
+        preparation = CallPreparation(runtime)
+
+        async def fail(request, **kwargs):
+            raise RuntimeError("offline")
+
+        monkeypatch.setattr(module, "run_blocking", fail)
+        preparation.start()
+        old_identity = preparation.snapshot.identity
+        await asyncio.gather(*runtime.tasks)
+        preparation.handle(runtime.events[-1])
+        assert preparation.snapshot.failed and preparation.snapshot.error
+        runtime.root = tmp_path / "new"
+        preparation.root_changed(runtime.root)
+        assert preparation.snapshot == PreparationSnapshot()
+        assert not preparation.handle(CallEvent(old_identity, "setup_prepared"))
+        assert preparation.snapshot == PreparationSnapshot()
+        await asyncio.gather(*runtime.tasks)
+
+    asyncio.run(run())
+
+
+def test_cleaning_download_cache_does_not_budget_installed_components_again(monkeypatch, tmp_path):
+    import shinar.desktop.voice.continuous.preparation as module
+
+    monkeypatch.setattr(module, "runtime_plan", lambda *args: SimpleNamespace(download_bytes=0, disk_bytes=0))
+    monkeypatch.setattr(module, "ModelStore", lambda root: SimpleNamespace(installed=lambda package: True))
+    preparation = CallPreparation(Runtime(tmp_path))
+    assert not (tmp_path / "downloads").exists()
+    assert preparation.sizes() == {"downloadMiB": 0, "requiredFreeMiB": 0}
+
+
+def test_preparation_reuses_only_the_original_legacy_root_on_explicit_start(monkeypatch, tmp_path):
+    import shinar.desktop.voice.continuous.preparation as module
+
+    async def run():
+        runtime = Runtime(tmp_path / "selected")
+        runtime.legacy_root = tmp_path / "legacy"
+        runtime.legacy_root.mkdir()
+        calls = []
+
+        async def blocking(request, **kwargs):
+            calls.append(request)
+            await asyncio.sleep(0)
+
+        monkeypatch.setattr(module, "run_blocking", blocking)
+        preparation = CallPreparation(runtime)
+        assert not calls and not runtime.root.exists()
+        preparation.start()
+        original = runtime.legacy_root
+        runtime.legacy_root = tmp_path / "changed-after-submit"
+        await asyncio.gather(*runtime.tasks)
+        assert [request.operation for request in calls] == [
+            "continuous_reuse", "runtime", "continuous_assets", "server",
+        ]
+        assert calls[0].args == (original, runtime.root)
+        assert not runtime.presented
+
+    asyncio.run(run())

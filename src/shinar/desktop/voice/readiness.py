@@ -98,6 +98,7 @@ class VoiceReadinessController(QObject):
         self.voice, self.vm, self.worker = voice, voice.vm, voice.worker
         self.probe_factory = lambda: MicrophoneProbe(self.vm.audio, self)
         self._visible = self._closed = False
+        self._storage_maintenance = False
         self._revision = 0
         self._key = None
         self._job = ""
@@ -152,7 +153,7 @@ class VoiceReadinessController(QObject):
 
     @Property(bool, notify=changed)
     def canCheck(self) -> bool:
-        return not self.voice.active and not self.busy
+        return not self._storage_maintenance and not self.voice.active and not self.busy
 
     @Property(bool, notify=changed)
     def needsModelSettings(self) -> bool:
@@ -176,13 +177,30 @@ class VoiceReadinessController(QObject):
         if self._visible == visible or self._closed:
             return
         self._visible = visible
-        if visible:
+        if visible and not self._storage_maintenance:
             self._key = None
             self._residency.start()
             self.refresh()
-        else:
+        elif not visible:
             self._residency.stop()
             self._cancel()
+
+    @Slot(bool)
+    def setStorageMaintenance(self, active: bool) -> None:
+        if self._closed or self._storage_maintenance == active:
+            return
+        self._storage_maintenance = active
+        self._key = None
+        self._cancel()
+        self._states = dict.fromkeys(self._states, "idle")
+        self._errors.clear()
+        self._local.clear()
+        if active:
+            self._residency.stop()
+        elif self._visible:
+            self._residency.start()
+            self.refresh()
+        self.changed.emit()
 
     def _context(self):
         session = self.vm.workbench.session
@@ -205,7 +223,7 @@ class VoiceReadinessController(QObject):
 
     @Slot()
     def refresh(self) -> None:
-        if self._closed or not self._visible or self.voice.active:
+        if self._closed or self._storage_maintenance or not self._visible or self.voice.active:
             return
         if not self.vm.sessionActive:
             self._key = None
@@ -356,7 +374,7 @@ class VoiceReadinessController(QObject):
     @Slot()
     def refreshResidency(self) -> None:
         service = self.vm.local_speech
-        if self._closed or self.voice.active or not service:
+        if self._closed or self._storage_maintenance or self.voice.active or not service:
             return
         changed = False
         for task in self._local:

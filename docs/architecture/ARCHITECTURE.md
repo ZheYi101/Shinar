@@ -99,7 +99,9 @@ CLI 与桌面使用相同 Workbench 用例；CLI 导入先保存，显式确认�
 
 语音容量展示区分下载资产、安装磁盘准入余量、已存在文件和运行内存。`local_speech/usage.py` 在后台只读统计语音缓存，不跟随外部链接，硬链接去重；桌面共享容量组件只格式化数据，不能把安装估算当作 RAM 或最终占用。连续语音准备事件保留阶段和文件身份，单文件 100% 不表示整项准备完成。口径见[本地语音设置指南](../desktop/LOCAL_SPEECH_SETUP.md#容量与内存显示口径2026-11-07)。
 
-模型位置配置集中在 `configuration_location`；维护统计、清理计划与事务迁移分别由 `local_speech/storage_inventory.py`、`storage_cleanup.py`、`storage_migration.py` 拥有。所有实际使用者遵守根目录共享租约，清理／迁移独占；安装和驻留模型的原有包锁继续保留。维护通过已有具名阻塞子进程边界运行，位置提交后重启装配，不热改服务根目录。原库保留，独立连续通话组件与学习库不在迁移范围。契约与验证边界见[Decision 0047](../decisions/TECH_DECISIONS.md#decision-0047)。
+模型位置配置集中在 `configuration_location`；维护统计、清理计划与事务迁移分别由 `local_speech/storage_inventory.py`、`storage_cleanup.py`、`storage_migration.py` 拥有。容量快照复用同一扫描器的文件身份、硬链接归属及 reparse 排除规则，包括 Python 3.11。所有实际使用者遵守根目录共享租约，清理／迁移独占；安装和驻留模型的原有包锁继续保留。维护通过已有具名阻塞子进程边界运行，位置提交后重启装配，不热改服务根目录。学习库与原件保留原位置。契约与验证边界见[Decision 0047](../decisions/TECH_DECISIONS.md#decision-0047)。
+
+连续通话在 `configure_local_speech` 装配时通过公开根目录入口绑定同一个语音库；RTC、VAD、本机 SFU 和 STT／TTS 共享 Python 资源及根目录租约。旧数据库旁 `voice-runtime` 仅作为显式准备期间的已知下载来源，由 `realtime/storage_upgrade.py` 校验后原子复用；后台只接收冻结的源／目标路径，不搬数据库、不复制虚拟环境、不在启动时遍历旧库。迁移仅携带固定 SFU 归档，在目标校验并重建固定版本可执行文件；不搬临时配置或日志。维护前冻结预检并等待原 worker 的实际模型释放，取消与退出同样等待该交接结束。
 
 页面展示过某段材料不等于学习者掌握了。反馈与复习项关联真实输出或明确的用户动作；预测、识别猜测和未发送草稿不能成为学习证据。只有转写时不推断发音质量。
 

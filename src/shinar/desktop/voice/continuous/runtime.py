@@ -23,6 +23,7 @@ class CallRuntime:
         self.worker = voice.worker
         database = self._vm.workbench.storage_path or Path.cwd() / "build/voice.sqlite3"
         self.root = Path(database).parent / "voice-runtime"
+        self.legacy_root = self.root
         self.process_factory = AudioSessionProcess
         self.bridge_factory = None
         self.bridge = self.process = self.runner = None

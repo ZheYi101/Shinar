@@ -33,3 +33,15 @@ def test_injected_audio_process_does_not_need_a_storage_extension(tmp_path):
     runtime = CallRuntime(SimpleNamespace(), SimpleNamespace(vm=vm, worker=None))
     runtime.process_factory = Process
     assert runtime.create_process("injected").identity == "injected"
+
+
+def test_injected_library_also_owns_continuous_components(library_desktop):
+    _, library, vm, _, _, _ = library_desktop
+    assert vm.voice.continuous.root == library.store.root
+    assert not (vm.workbench.storage_path.parent / "voice-runtime").exists()
+
+
+def test_mock_assembly_uses_the_isolated_model_location_for_every_voice_mode(desktop):
+    vm, _, _, _, _, _, database = desktop
+    assert vm.voice.continuous.root == vm.local_speech.store.root
+    assert not (database.parent / "voice-runtime").exists()

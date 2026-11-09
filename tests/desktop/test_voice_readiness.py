@@ -257,3 +257,30 @@ def test_microphone_probe_checks_frames_and_releases_without_publishing(qt_app, 
     probe._state()
     probe._timer.timeout.emit()
     assert result == [""]
+
+
+def test_storage_maintenance_freezes_preflight_and_rejects_late_results(desktop, monkeypatch):
+    vm, window, _, _, _, _, _ = desktop
+    readiness, models, probes = configure(vm, monkeypatch)
+    models.hold = True
+    load_and_start(vm, window)
+    until(models.entered.is_set)
+    identity = readiness._job
+    readiness.setStorageMaintenance(True)
+    before = dict(models.loads)
+    readiness._progress.emit(identity, "stt", ("ready", "", 0, True))
+    vm.preferences.setValue("themeMode", "dark")
+    readiness.retry()
+    readiness.refresh()
+    readiness.setPageVisible(False)
+    readiness.setPageVisible(True)
+    QTest.qWait(50)
+    assert not readiness.canCheck and not readiness.busy
+    assert set(states(readiness).values()) == {"idle"}
+    assert models.loads == before and not readiness._residency.isActive()
+    assert all(probe.closed for probe in probes)
+    models.hold = False
+    readiness.setStorageMaintenance(False)
+    until(lambda: not readiness.busy)
+    assert set(states(readiness).values()) == {"ready"}
+    assert readiness.canCheck and models.loads["stt"] == before["stt"] + 1

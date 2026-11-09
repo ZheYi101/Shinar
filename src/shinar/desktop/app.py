@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import Future
 import os
 import sys
 from dataclasses import dataclass
 from importlib.resources import files
 from pathlib import Path
+from threading import Event
 from typing import Any, Sequence
 
 from dotenv import load_dotenv
@@ -266,17 +268,50 @@ def _configure_storage_management(engine, library, viewmodel, injected):
 
     isolated = injected or hasattr(engine, "mock_resources")
     config_path = library.store.root.parent / "speech-location.json" if isolated else None
+    readiness = viewmodel.voiceController.readiness
     controller = SpeechStorageController(
         library.store.root, config_path=config_path,
         location_locked=not isolated and bool(getenv("SHINAR_SPEECH_DIR") or getenv("SHINAR_DATA_DIR")),
         available=lambda: not (library.busy or viewmodel.voiceController.active
                                or viewmodel.voiceController.continuous.active),
-        release=library.releaseModels, parent=engine,
+        release=lambda: _release_for_storage(readiness, library.local_service, viewmodel.worker),
+        resume=lambda: readiness.setStorageMaintenance(False), parent=engine,
     )
     engine.storage_management = controller
     engine.rootContext().setContextProperty("speechStorage", controller)
     engine.shutdown.register("speech-storage", controller.begin_shutdown, controller.finish_shutdown)
     _load_qt()["QGuiApplication"].instance().aboutToQuit.connect(controller.close)
+
+
+def _release_for_storage(readiness, service, worker):
+    """Freeze page-entry work on Qt, then release models on their owning loop."""
+    readiness.setStorageMaintenance(True)
+    completion = Future()
+    started = Event()
+
+    async def release():
+        started.set()
+        try:
+            await service.release()
+        except BaseException as error:
+            completion.set_exception(error)
+            raise
+        else:
+            completion.set_result(None)
+
+    try:
+        submitted = worker.submit(release)
+    except Exception:
+        readiness.setStorageMaintenance(False)
+        raise
+
+    def completed(_):
+        # Shutdown can cancel the owning-loop task before its body starts.
+        if not started.is_set() and not completion.done():
+            completion.set_exception(RuntimeError("speech_storage_cancelled"))
+
+    submitted.add_done_callback(completed)
+    return completion
 
 
 def _apply_default_font(qgui_application: Any, qfont: Any) -> None:

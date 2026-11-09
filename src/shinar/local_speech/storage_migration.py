@@ -12,6 +12,7 @@ import re
 import shutil
 import stat
 from uuid import uuid4
+import zipfile
 
 from shinar.configuration_location import location_file, save_speech_location
 
@@ -20,7 +21,7 @@ from .compute import load_compute
 from .downloads import DownloadCancelled, is_volatile_python_file
 from .installation import managed_status, manifest, prepare_managed_runtime, runtime_plan
 from .storage import atomic_json
-from .storage_lease import storage_lease, StorageMovedError
+from .storage_lease import storage_lease, StorageCancelledError, StorageMovedError
 
 
 _TREES = frozenset({"models", "downloads", "reports", "bootstrap", "wheelhouses"})
@@ -119,8 +120,27 @@ def _file_fingerprint(selected: tuple[MigrationFile, ...]) -> str:
 
 
 def _managed_packages() -> tuple[ModelPackage, ...]:
+    from shinar.realtime.continuous_assets import VAD_PACKAGE, server_package
+
     resources = tuple(ModelPackage.model_validate(item) for item in manifest().get("resources", {}).values())
-    return (*load_catalog(), *resources)
+    return (*load_catalog(), *resources, VAD_PACKAGE, server_package())
+
+
+def _sfu_relative_paths() -> tuple[str, str]:
+    from shinar.realtime.local_server import ARCHIVE_NAME, SERVER_VERSION
+
+    return f"sfu/{ARCHIVE_NAME}", f"sfu/server-{SERVER_VERSION}/livekit-server.exe"
+
+
+def _retained_sfu(source: Path) -> tuple[str, ...]:
+    folder = source / "sfu"
+    if not folder.exists():
+        return ()
+    if not folder.is_dir():
+        return ("sfu",)
+    archive, _ = _sfu_relative_paths()
+    return tuple(path.relative_to(source).as_posix() for path in folder.iterdir()
+                 if path.relative_to(source).as_posix() != archive or not path.is_file())
 
 
 def _quarantines(source: Path) -> tuple[Path, ...]:
@@ -149,6 +169,7 @@ def _files(source: Path, quarantines: tuple[Path, ...] = ()) -> tuple[MigrationF
     result = []
     if not source.exists():
         return ()
+    archive, _ = _sfu_relative_paths()
 
     def failed(error):
         raise RuntimeError("speech_storage_verification_failed") from error
@@ -157,7 +178,8 @@ def _files(source: Path, quarantines: tuple[Path, ...] = ()) -> tuple[MigrationF
         parent = Path(folder)
         directories[:] = sorted(
             name for name in directories
-            if (parent != source or name in _TREES) and parent / name not in quarantines
+            if (parent != source or name in _TREES | {"sfu"})
+            and parent != source / "sfu" and parent / name not in quarantines
         )
         for name in directories:
             if _is_reparse(parent / name):
@@ -165,6 +187,8 @@ def _files(source: Path, quarantines: tuple[Path, ...] = ()) -> tuple[MigrationF
         for name in sorted(filenames):
             path = parent / name
             if parent == source and name not in _SETTINGS:
+                continue
+            if parent == source / "sfu" and path.relative_to(source).as_posix() != archive:
                 continue
             if _is_reparse(path):
                 raise ValueError("speech_storage_invalid_destination")
@@ -189,12 +213,14 @@ def preview_migration(root: Path, destination: Path) -> MigrationPlan:
             runtime_ids.append(name)
     runtimes = tuple(sorted(runtime_ids))
     copied = sum(item.size for item in selected)
-    required = copied + sum(runtime_plan(source, name, repair=True).disk_bytes for name in runtimes)
+    required = copied + _sfu_executable_bytes(source, selected)
+    required += sum(runtime_plan(source, name, repair=True).disk_bytes for name in runtimes)
     retained = tuple(sorted((
         item.name for item in source.iterdir()
-        if item.name not in _TREES | _SETTINGS | _INTERNAL
+        if item.name not in _TREES | _SETTINGS | _INTERNAL | {"sfu"}
     ))) if source.exists() else ()
-    retained = tuple(sorted((*retained, *(path.relative_to(source).as_posix() for path in quarantines))))
+    retained = tuple(sorted((*retained, *_retained_sfu(source),
+                             *(path.relative_to(source).as_posix() for path in quarantines))))
     record = _resume_record(source, target)
     if record and (record.get("files") != _file_fingerprint(selected) or record.get("runtimeIds") != list(runtimes)):
         raise RuntimeError("speech_storage_plan_changed")
@@ -208,6 +234,21 @@ def _digest(path: Path, cancel) -> str:
             _check_cancel(cancel)
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _sfu_executable_bytes(root: Path, selected: tuple[MigrationFile, ...]) -> int:
+    from shinar.realtime.local_server import ARCHIVE_SHA256
+
+    archive, _ = _sfu_relative_paths()
+    if archive not in {item.relative for item in selected}:
+        return 0
+    if _digest(root / archive, None) != ARCHIVE_SHA256:
+        raise RuntimeError("speech_storage_verification_failed")
+    try:
+        with zipfile.ZipFile(root / archive) as bundle:
+            return bundle.getinfo("livekit-server.exe").file_size
+    except (OSError, KeyError, zipfile.BadZipFile) as error:
+        raise RuntimeError("speech_storage_verification_failed") from error
 
 
 def _copy(plan: MigrationPlan, cancel, stage) -> None:
@@ -276,6 +317,7 @@ def _prepare(plan: MigrationPlan, cancel, stage) -> None:
         if blob.is_file() and re.fullmatch("[a-f0-9]{64}", blob.name) and _digest(blob, cancel) != blob.name:
             raise RuntimeError("speech_storage_verification_failed")
     _rewrite_reports(plan)
+    _prepare_sfu(plan, cancel, stage)
     for name in plan.runtime_ids:
         _check_cancel(cancel)
         stage("speech_storage_rebuilding_runtime")
@@ -285,6 +327,28 @@ def _prepare(plan: MigrationPlan, cancel, stage) -> None:
         )
         if not prepared.get("prepared"):
             raise RuntimeError("speech_storage_verification_failed")
+
+
+def _prepare_sfu(plan: MigrationPlan, cancel, stage) -> None:
+    from shinar.realtime.local_server import ARCHIVE_SHA256, ensure_server
+
+    archive, _ = _sfu_relative_paths()
+    if archive not in {item.relative for item in plan.files}:
+        return
+    _check_cancel(cancel)
+    if _digest(plan.destination / archive, cancel) != ARCHIVE_SHA256:
+        raise RuntimeError("speech_storage_verification_failed")
+    stage("verify")
+    _check_cancel(cancel)
+    try:
+        ensure_server(plan.destination / "sfu", download=False, cancel=cancel)
+    except DownloadCancelled:
+        raise
+    except StorageCancelledError as error:
+        raise DownloadCancelled("speech_setup_cancelled") from error
+    except (OSError, ValueError, RuntimeError, KeyError, zipfile.BadZipFile) as error:
+        raise RuntimeError("speech_storage_verification_failed") from error
+    _check_cancel(cancel)
 
 
 def _rewrite_reports(plan: MigrationPlan) -> None:
@@ -314,12 +378,20 @@ def _validate_target(plan: MigrationPlan) -> None:
     allowed_root = {Path(item.relative).parts[0] for item in plan.files} | {_JOURNAL, ".storage.lock"}
     generated = {"runtimes", "installer-cache", "staging", ".locks", "bootstrap", "wheelhouses", "downloads"}
     allowed_files = {item.relative for item in plan.files}
+    archive, executable = _sfu_relative_paths()
+    sfu_directories = {"sfu", Path(executable).parent.as_posix()}
+    if archive in allowed_files:
+        allowed_files.add(executable)
     for folder, directories, filenames in os.walk(plan.destination, followlinks=False):
         parent = Path(folder)
         for name in (*directories, *filenames):
             path = parent / name
             relative = path.relative_to(plan.destination)
             if _is_reparse(path) or (parent == plan.destination and name not in allowed_root | generated):
+                raise ValueError("speech_storage_destination_not_empty")
+            if relative.parts[0] == "sfu" and (
+                relative.as_posix() not in (sfu_directories if path.is_dir() else allowed_files)
+            ):
                 raise ValueError("speech_storage_destination_not_empty")
             if path.is_file() and len(relative.parts) > 1 and relative.parts[0] not in generated:
                 if relative.as_posix() not in allowed_files:

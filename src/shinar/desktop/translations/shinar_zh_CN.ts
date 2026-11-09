@@ -860,7 +860,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../presentation/viewmodel.py" line="+86"/>
+        <location filename="../presentation/viewmodel.py" line="+87"/>
         <source>请粘贴原文中唯一的一句（至少 8 个字符），以便精确确定已读位置。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1450,7 +1450,7 @@
     </message>
     <message>
         <location filename="../voice/continuous/coordinator.py" line="-579"/>
-        <location filename="../voice/readiness.py" line="+336"/>
+        <location filename="../voice/readiness.py" line="+354"/>
         <source>连续语音组件尚未准备，请前往设置 → 音频设备。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1530,7 +1530,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../voice/continuous/preparation.py" line="+116"/>
+        <location filename="../voice/continuous/preparation.py" line="+124"/>
         <source>连续语音组件已准备。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1782,7 +1782,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../voice/readiness.py" line="-209"/>
+        <location filename="../voice/readiness.py" line="-226"/>
         <source>麦克风</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1847,7 +1847,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+159"/>
+        <location line="+176"/>
         <source>麦克风未能采集音频，请检查系统权限及所选输入设备。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3316,7 +3316,7 @@
 <context>
     <name>SpeechStorageController</name>
     <message>
-        <location filename="../speech_library/storage_management.py" line="+29"/>
+        <location filename="../speech_library/storage_management.py" line="+30"/>
         <source>语音资源正在使用中。请结束通话、测速或下载后重试。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3371,7 +3371,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+58"/>
+        <location line="+77"/>
         <source>存储位置由启动环境变量指定，请修改 SHINAR_SPEECH_DIR 后重启。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3396,7 +3396,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+17"/>
         <source>正在扫描…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3406,7 +3406,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+27"/>
         <source>正在复制模型文件…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3431,7 +3431,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+19"/>
+        <location line="+20"/>
         <source>部分文件无法读取，统计不完整。请检查权限后重新扫描。</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3449,12 +3449,7 @@
 <context>
     <name>SpeechStoragePage</name>
     <message>
-        <location filename="../qml/pages/SpeechStoragePage.qml" line="+24"/>
-        <source>模型与运行环境位置</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location filename="../qml/pages/SpeechStoragePage.qml" line="+27"/>
         <source>更改位置</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3474,8 +3469,13 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>按文件大小统计，硬链接只计一次；不等同于磁盘分配的空间。可清理量会排除仍被运行环境引用的硬链接和未完成下载。清理后重新安装或修复时可能需要再次下载。这里不包含学习资料、对话历史或连续通话组件；更改位置不会搬动它们。</source>
+        <location line="-28"/>
+        <source>模型下载与加载位置</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>按文件大小统计，硬链接只计一次；不等同于磁盘分配的空间。可清理量会排除仍被运行环境引用的硬链接和未完成下载。清理后重新安装或修复时可能需要再次下载。模型、运行环境及连续通话组件共用此位置；学习资料和对话历史仍在原数据目录。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

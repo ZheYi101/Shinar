@@ -66,6 +66,10 @@ def _execute(request: BlockingRequest, cancel, emit):
             cancel=cancel,
             on_transfer=lambda value: emit("transfer", value),
         )
+    if request.operation == "continuous_reuse":
+        from shinar.realtime.storage_upgrade import reuse_legacy_assets
+
+        return reuse_legacy_assets(*request.args, cancel=cancel)
     if request.operation == "server":
         from shinar.realtime.local_server import ensure_server
 

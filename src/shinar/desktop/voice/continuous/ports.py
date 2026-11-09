@@ -9,6 +9,7 @@ from shinar.desktop.presentation.conversation_presentation import ConversationEv
 
 class CallRuntimePort(Protocol):
     root: Path
+    legacy_root: Path | None
     bridge: Any
     process: Any
     runner: Any

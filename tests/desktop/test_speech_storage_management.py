@@ -1,12 +1,17 @@
 """Storage jobs stay identified and joined; QML exposes review before removal."""
 
 import asyncio
+from concurrent.futures import Future
 import hashlib
-from threading import Event
+from threading import Event, get_ident
+from types import SimpleNamespace
+
+import pytest
 
 from PySide6.QtCore import QObject, QMetaObject
 
 from shinar.desktop.speech_library.storage_management import SpeechStorageController
+from shinar.desktop.tasks.worker import AsyncWorker
 from tests.support.qt import click, until
 
 
@@ -152,3 +157,157 @@ def test_owned_process_scan_and_migration_use_only_injected_location(qt_app, tmp
         assert config.is_file()
     finally:
         controller.close()
+
+
+@pytest.mark.parametrize("operation", ["clean", "migrate"])
+def test_maintenance_waits_for_actual_release_and_resumes_on_qt(qt_app, tmp_path, operation):
+    released = Future()
+    calls, resumed = [], []
+    main_thread = get_ident()
+
+    async def runner(request, **kwargs):
+        calls.append(request.operation)
+        if request.operation.endswith("scan"):
+            return {"planId": "one", "reclaimableBytes": 30}
+        if request.operation.endswith("preview"):
+            return {"destination": str(tmp_path / "new")}
+        assert released.done()
+        return {}
+
+    def release():
+        assert get_ident() == main_thread
+        return released
+
+    controller = SpeechStorageController(tmp_path / "old", release=release,
+                                         resume=lambda: resumed.append(get_ident()), runner=runner)
+    try:
+        if operation == "clean":
+            controller.refresh()
+        else:
+            controller.previewMigration(str(tmp_path / "new"))
+        until(lambda: not controller.busy)
+        previous = list(calls)
+        controller.cleanCaches() if operation == "clean" else controller.migrate()
+        assert controller.busy and calls == previous
+        released.set_result(None)
+        until(lambda: not controller.busy)
+        assert "speech_storage_" + operation in calls
+        assert resumed == ([main_thread] if operation == "clean" else [])
+        assert controller.restartRequired == (operation == "migrate")
+    finally:
+        controller.close()
+
+
+def test_cancel_during_release_wait_does_not_start_maintenance(qt_app, tmp_path):
+    released, resumed, calls = Future(), [], []
+
+    async def runner(request, **kwargs):
+        calls.append(request.operation)
+        return {"planId": "one", "reclaimableBytes": 30}
+
+    controller = SpeechStorageController(tmp_path, runner=runner, release=lambda: released,
+                                         resume=lambda: resumed.append(True))
+    try:
+        controller.refresh()
+        until(lambda: not controller.busy)
+        controller.cleanCaches()
+        controller.cancel()
+        assert controller.busy and not released.cancelled()
+        released.set_result(None)
+        until(lambda: not controller.busy)
+        assert calls == ["speech_storage_scan"]
+        assert resumed == [True] and "取消" in controller.status
+    finally:
+        controller.close()
+
+
+def test_shutdown_waits_for_release_completion_on_other_loop(qt_app, tmp_path):
+    released = Future()
+
+    async def runner(request, **kwargs):
+        assert request.operation == "speech_storage_scan"
+        return {"planId": "one", "reclaimableBytes": 30}
+
+    controller = SpeechStorageController(tmp_path, runner=runner, release=lambda: released)
+    controller.refresh()
+    until(lambda: not controller.busy)
+    controller.cleanCaches()
+    controller.begin_shutdown()
+    assert not controller.finish_shutdown() and not released.cancelled()
+    released.set_result(None)
+    until(controller.finish_shutdown)
+    controller.close()
+
+
+def test_app_handoff_releases_models_on_existing_worker(qt_app):
+    from shinar.desktop.app import _release_for_storage
+
+    entered, finish, finished = Event(), Event(), Event()
+    owner_threads, frozen = [], []
+    worker = AsyncWorker()
+
+    async def release():
+        owner_threads.append(get_ident())
+        entered.set()
+        while not finish.is_set():
+            await asyncio.sleep(.01)
+        finished.set()
+
+    readiness = SimpleNamespace(setStorageMaintenance=lambda active: frozen.append((active, get_ident())))
+    try:
+        completion = _release_for_storage(readiness, SimpleNamespace(release=release), worker)
+        until(entered.is_set)
+        assert not completion.done() and not finished.is_set()
+        assert frozen == [(True, get_ident())]
+        assert owner_threads == [worker._thread.ident]
+        finish.set()
+        until(completion.done)
+        completion.result()
+        assert finished.is_set()
+    finally:
+        finish.set()
+        worker.close(lambda: asyncio.sleep(0))
+
+
+def test_maintenance_releases_resident_lease_before_exclusive_work(qt_app, tmp_path):
+    from shinar.desktop.app import _release_for_storage
+    from shinar.local_speech.storage_lease import storage_lease
+
+    worker, entered = AsyncWorker(), Event()
+    resident, order = [], []
+
+    async def load():
+        lease = storage_lease(tmp_path)
+        lease.__enter__()
+        resident.append(lease)
+        entered.set()
+
+    async def release():
+        await asyncio.sleep(.02)
+        resident.pop().__exit__(None, None, None)
+        order.append("released")
+
+    async def runner(request, **kwargs):
+        if request.operation.endswith("scan"):
+            return {"planId": "one", "reclaimableBytes": 30}
+        with storage_lease(tmp_path, exclusive=True):
+            order.append("exclusive")
+        return {}
+
+    readiness = SimpleNamespace(setStorageMaintenance=lambda active: None)
+    service = SimpleNamespace(release=release)
+    controller = SpeechStorageController(
+        tmp_path, runner=runner, release=lambda: _release_for_storage(readiness, service, worker)
+    )
+    try:
+        worker.submit(load)
+        until(entered.is_set)
+        controller.refresh()
+        until(lambda: not controller.busy)
+        controller.cleanCaches()
+        until(lambda: not controller.busy)
+        assert order == ["released", "exclusive"]
+        assert "已清理" in controller.status or not controller.status
+    finally:
+        controller.close()
+        worker.close(lambda: release() if resident else asyncio.sleep(0))

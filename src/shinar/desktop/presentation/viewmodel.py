@@ -443,6 +443,7 @@ class LearningViewModel(QObject, LearningPropertiesMixin, ConversationViewMixin)
 
     def configure_local_speech(self, library):
         self._local_speech = library.local_service
+        self.voice.continuous.root = library.store.root
         library.configure_preview(lambda: self.selectedOutputDeviceId, lambda: self.voice.active)
         library.inferenceStatus.connect(self._local_speech_status)
         library.configurationChanged.connect(self._local_speech_configuration)

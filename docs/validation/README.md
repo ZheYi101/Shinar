@@ -39,6 +39,8 @@
 
 ## 工程
 
+- [单一语音资源位置与存储审查修复](./engineering/SPEECH_STORAGE_UNIFIED_2026-11-09.md)：统一 RTC／模型根目录、固定资产复用、SFU 迁移、实际模型释放与 Python 3.11 目录联接修复；849 项本机离线回归、可见 Windows Mock 和隔离 wheel 验证。
+
 - [桌面结构治理与审查修复](./engineering/DESKTOP_STRUCTURE_GOVERNANCE_2026-11-08.md)：递归门禁、偏好兼容、公开接口、连续通话状态所有者与 Python／测试目录治理，单列离线、可见 Mock 和 wheel 证据。
 
 - [Shinar 完整工程更名](./engineering/SHINAR_RENAME_2026-11-08.md)：目录、包／命令、GitHub 和发行标识迁移，旧数据／配置兼容及离线、可见 Mock、wheel 验证。

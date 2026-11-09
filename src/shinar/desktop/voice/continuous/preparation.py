@@ -10,6 +10,7 @@ from PySide6.QtCore import QCoreApplication
 
 from shinar.infrastructure.blocking_jobs import BlockingRequest, run_blocking
 from shinar.local_speech.installation import managed_status, runtime_plan
+from shinar.local_speech.downloads import ModelStore
 from shinar.local_speech.usage import storage_usage
 from shinar.realtime.continuous_assets import VAD_PACKAGE, prepared_assets, server_package
 from shinar.desktop.voice.continuous.state import CallEvent, PreparationSnapshot
@@ -51,6 +52,8 @@ class CallPreparation:
             return
         self._cancel = Event()
         identity, root, cancel = uuid4().hex, self.runtime.root, self._cancel
+        legacy = getattr(self.runtime, "legacy_root", None)
+        reuse = legacy is not None and legacy != root and legacy.is_dir()
         self._snapshot = PreparationSnapshot(identity, active=True, stage="speech_setup_bootstrap")
         self.runtime.notify()
 
@@ -60,6 +63,11 @@ class CallPreparation:
 
             try:
                 root.mkdir(parents=True, exist_ok=True)
+                if reuse:
+                    await run_blocking(
+                        BlockingRequest("continuous_reuse", (legacy, root)),
+                        cancel=cancel, on_event=emit,
+                    )
                 await run_blocking(
                     BlockingRequest("runtime", (root, "rtc-cpu")), cancel=cancel, on_event=emit
                 )
@@ -147,7 +155,14 @@ class CallPreparation:
         if self._sizes is None:
             root = self.runtime.root
             plan = runtime_plan(root, "rtc-cpu")
-            assets = [*VAD_PACKAGE.files, *server_package().files]
+            store = ModelStore(root)
+            assets = [
+                artifact for package in (VAD_PACKAGE, server_package())
+                if not store.installed(package)
+                for artifact in package.files
+            ]
+            if prepared_assets(root):
+                assets = []
             pending = sum(a.size for a in assets if not (root / "downloads" / a.sha256).is_file())
             self._sizes = {
                 "downloadMiB": (plan.download_bytes + pending) / 1024**2,
@@ -176,12 +191,14 @@ class CallPreparation:
 
     def root_changed(self, root: Path) -> None:
         self.cancel()
+        self._snapshot = PreparationSnapshot()
         self._storage_generation += 1
         self._storage_pending = False
         self._storage = {}
         self.invalidate_sizes()
         self.runtime.storage_changed()
         self.runtime.components_changed()
+        self.runtime.notify()
 
     def close(self) -> None:
         self._closed = True

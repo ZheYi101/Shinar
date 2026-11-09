@@ -21,7 +21,7 @@ ScrollView {
         spacing: 16
         RowLayout {
             Layout.fillWidth: true
-            MLabel { text: qsTr("模型与运行环境位置"); Layout.fillWidth: true }
+            MLabel { text: qsTr("模型下载与加载位置"); Layout.fillWidth: true }
             MButton {
                 objectName: "chooseSpeechStorage"
                 text: qsTr("更改位置")
@@ -50,7 +50,7 @@ ScrollView {
             MHelpButton {
                 objectName: "speechStorageHelp"
                 text: qsTr("空间说明")
-                helpText: qsTr("按文件大小统计，硬链接只计一次；不等同于磁盘分配的空间。可清理量会排除仍被运行环境引用的硬链接和未完成下载。清理后重新安装或修复时可能需要再次下载。这里不包含学习资料、对话历史或连续通话组件；更改位置不会搬动它们。")
+                helpText: qsTr("按文件大小统计，硬链接只计一次；不等同于磁盘分配的空间。可清理量会排除仍被运行环境引用的硬链接和未完成下载。清理后重新安装或修复时可能需要再次下载。模型、运行环境及连续通话组件共用此位置；学习资料和对话历史仍在原数据目录。")
             }
         }
         ColumnLayout {
