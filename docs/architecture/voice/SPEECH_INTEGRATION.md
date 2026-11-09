@@ -2,6 +2,8 @@
 
 语音存储维护沿用独立资源边界，位置配置、根目录租约、清理与事务迁移契约见 [Decision 0047](../../decisions/TECH_DECISIONS.md#decision-0047) 和[存储管理指南](../../desktop/SPEECH_STORAGE.md)。`SpeechStorageController` 仅拥有维护展示与任务身份，不成为模型配置、会话或推理状态的第二写入者。
 
+受管 Python 安装收据不将非必需 `.pyc/.pyo` 作为不可变文件；读取旧收据采用相同规则，正常字节码更新不能触发 Python 重装。源码、DLL、解释器和模型文件继续校验。迁移只排除修订版本、UUID 格式及安装指纹均匹配的已隔离 `.invalid-*` 副本，原库保留，未知目录不借此跳过校验。
+
 状态：**总体蓝图；2026-10-30 已接入 QML 连续 PCM／RTC、端点自动提交、AEC 参考和插话取消；真人设备门禁待完成**。本轮采用范围与实际接口以[连续语音指南](../../desktop/CONTINUOUS_VOICE.md)为准，下文历史表格不作为当前交付清单。VOICEVOX/Melo 设置入口与独立环境已接线，见第 17 节；原生 partial、完整 ModelSupervisor 和云端部署仍为后续范围。
 
 后续用户选择先实现无 UI 基础链路：确认事务、双角色对话复用、分句合成、冻结的本地后端和真实 RTC WAV/PCM。该阶段证据见 [Python 指南](../../desktop/VOICE_PYTHON.md)和[基础验收](../../validation/speech/VOICE_PYTHON_INTEGRATION_2026-10-29.md)；后续桌面接线与未通过项以[连续语音指南](../../desktop/CONTINUOUS_VOICE.md)、[本地设置指南](../../desktop/LOCAL_SPEECH_SETUP.md)及对应验收记录为准，下文目标设计不能直接当作已交付。

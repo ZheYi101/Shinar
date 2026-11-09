@@ -103,6 +103,17 @@ def _digest(path: Path, cancel=None):
     return digest.hexdigest()
 
 
+def is_volatile_python_file(package: ModelPackage, name: str) -> bool:
+    """Only managed Python's regenerable bytecode is outside its receipt identity."""
+    return (
+        package.task == "runtime"
+        and package.adapter == "resource"
+        and package.id.startswith("speech-resource-python-")
+        and name not in package.required_files
+        and PurePosixPath(safe_relative(name)).suffix.lower() in {".pyc", ".pyo"}
+    )
+
+
 class ModelStore:
     def __init__(self, root: Path, *, wait_for_locks=False, on_transfer=lambda event: None):
         self.root = root.resolve()
@@ -148,6 +159,7 @@ class ModelStore:
                     and not (path / name).is_symlink()
                     and (path / name).stat().st_size == meta["size"]
                     for name, meta in expected.items()
+                    if not is_volatile_python_file(package, name)
                 )
             )
         except (ValueError, OSError, KeyError, TypeError):
@@ -217,13 +229,7 @@ class ModelStore:
                         shutil.copyfile(blob, target)
                 if not all((staging / name).is_file() for name in package.required_files):
                     raise ValueError("模型包缺少运行必需文件。")
-                inventory = {}
-                for path in staging.rglob("*"):
-                    if path.is_file():
-                        inventory[path.relative_to(staging).as_posix()] = {
-                            "size": path.stat().st_size,
-                            "sha256": _digest(path, cancel),
-                        }
+                inventory = self._installation_inventory(staging, package, cancel)
                 atomic_json(
                     staging / ".installed.json",
                     {"fingerprint": package.fingerprint, "files": inventory},
@@ -240,6 +246,15 @@ class ModelStore:
             finally:
                 if staging.exists():
                     shutil.rmtree(self._owned(staging))
+
+    @staticmethod
+    def _installation_inventory(staging, package, cancel):
+        inventory = {}
+        for path in staging.rglob("*"):
+            name = path.relative_to(staging).as_posix()
+            if path.is_file() and not is_volatile_python_file(package, name):
+                inventory[name] = {"size": path.stat().st_size, "sha256": _digest(path, cancel)}
+        return inventory
 
     def _fetch(self, artifact, client, cancel, progress):
         # Different models and environments can share a content-addressed blob.
@@ -359,6 +374,8 @@ class ModelStore:
             directory = self.model_path(package)
             marker = read_json(directory / ".installed.json")
             for name, meta in marker["files"].items():
+                if is_volatile_python_file(package, name):
+                    continue
                 if _digest(directory / name, cancel) != meta["sha256"]:
                     raise ValueError("本地模型文件损坏，请卸载后重新下载。")
             return True

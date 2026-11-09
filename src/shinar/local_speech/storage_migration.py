@@ -15,9 +15,9 @@ from uuid import uuid4
 
 from shinar.configuration_location import location_file, save_speech_location
 
-from .catalog import safe_relative
+from .catalog import ModelPackage, load_catalog, safe_relative
 from .compute import load_compute
-from .downloads import DownloadCancelled
+from .downloads import DownloadCancelled, is_volatile_python_file
 from .installation import managed_status, manifest, prepare_managed_runtime, runtime_plan
 from .storage import atomic_json
 from .storage_lease import storage_lease, StorageMovedError
@@ -118,7 +118,34 @@ def _file_fingerprint(selected: tuple[MigrationFile, ...]) -> str:
     return hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()
 
 
-def _files(source: Path) -> tuple[MigrationFile, ...]:
+def _managed_packages() -> tuple[ModelPackage, ...]:
+    resources = tuple(ModelPackage.model_validate(item) for item in manifest().get("resources", {}).values())
+    return (*load_catalog(), *resources)
+
+
+def _quarantines(source: Path) -> tuple[Path, ...]:
+    result = []
+    for package in _managed_packages():
+        parent = source / "models" / package.id
+        if not parent.is_dir():
+            continue
+        pattern = re.compile(re.escape(package.revision) + r"\.invalid-[0-9a-f]{32}\Z")
+        for candidate in parent.iterdir():
+            if not pattern.fullmatch(candidate.name) or not candidate.is_dir():
+                continue
+            marker = candidate / ".installed.json"
+            if _is_reparse(candidate) or _is_reparse(marker):
+                raise ValueError("speech_storage_invalid_destination")
+            try:
+                content = json.loads(marker.read_text(encoding="utf-8"))
+                if isinstance(content, dict) and content.get("fingerprint") == package.fingerprint:
+                    result.append(candidate)
+            except (OSError, ValueError):
+                continue
+    return tuple(sorted(result))
+
+
+def _files(source: Path, quarantines: tuple[Path, ...] = ()) -> tuple[MigrationFile, ...]:
     result = []
     if not source.exists():
         return ()
@@ -130,7 +157,7 @@ def _files(source: Path) -> tuple[MigrationFile, ...]:
         parent = Path(folder)
         directories[:] = sorted(
             name for name in directories
-            if parent != source or name in _TREES
+            if (parent != source or name in _TREES) and parent / name not in quarantines
         )
         for name in directories:
             if _is_reparse(parent / name):
@@ -153,17 +180,19 @@ def _files(source: Path) -> tuple[MigrationFile, ...]:
 
 def preview_migration(root: Path, destination: Path) -> MigrationPlan:
     source, target = _paths(root, destination)
-    selected = _files(source)
+    quarantines = _quarantines(source)
+    selected = _files(source, quarantines)
     runtimes = tuple(sorted(
         name for name in manifest()["runtimes"]
         if managed_status(source, name).get("prepared")
     ))
     copied = sum(item.size for item in selected)
     required = copied + sum(runtime_plan(source, name, repair=True).disk_bytes for name in runtimes)
-    retained = tuple(sorted(
+    retained = tuple(sorted((
         item.name for item in source.iterdir()
         if item.name not in _TREES | _SETTINGS | _INTERNAL
-    )) if source.exists() else ()
+    ))) if source.exists() else ()
+    retained = tuple(sorted((*retained, *(path.relative_to(source).as_posix() for path in quarantines))))
     record = _resume_record(source, target)
     if record and (record.get("files") != _file_fingerprint(selected) or record.get("runtimeIds") != list(runtimes)):
         raise RuntimeError("speech_storage_plan_changed")
@@ -217,15 +246,22 @@ def _copy(plan: MigrationPlan, cancel, stage) -> None:
 
 
 def _verify_models(root: Path, cancel) -> None:
+    packages = {(package.id, package.revision): package for package in _managed_packages()}
+    quarantines = set(_quarantines(root))
     for marker in (root / "models").glob("*/*/.installed.json"):
+        if marker.parent in quarantines:
+            continue
         _check_cancel(cancel)
         try:
             content = json.loads(marker.read_text(encoding="utf-8"))
             inventory = content["files"]
             if not isinstance(inventory, dict) or not inventory:
                 raise ValueError
+            package = packages.get((marker.parent.parent.name, marker.parent.name))
             for name, expected in inventory.items():
                 path = marker.parent / safe_relative(name)
+                if package is not None and is_volatile_python_file(package, name):
+                    continue
                 if path.stat().st_size != expected["size"] or _digest(path, cancel) != expected["sha256"]:
                     raise ValueError
         except (OSError, ValueError, KeyError, TypeError) as error:
